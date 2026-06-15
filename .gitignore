@@ -1,0 +1,16 @@
+# Test binaries and build output
+*.test
+*.exe
+
+# Profiling and coverage output
+*.prof
+*.out
+*.cov
+coverage.txt
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Editor / OS cruft
+.DS_Store

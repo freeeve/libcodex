@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<record><datafield tag=\"1\"><subfield></subfield></datafield></record>")
