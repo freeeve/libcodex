@@ -14,7 +14,10 @@
 // bytes through best-effort (as Latin-1) without crashing.
 package marc8
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // escape (0x1b) introduces a MARC-8 character-set designation sequence.
 const escape = 0x1b
@@ -277,4 +280,92 @@ func (d *Decoder) interpretEscape(data []byte) int {
 		d.lossy = true
 	}
 	return n
+}
+
+// Inverse tables for encoding, derived from the decode tables so the two stay in
+// sync. encGraphic maps a Unicode code point to its ANSEL G1 byte; encCombining
+// maps a Unicode combining mark to its ANSEL byte; encCompose maps a precomposed
+// (NFC) code point to its base and combining mark.
+var (
+	encGraphic   = invertGraphic()
+	encCombining = invertCombining()
+	encCompose   = invertCompose()
+)
+
+func invertGraphic() map[rune]byte {
+	m := make(map[rune]byte, len(anselGraphic))
+	for b, r := range anselGraphic {
+		m[r] = b
+	}
+	return m
+}
+
+func invertCombining() map[rune]byte {
+	m := make(map[rune]byte, len(anselCombining))
+	for b, r := range anselCombining {
+		m[r] = b
+	}
+	return m
+}
+
+func invertCompose() map[rune][2]rune {
+	m := make(map[rune][2]rune, len(marc8Compose))
+	for pair, composed := range marc8Compose {
+		m[composed] = pair // pair is [2]rune{base, mark}
+	}
+	return m
+}
+
+// Encode encodes a UTF-8 string to MARC-8 for the supported Western subset: ASCII
+// (G0) and ANSEL Extended Latin (G1) including combining diacritics. It is the
+// inverse of Decode: a precomposed Latin character is decomposed to its base and
+// combining mark, and combining marks are emitted BEFORE their base character (as
+// MARC-8 requires, the reverse of Unicode order). It returns an error on the
+// first code point outside the supported subset (e.g. Greek, Cyrillic, CJK), so
+// callers learn the value is not representable rather than producing mojibake.
+func Encode(s string) ([]byte, error) {
+	out := make([]byte, 0, len(s))
+	runes := []rune(s)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		// A bare/leading combining mark (no preceding base) is emitted as-is.
+		if b, ok := encCombining[r]; ok {
+			out = append(out, b)
+			continue
+		}
+
+		var marks []byte
+		var baseByte byte
+		switch {
+		case r < 0x80:
+			// The escape introducer and the ISO 2709 separators are structural in
+			// a MARC-8 stream and cannot appear as data.
+			if r == escape || r == 0x1d || r == 0x1e || r == 0x1f {
+				return nil, fmt.Errorf("marc8: cannot encode reserved control byte 0x%02X", r)
+			}
+			baseByte = byte(r)
+		default:
+			if b, ok := encGraphic[r]; ok {
+				baseByte = b
+			} else if pair, ok := encCompose[r]; ok {
+				marks = append(marks, encCombining[pair[1]])
+				baseByte = byte(pair[0]) // the base is always an ASCII letter
+			} else {
+				return nil, fmt.Errorf("marc8: cannot encode %q (U+%04X)", r, r)
+			}
+		}
+
+		// Gather any following NFD combining marks so they precede the base too.
+		for i+1 < len(runes) {
+			if b, ok := encCombining[runes[i+1]]; ok {
+				marks = append(marks, b)
+				i++
+			} else {
+				break
+			}
+		}
+		out = append(out, marks...)
+		out = append(out, baseByte)
+	}
+	return out, nil
 }

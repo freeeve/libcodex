@@ -186,12 +186,18 @@ exposes is a UTF-8 Go string regardless of source encoding:
   `é`). The ANSEL table is verified against the LoC code tables, including the
   2005 alif remapping and the euro/eszett additions.
 
+`iso2709` can also **write** legacy MARC-8 (leader byte 9 = blank) via
+`iso2709.EncodeMARC8`, the inverse of the read path over the same Western subset.
+It returns an error if a value contains a character outside that subset, so you
+never get a record that claims MARC-8 but holds untranscodable data.
+
 **Out of scope** (best-effort pass-through, never a crash): EACC/CJK, Cyrillic,
-Greek, Hebrew, Arabic and the subscript/superscript/Greek-symbol sets. Their
-escape designations are recognized only well enough to skip them; their bytes
-pass through as Latin-1 rather than being transcoded. `iso2709.Decode` returns a
-`lossy bool` (and `iso2709.Reader.Lossy()` reports the last read) so callers can
-detect when this happened and avoid re-serializing mojibake as clean UTF-8.
+Greek, Hebrew, Arabic and the subscript/superscript/Greek-symbol sets. On read,
+their escape designations are recognized only well enough to skip them; their
+bytes pass through as Latin-1 rather than being transcoded, and `iso2709.Decode`
+returns a `lossy bool` (and `iso2709.Reader.Lossy()` reports the last read) so
+callers can detect this and avoid re-serializing mojibake as clean UTF-8. On
+write, `EncodeMARC8` rejects them outright.
 
 ## What each format rejects
 

@@ -1,6 +1,10 @@
 package marc8
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+	"unicode/utf8"
+)
 
 func TestDecode(t *testing.T) {
 	cases := []struct {
@@ -76,6 +80,81 @@ func TestDecoderStatePersists(t *testing.T) {
 	if got := d.Decode([]byte{0xB5}); got != "µ" {
 		t.Errorf("after G1=ASCII, 0xB5 = %q, want µ (state did not persist)", got)
 	}
+}
+
+func TestEncode(t *testing.T) {
+	// Precomposed (NFC) strings in the supported subset round-trip exactly.
+	for _, s := range []string{
+		"",
+		"Plain ASCII text 123",
+		"Beyoncé", "naïve", "café", "Müller", "Łódź",
+		"àáâãäåèéêëìíîïòóôõöùúûüç ñ",
+		"æØŒ©®°±£€ß¿¡ðþ", // ANSEL graphics
+		"Stone butch blues : a novel / Leslie Feinberg.",
+	} {
+		b, err := Encode(s)
+		if err != nil {
+			t.Fatalf("Encode(%q): %v", s, err)
+		}
+		if got := Decode(b); got != s {
+			t.Errorf("round trip: Encode then Decode(%q) = %q (% x)", s, got, b)
+		}
+	}
+}
+
+func TestEncodeReordersCombining(t *testing.T) {
+	// The combining mark must be emitted BEFORE its base (the reverse of Unicode).
+	want := []byte{0xE2, 'e'} // ANSEL acute, then 'e'
+	if b, err := Encode("é"); err != nil || !bytes.Equal(b, want) {
+		t.Errorf("Encode(precomposed é) = % x, %v; want % x", b, err, want)
+	}
+	if b, err := Encode("é"); err != nil || !bytes.Equal(b, want) {
+		t.Errorf("Encode(NFD é) = % x, %v; want % x", b, err, want)
+	}
+}
+
+func TestEncodeRejectsOutOfSubset(t *testing.T) {
+	for _, s := range []string{"Ω", "Привет", "日本語", "Đặng", "一"} {
+		if _, err := Encode(s); err == nil {
+			t.Errorf("Encode(%q): expected error for an out-of-subset character", s)
+		}
+	}
+}
+
+func TestEncodeRejectsStructuralBytes(t *testing.T) {
+	// The escape introducer and the ISO 2709 separators cannot appear as data.
+	for _, b := range []byte{0x1b, 0x1d, 0x1e, 0x1f} {
+		if _, err := Encode("a" + string(b) + "b"); err == nil {
+			t.Errorf("Encode with 0x%02X: expected error", b)
+		}
+	}
+}
+
+// FuzzEncode ensures encoding never panics and that re-encoding the decoded form
+// is stable (Encode is the inverse of Decode on the canonical NFC form).
+func FuzzEncode(f *testing.F) {
+	f.Add("Beyoncé naïve café Łódź æØ")
+	f.Add("plain ascii")
+	f.Fuzz(func(t *testing.T, s string) {
+		if !utf8.ValidString(s) {
+			return
+		}
+		b, err := Encode(s)
+		if err != nil {
+			return // out of the supported subset
+		}
+		canonical := Decode(b) // NFC form
+		b2, err := Encode(canonical)
+		if err != nil {
+			t.Fatalf("re-encode of decoded form failed: %v", err)
+		}
+		if !bytes.Equal(b, b2) {
+			t.Errorf("Encode not stable: % x vs % x", b, b2)
+		}
+		if got := Decode(b2); got != canonical {
+			t.Errorf("Decode not stable: %q vs %q", got, canonical)
+		}
+	})
 }
 
 func BenchmarkDecode(b *testing.B) {

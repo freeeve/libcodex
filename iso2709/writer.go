@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/marc8"
 )
 
 // Writer serializes MARC records to an underlying stream as ISO 2709. Output is
@@ -58,6 +59,48 @@ func WriteFile(path string, records []*codex.Record) error {
 // a nil destination; use EncodeInto to reuse a buffer across records.
 func Encode(r *codex.Record) ([]byte, error) {
 	return EncodeInto(nil, r)
+}
+
+// EncodeMARC8 serializes a record to ISO 2709 with MARC-8 encoded values and
+// leader byte 9 set to blank, for systems that require legacy MARC-8 rather than
+// UTF-8. It returns an error if any value contains a character outside the
+// supported MARC-8 subset (ASCII plus ANSEL Extended Latin; see internal/marc8).
+func EncodeMARC8(r *codex.Record) ([]byte, error) {
+	m8, err := toMARC8(r)
+	if err != nil {
+		return nil, err
+	}
+	b, err := EncodeInto(nil, m8)
+	if err != nil {
+		return nil, err
+	}
+	b[9] = ' ' // mark the record MARC-8; EncodeInto forces 'a' (UTF-8)
+	return b, nil
+}
+
+// toMARC8 returns a copy of r with every value transcoded from UTF-8 to MARC-8.
+func toMARC8(r *codex.Record) (*codex.Record, error) {
+	out := codex.NewRecordCap(len(r.Fields())).SetLeader(r.Leader())
+	for _, f := range r.Fields() {
+		if f.IsControl() {
+			v, err := marc8.Encode(f.Value)
+			if err != nil {
+				return nil, fmt.Errorf("iso2709: control field %s: %w", f.Tag, err)
+			}
+			out.AddField(codex.NewControlField(f.Tag, string(v)))
+			continue
+		}
+		nf := codex.Field{Tag: f.Tag, Ind1: f.Ind1, Ind2: f.Ind2}
+		for _, s := range f.Subfields {
+			v, err := marc8.Encode(s.Value)
+			if err != nil {
+				return nil, fmt.Errorf("iso2709: field %s subfield %q: %w", f.Tag, s.Code, err)
+			}
+			nf.Subfields = append(nf.Subfields, codex.Subfield{Code: s.Code, Value: string(v)})
+		}
+		out.AddField(nf)
+	}
+	return out, nil
 }
 
 // EncodeInto appends the ISO 2709 encoding of r to dst and returns the extended

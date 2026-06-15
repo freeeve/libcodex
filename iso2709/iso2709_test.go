@@ -309,6 +309,56 @@ func TestBuildFromScratchRoundTrip(t *testing.T) {
 	}
 }
 
+func TestEncodeMARC8RoundTrip(t *testing.T) {
+	rec := codex.NewRecord().
+		AddField(codex.NewControlField("001", "ocm123")).
+		AddField(codex.NewDataField("100", '1', ' ', codex.NewSubfield('a', "Beyoncé"))).
+		AddField(codex.NewDataField("245", '1', '0',
+			codex.NewSubfield('a', "naïve café :"),
+			codex.NewSubfield('b', "Łódź"))).
+		AddField(codex.NewDataField("650", ' ', '0', codex.NewSubfield('a', "Æsthetics")))
+
+	b, err := EncodeMARC8(rec)
+	if err != nil {
+		t.Fatalf("EncodeMARC8: %v", err)
+	}
+	if b[9] != ' ' {
+		t.Errorf("leader byte 9 = %q, want blank (MARC-8)", b[9])
+	}
+
+	got, lossy, err := Decode(b)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if lossy {
+		t.Error("decode should not be lossy for in-subset values")
+	}
+	if got.Leader().IsUnicode() {
+		t.Error("decoded leader should be MARC-8, not Unicode")
+	}
+	for _, c := range []struct {
+		tag  string
+		code byte
+		want string
+	}{
+		{"100", 'a', "Beyoncé"},
+		{"245", 'a', "naïve café :"},
+		{"245", 'b', "Łódź"},
+		{"650", 'a', "Æsthetics"},
+	} {
+		if v := got.SubfieldValue(c.tag, c.code); v != c.want {
+			t.Errorf("%s$%c = %q, want %q", c.tag, c.code, v, c.want)
+		}
+	}
+}
+
+func TestEncodeMARC8RejectsOutOfSubset(t *testing.T) {
+	rec := codex.NewRecord().AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "日本語")))
+	if _, err := EncodeMARC8(rec); err == nil {
+		t.Error("expected error for out-of-subset characters")
+	}
+}
+
 func TestEncodeRejectsDelimiters(t *testing.T) {
 	// ISO 2709 cannot carry a value, indicator or code that is itself a reserved
 	// structural delimiter byte; Encode must reject rather than corrupt.
