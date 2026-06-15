@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -93,6 +94,36 @@ func TestAllFormatsPreserveModel(t *testing.T) {
 			got := decode(t, f.newR, encode(t, f.newW, canonical))
 			if !reflect.DeepEqual(canonical, got) {
 				t.Errorf("%s round trip changed the model:\n want = %#v\n got  = %#v", f.name, canonical, got)
+			}
+		})
+	}
+}
+
+// TestCanonicalCorpus reads a real-world MARC-8 fixture and converts it through
+// every format, confirming the model survives across all of them on authentic
+// data. See testdata/README.md for provenance and license.
+func TestCanonicalCorpus(t *testing.T) {
+	recs, err := iso2709.ReadFile(filepath.Join("testdata", "pymarc-sample.mrc"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if len(recs) != 20 {
+		t.Fatalf("read %d records, want 20", len(recs))
+	}
+	if v := recs[0].SubfieldValue("245", 'a'); v != "The pragmatic programmer :" {
+		t.Errorf("record 0 245a = %q", v)
+	}
+	if v := recs[0].SubfieldValue("100", 'a'); v != "Hunt, Andrew," {
+		t.Errorf("record 0 100a = %q", v)
+	}
+
+	// Normalize once through iso2709 (UTF-8), then every format must preserve it.
+	canonical := normalize(t, recs)
+	for _, f := range formats() {
+		t.Run(f.name, func(t *testing.T) {
+			got := decode(t, f.newR, encode(t, f.newW, canonical))
+			if !reflect.DeepEqual(canonical, got) {
+				t.Errorf("%s did not preserve the canonical corpus of %d records", f.name, len(canonical))
 			}
 		})
 	}
