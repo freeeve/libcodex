@@ -21,5 +21,15 @@ CI. Do this AFTER the other tasks are complete.
 - Public repo live at github.com/freeeve/libcodex with green CI and a semver tag;
   README renders.
 
+## Status — in progress (published; tag held)
+- `git init` (main), `.gitignore`, GitHub Actions CI
+  (`.github/workflows/ci.yml`: gofmt gate, vet, build, `go test -race -cover`,
+  and a per-format `-fuzztime=20s` smoke job) all added.
+- Verified clean: gofmt -s, go vet, `go test -race ./...`.
+- Semantic initial commit `b84867a`; **public repo created and `main` pushed**:
+  https://github.com/freeeve/libcodex
+- **Remaining:** tag `v0.1.0` and push the tag — held at the user's request until
+  the live repo / CI is reviewed.
+
 ## Depends on
-- All prior tasks. Confirm with the user before the push.
+- All prior tasks. Confirm with the user before the push. [done]
