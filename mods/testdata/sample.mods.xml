@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modsCollection xmlns="http://www.loc.gov/mods/v3">
+  <mods>
+    <titleInfo>
+      <title>Stone butch blues</title>
+      <subTitle>a novel</subTitle>
+    </titleInfo>
+    <name type="personal">
+      <namePart>Feinberg, Leslie</namePart>
+      <namePart type="date">1949-2014</namePart>
+      <role>
+        <roleTerm type="text">author</roleTerm>
+      </role>
+    </name>
+    <typeOfResource>text</typeOfResource>
+    <originInfo>
+      <place>
+        <placeTerm type="text">Ithaca, New York</placeTerm>
+      </place>
+      <publisher>Firebrand Books</publisher>
+      <dateIssued>1993</dateIssued>
+    </originInfo>
+    <language>
+      <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+    </language>
+    <physicalDescription>
+      <extent>301 pages 22 cm</extent>
+    </physicalDescription>
+    <subject authority="lcsh">
+      <topic>Lesbians</topic>
+      <genre>Fiction.</genre>
+    </subject>
+    <subject>
+      <genre>Bildungsromans</genre>
+    </subject>
+    <identifier type="isbn">0786803525</identifier>
+    <recordInfo>
+      <recordIdentifier>92005291</recordIdentifier>
+    </recordInfo>
+  </mods>
+</modsCollection>
