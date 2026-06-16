@@ -50,8 +50,13 @@ func anselRune(b byte) (rune, bool) {
 }
 
 // anselGraphic maps ANSEL (Extended Latin, G1) spacing graphic bytes to their
-// Unicode code points.
+// Unicode code points. It also carries the MARC-8 control functions the LoC table
+// places in this set: the non-sort markers and the zero-width joiner controls.
 var anselGraphic = map[byte]rune{
+	0x88: 0x0098, // non-sort begin (start of string)
+	0x89: 0x009C, // non-sort end (string terminator)
+	0x8D: 0x200D, // zero width joiner
+	0x8E: 0x200C, // zero width non-joiner
 	0xA1: 0x0141, // Ł
 	0xA2: 0x00D8, // Ø
 	0xA3: 0x0110, // Đ

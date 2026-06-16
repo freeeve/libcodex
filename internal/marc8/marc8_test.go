@@ -22,8 +22,11 @@ func TestDecode(t *testing.T) {
 		{"o with horn", []byte{0xBC}, "ơ"},     // assigned graphic, was missing
 		{"u with horn", []byte{0xBD}, "ư"},
 		{"compose macron", []byte{0xE5, 'o'}, "ō"},
-		{"unknown high byte", []byte{0xFF}, "ÿ"}, // best-effort pass-through
-		{"trailing mark", []byte{0xE2}, "́"},     // dangling combining acute
+		{"zero width joiner", []byte{0x8D}, "\u200d"},     // ANSEL control function
+		{"zero width non-joiner", []byte{0x8E}, "\u200c"}, // ANSEL control function
+		{"non-sort begin", []byte{0x88}, "\u0098"},        // ANSEL non-sort marker
+		{"unknown high byte", []byte{0xFF}, "ÿ"},          // best-effort pass-through
+		{"trailing mark", []byte{0xE2}, "́"},              // dangling combining acute
 		{"skip escape", []byte{escape, '(', 'B', 'A'}, "A"},
 		{"escape to ansel", []byte{escape, ')', 'E', 0xA5}, "Æ"},
 	}
