@@ -27,3 +27,8 @@ values follow DCMI.
 
 ## Depends on
 - dublincore (task 018).
+
+## Result — done
+Standalone `oai_dc:dc` output validates against the Open Archives `oai_dc.xsd`
+(with the DCMI simpledc import). Captured as `TestXMLSchemaConformance/dublincore`.
+No changes needed.

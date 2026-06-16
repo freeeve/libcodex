@@ -25,3 +25,8 @@ follows the official MARC-to-MODS mapping.
 
 ## Depends on
 - mods (task 017).
+
+## Result — done
+MODS `<modsCollection>` output for the real corpus validates against
+`mods-3-8.xsd` (with the LoC xlink + xml imports). Captured as
+`TestXMLSchemaConformance/mods`. No changes needed.

@@ -30,3 +30,8 @@ accepts every schema-valid document.
 
 ## Depends on
 - marcxml (task 006).
+
+## Result — done
+MARCXML output for the full 20-record real corpus validates against the LoC
+`MARC21slim.xsd` (no errors). Captured as `TestXMLSchemaConformance/marcxml`
+(xmllint-guarded, schema vendored in `testdata/schema`). No encoder changes needed.
