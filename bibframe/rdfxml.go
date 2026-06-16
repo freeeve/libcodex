@@ -1,0 +1,302 @@
+package bibframe
+
+import "unicode/utf8"
+
+const (
+	xmlHeader = `<?xml version="1.0" encoding="UTF-8"?>`
+	rdfOpen   = `<rdf:RDF xmlns:rdf="` + rdfNS + `" xmlns:rdfs="` + rdfsNS + `"` +
+		` xmlns:bf="` + bfNS + `" xmlns:bflc="` + bflcNS + `">`
+	rdfClose = `</rdf:RDF>`
+)
+
+// appendGraphXML appends the Work and Instance nodes for one record. base is the
+// local identifier stem shared by the two nodes.
+func appendGraphXML(b []byte, g *BIBFRAME, base string) []byte {
+	b = appendWorkXML(b, g, base)
+	b = appendInstanceXML(b, g, base)
+	return b
+}
+
+func appendWorkXML(b []byte, g *BIBFRAME, base string) []byte {
+	b = openNode(b, "bf:Work", workURI(base))
+	if g.Work.Class != "" {
+		b = typeRef(b, g.Work.Class)
+	}
+	for _, t := range g.Work.Titles {
+		b = appendTitleXML(b, t)
+	}
+	for _, c := range g.Work.Contributions {
+		b = appendContributionXML(b, c)
+	}
+	for _, s := range g.Work.Subjects {
+		b = labeledXML(b, "bf:subject", "bf:"+s.Class, s.Label)
+	}
+	for _, gf := range g.Work.GenreForms {
+		b = labeledXML(b, "bf:genreForm", "bf:GenreForm", gf)
+	}
+	for _, lang := range g.Work.Languages {
+		b = appendLanguageXML(b, lang)
+	}
+	for _, c := range g.Work.Classifications {
+		b = appendClassificationXML(b, c)
+	}
+	for _, s := range g.Work.Summary {
+		b = labeledXML(b, "bf:summary", "bf:Summary", s)
+	}
+	b = resourceRef(b, "    ", "bf:hasInstance", instanceURI(base))
+	return append(b, "  </bf:Work>\n"...)
+}
+
+func appendInstanceXML(b []byte, g *BIBFRAME, base string) []byte {
+	b = openNode(b, "bf:Instance", instanceURI(base))
+	b = resourceRef(b, "    ", "bf:instanceOf", workURI(base))
+	for _, t := range g.Instance.Titles {
+		b = appendTitleXML(b, t)
+	}
+	if g.Instance.ResponsibilityStatement != "" {
+		b = leafXML(b, "    ", "bf:responsibilityStatement", g.Instance.ResponsibilityStatement)
+	}
+	if g.Instance.EditionStatement != "" {
+		b = leafXML(b, "    ", "bf:editionStatement", g.Instance.EditionStatement)
+	}
+	if p := g.Instance.Provision; p != nil {
+		b = appendProvisionXML(b, p)
+	}
+	for _, e := range g.Instance.Extent {
+		b = labeledXML(b, "bf:extent", "bf:Extent", e)
+	}
+	for _, id := range g.Instance.Identifiers {
+		b = appendIdentifierXML(b, id)
+	}
+	for _, u := range g.Instance.ElectronicLocator {
+		b = resourceRef(b, "    ", "bf:electronicLocator", u)
+	}
+	return append(b, "  </bf:Instance>\n"...)
+}
+
+// ---- node fragments ----
+
+// appendTitleXML renders a bf:title. The transcribed and uniform titles both
+// serialize as bf:Title; the distinction is carried by which resource (Instance
+// vs Work) holds them.
+func appendTitleXML(b []byte, t Title) []byte {
+	b = append(b, "    <bf:title>\n      <bf:Title>\n"...)
+	b = leafXML(b, "        ", "bf:mainTitle", t.MainTitle)
+	if t.Subtitle != "" {
+		b = leafXML(b, "        ", "bf:subtitle", t.Subtitle)
+	}
+	if t.PartNumber != "" {
+		b = leafXML(b, "        ", "bf:partNumber", t.PartNumber)
+	}
+	if t.PartName != "" {
+		b = leafXML(b, "        ", "bf:partName", t.PartName)
+	}
+	return append(b, "      </bf:Title>\n    </bf:title>\n"...)
+}
+
+func appendContributionXML(b []byte, c Contribution) []byte {
+	wrap := "bf:Contribution"
+	if c.Primary {
+		wrap = "bflc:PrimaryContribution"
+	}
+	b = append(b, "    <bf:contribution>\n      <"...)
+	b = append(b, wrap...)
+	b = append(b, ">\n        <bf:agent>\n          <bf:"...)
+	b = append(b, c.Class...)
+	b = append(b, ">\n            <rdfs:label>"...)
+	b = appendXMLText(b, c.Label)
+	b = append(b, "</rdfs:label>\n          </bf:"...)
+	b = append(b, c.Class...)
+	b = append(b, ">\n        </bf:agent>\n"...)
+	if c.Role != "" {
+		b = append(b, "        <bf:role>\n          <bf:Role>\n            <rdfs:label>"...)
+		b = appendXMLText(b, c.Role)
+		b = append(b, "</rdfs:label>\n          </bf:Role>\n        </bf:role>\n"...)
+	}
+	b = append(b, "      </"...)
+	b = append(b, wrap...)
+	return append(b, ">\n    </bf:contribution>\n"...)
+}
+
+func appendLanguageXML(b []byte, code string) []byte {
+	b = append(b, "    <bf:language>\n      <bf:Language rdf:about=\""...)
+	b = append(b, langVocab...)
+	b = append(b, code...) // code is 3 ASCII letters; no escaping needed
+	b = append(b, "\">\n        <rdfs:label>"...)
+	b = append(b, code...)
+	return append(b, "</rdfs:label>\n      </bf:Language>\n    </bf:language>\n"...)
+}
+
+func appendClassificationXML(b []byte, c Classification) []byte {
+	b = append(b, "    <bf:classification>\n      <bf:"...)
+	b = append(b, c.Class...)
+	b = append(b, ">\n        <bf:classificationPortion>"...)
+	b = appendXMLText(b, c.Value)
+	b = append(b, "</bf:classificationPortion>\n      </bf:"...)
+	b = append(b, c.Class...)
+	return append(b, ">\n    </bf:classification>\n"...)
+}
+
+func appendProvisionXML(b []byte, p *Provision) []byte {
+	b = append(b, "    <bf:provisionActivity>\n      <bf:Publication>\n"...)
+	if p.Place != "" {
+		b = labeledXMLAt(b, "        ", "bf:place", "bf:Place", p.Place)
+	}
+	if p.Publisher != "" {
+		b = labeledXMLAt(b, "        ", "bf:agent", "bf:Agent", p.Publisher)
+	}
+	if p.Date != "" {
+		b = leafXML(b, "        ", "bf:date", p.Date)
+	}
+	return append(b, "      </bf:Publication>\n    </bf:provisionActivity>\n"...)
+}
+
+func appendIdentifierXML(b []byte, id Identifier) []byte {
+	b = append(b, "    <bf:identifiedBy>\n      <bf:"...)
+	b = append(b, id.Class...)
+	b = append(b, ">\n        <rdf:value>"...)
+	b = appendXMLText(b, id.Value)
+	b = append(b, "</rdf:value>\n      </bf:"...)
+	b = append(b, id.Class...)
+	return append(b, ">\n    </bf:identifiedBy>\n"...)
+}
+
+// ---- low-level helpers ----
+
+func openNode(b []byte, class, uri string) []byte {
+	b = append(b, "  <"...)
+	b = append(b, class...)
+	b = append(b, " rdf:about=\""...)
+	b = append(b, uri...) // uri is a sanitized fragment; no escaping needed
+	return append(b, "\">\n"...)
+}
+
+func typeRef(b []byte, class string) []byte {
+	b = append(b, "    <rdf:type rdf:resource=\""...)
+	b = append(b, bfNS...)
+	b = append(b, class...)
+	return append(b, "\"/>\n"...)
+}
+
+func resourceRef(b []byte, indent, prop, uri string) []byte {
+	b = append(b, indent...)
+	b = append(b, '<')
+	b = append(b, prop...)
+	b = append(b, " rdf:resource=\""...)
+	b = appendXMLAttr(b, uri)
+	return append(b, "\"/>\n"...)
+}
+
+// leafXML appends <prop>text</prop> at the given indent.
+func leafXML(b []byte, indent, prop, text string) []byte {
+	b = append(b, indent...)
+	b = append(b, '<')
+	b = append(b, prop...)
+	b = append(b, '>')
+	b = appendXMLText(b, text)
+	b = append(b, "</"...)
+	b = append(b, prop...)
+	return append(b, ">\n"...)
+}
+
+// labeledXML appends <prop><class><rdfs:label>label</rdfs:label></class></prop>
+// indented four spaces (a direct child of a node).
+func labeledXML(b []byte, prop, class, label string) []byte {
+	return labeledXMLAt(b, "    ", prop, class, label)
+}
+
+func labeledXMLAt(b []byte, indent, prop, class, label string) []byte {
+	b = append(b, indent...)
+	b = append(b, '<')
+	b = append(b, prop...)
+	b = append(b, ">\n"...)
+	b = append(b, indent...)
+	b = append(b, "  <"...)
+	b = append(b, class...)
+	b = append(b, ">\n"...)
+	b = append(b, indent...)
+	b = append(b, "    <rdfs:label>"...)
+	b = appendXMLText(b, label)
+	b = append(b, "</rdfs:label>\n"...)
+	b = append(b, indent...)
+	b = append(b, "  </"...)
+	b = append(b, class...)
+	b = append(b, ">\n"...)
+	b = append(b, indent...)
+	b = append(b, "</"...)
+	b = append(b, prop...)
+	return append(b, ">\n"...)
+}
+
+// appendXMLText appends s as XML character data, escaping the markup-significant
+// characters, dropping invalid UTF-8 and control bytes XML 1.0 cannot represent.
+func appendXMLText(b []byte, s string) []byte {
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c < 0x80 {
+			i++
+			switch c {
+			case '&':
+				b = append(b, "&amp;"...)
+			case '<':
+				b = append(b, "&lt;"...)
+			case '>':
+				b = append(b, "&gt;"...)
+			case '\r':
+				b = append(b, "&#xD;"...)
+			default:
+				if c >= 0x20 || c == '\t' || c == '\n' {
+					b = append(b, c)
+				}
+			}
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size == 1 {
+			i++
+			continue
+		}
+		b = append(b, s[i:i+size]...)
+		i += size
+	}
+	return b
+}
+
+// appendXMLAttr appends s as an XML attribute value (also escaping quotes).
+func appendXMLAttr(b []byte, s string) []byte {
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c < 0x80 {
+			i++
+			switch c {
+			case '&':
+				b = append(b, "&amp;"...)
+			case '<':
+				b = append(b, "&lt;"...)
+			case '>':
+				b = append(b, "&gt;"...)
+			case '"':
+				b = append(b, "&quot;"...)
+			case '\r':
+				b = append(b, "&#xD;"...)
+			case '\n':
+				b = append(b, "&#xA;"...)
+			case '\t':
+				b = append(b, "&#x9;"...)
+			default:
+				if c >= 0x20 {
+					b = append(b, c)
+				}
+			}
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size == 1 {
+			i++
+			continue
+		}
+		b = append(b, s[i:i+size]...)
+		i += size
+	}
+	return b
+}

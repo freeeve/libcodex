@@ -139,16 +139,29 @@ use a *different*, lossy model — a documented MARC→target crosswalk, not a c
 Their `Writer`s implement `codex.RecordWriter`, so they also work with
 `codex.Convert`:
 
-| Package      | Target                                  |
-|--------------|-----------------------------------------|
-| `mods`       | MODS (LoC XML, near-lossless)           |
-| `dublincore` | Dublin Core — `oai_dc` XML and DC-JSON  |
-| `citation`   | RIS and BibTeX (reference managers)     |
+| Package      | Target                                      |
+|--------------|---------------------------------------------|
+| `mods`       | MODS (LoC XML, near-lossless)               |
+| `dublincore` | Dublin Core — `oai_dc` XML and DC-JSON      |
+| `citation`   | RIS and BibTeX (reference managers)         |
+| `bibframe`   | BIBFRAME 2.0 — RDF/XML and JSON-LD          |
 
 ```go
 // Binary MARC → BibTeX for a reference manager.
 codex.Convert(iso2709.NewReader(in), citation.NewBibTeXWriter(out))
 // Or a single record: b, _ := mods.Encode(rec) / dublincore.Encode(rec) / citation.RIS(rec)
+```
+
+`bibframe` is the one that changes data *model*, not just serialization: each MARC
+record becomes a small RDF graph of a `bf:Work` (intellectual content) and a
+`bf:Instance` (a publication of it), linked by `bf:instanceOf`/`bf:hasInstance`.
+Both serializations are hand-written with the standard library — no RDF dependency:
+
+```go
+// Binary MARC → BIBFRAME RDF/XML (canonical) or JSON-LD.
+b, _ := bibframe.Encode(rec)        // RDF/XML
+b, _ := bibframe.EncodeJSONLD(rec)  // JSON-LD
+// Streaming collections (must be closed): bibframe.NewWriter / NewJSONLDWriter.
 ```
 
 These are export-only (the targets cannot round-trip back to full MARC) and carry
