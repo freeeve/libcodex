@@ -113,14 +113,19 @@ func (b *Book) addLanguage(code string) {
 	}
 }
 
-// applyAccessibility maps the MARC accessibility facts onto schema.org properties.
+// applyAccessibility maps the MARC accessibility facts onto schema.org
+// properties. The accessibilityFeature values are from the W3C accessibility
+// discoverability vocabulary ("largePrint", "braille", "tactileObject").
 func (b *Book) applyAccessibility(a codex.Accessibility) {
 	b.AccessMode = a.AccessModes
 	if a.LargePrint {
 		b.AccessibilityFeature = append(b.AccessibilityFeature, "largePrint")
 	}
-	if a.Braille || a.Tactile {
-		b.AccessibilityFeature = append(b.AccessibilityFeature, "brailleViaTouch")
+	if a.Braille {
+		b.AccessibilityFeature = append(b.AccessibilityFeature, "braille")
+	}
+	if a.Tactile && !a.Braille {
+		b.AccessibilityFeature = append(b.AccessibilityFeature, "tactileObject")
 	}
 	b.AccessibilitySummary = strings.Join(a.Notes, " ")
 }

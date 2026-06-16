@@ -60,7 +60,7 @@ func appendWorkJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 			b = append(b, `{"@id":"`...)
 			b = append(b, langVocab...)
 			b = append(b, code...)
-			b = append(b, `","rdfs:label":"`...)
+			b = append(b, `","@type":"bf:Language","rdfs:label":"`...)
 			b = append(b, code...)
 			b = append(b, `"}`...)
 		}

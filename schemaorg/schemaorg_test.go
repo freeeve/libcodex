@@ -106,7 +106,8 @@ func TestSchemaType(t *testing.T) {
 
 func TestAccessibilityMapping(t *testing.T) {
 	b := FromRecord(sample())
-	if !slices.Contains(b.AccessibilityFeature, "largePrint") || !slices.Contains(b.AccessibilityFeature, "brailleViaTouch") {
+	// The sample is large print (008/23='d') and tactile (007/00='f', not braille).
+	if !slices.Contains(b.AccessibilityFeature, "largePrint") || !slices.Contains(b.AccessibilityFeature, "tactileObject") {
 		t.Errorf("accessibilityFeature = %v", b.AccessibilityFeature)
 	}
 	if !slices.Contains(b.AccessMode, "textual") || !slices.Contains(b.AccessMode, "visual") {
@@ -114,6 +115,16 @@ func TestAccessibilityMapping(t *testing.T) {
 	}
 	if b.AccessibilitySummary != "Text resized to 18 point." {
 		t.Errorf("summary = %q", b.AccessibilitySummary)
+	}
+
+	// A braille item (008/23='f') maps to the "braille" feature value.
+	braw := []byte("920219s1993    nyu                   eng  ")
+	braw[23] = 'f'
+	brec := codex.NewRecord().
+		SetLeader(codex.Leader("00000cam a2200000 a 4500")).
+		AddField(codex.NewControlField("008", string(braw)))
+	if bf := FromRecord(brec); !slices.Contains(bf.AccessibilityFeature, "braille") {
+		t.Errorf("braille feature = %v", bf.AccessibilityFeature)
 	}
 }
 
