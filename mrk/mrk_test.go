@@ -287,6 +287,28 @@ func selfConsistent(rec *codex.Record) bool {
 
 // FuzzDecode ensures decoding never panics and that, for inputs that decode,
 // Decode->Encode->Decode is stable for self-consistent records.
+// FuzzFromMARC ensures the MARC->mrk path produces re-decodable output (or a
+// clean error) and never a panic. mrk is byte-transparent, so it should carry
+// arbitrary bytes that are not structural.
+func FuzzFromMARC(f *testing.F) {
+	mrc, _ := iso2709.Encode(sample())
+	f.Add(mrc)
+	f.Add([]byte{})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		rec, _, err := iso2709.Decode(data)
+		if err != nil || rec == nil {
+			return
+		}
+		b, err := Encode(rec)
+		if err != nil {
+			return // contains a line break or a $ subfield code
+		}
+		if _, err := Decode(b); err != nil {
+			t.Errorf("re-decode of MARC->mrk output failed: %v\n%q", err, b)
+		}
+	})
+}
+
 func FuzzDecode(f *testing.F) {
 	b, _ := Encode(sample())
 	f.Add(b)

@@ -397,6 +397,28 @@ func TestWriteFileError(t *testing.T) {
 
 // FuzzDecode ensures decoding never panics and that, for inputs that decode,
 // Decode->Encode->Decode is stable (marcxml does not normalize the leader).
+// FuzzFromMARC feeds arbitrary MARC bytes through iso2709.Decode into Encode,
+// ensuring the MARC->marcxml path produces well-formed, re-decodable XML (or a
+// clean error) and never invalid output or a panic.
+func FuzzFromMARC(f *testing.F) {
+	mrc, _ := iso2709.Encode(sample())
+	f.Add(mrc)
+	f.Add([]byte{})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		rec, _, err := iso2709.Decode(data)
+		if err != nil || rec == nil {
+			return
+		}
+		b, err := Encode(rec)
+		if err != nil {
+			return // not representable as XML
+		}
+		if _, err := Decode(b); err != nil {
+			t.Errorf("re-decode of MARC->marcxml output failed: %v\n%s", err, b)
+		}
+	})
+}
+
 func FuzzDecode(f *testing.F) {
 	b, _ := Encode(sample())
 	f.Add(b)

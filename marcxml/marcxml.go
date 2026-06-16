@@ -18,6 +18,7 @@ import (
 	"io"
 	"iter"
 	"os"
+	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
 )
@@ -141,8 +142,8 @@ func validate(r *codex.Record) error {
 		return fmt.Errorf("marcxml: leader contains a character not allowed in XML")
 	}
 	for _, f := range r.Fields() {
-		if !xmlText(f.Tag) {
-			return fmt.Errorf("marcxml: tag %q contains a character not allowed in XML", f.Tag)
+		if !validTag(f.Tag) {
+			return fmt.Errorf("marcxml: tag %q is not representable in an XML attribute", f.Tag)
 		}
 		if f.IsControl() {
 			if !xmlText(f.Value) {
@@ -150,11 +151,11 @@ func validate(r *codex.Record) error {
 			}
 			continue
 		}
-		if (f.Ind1 != 0 && !xmlByte(f.Ind1)) || (f.Ind2 != 0 && !xmlByte(f.Ind2)) {
+		if (f.Ind1 != 0 && !xmlChar(f.Ind1)) || (f.Ind2 != 0 && !xmlChar(f.Ind2)) {
 			return fmt.Errorf("marcxml: field %s indicator is not allowed in XML", f.Tag)
 		}
 		for _, s := range f.Subfields {
-			if !xmlByte(s.Code) {
+			if !xmlChar(s.Code) {
 				return fmt.Errorf("marcxml: field %s subfield code is not allowed in XML", f.Tag)
 			}
 			if !xmlText(s.Value) {
@@ -165,20 +166,39 @@ func validate(r *codex.Record) error {
 	return nil
 }
 
-// xmlText reports whether every byte of s is allowed in XML 1.0.
+// xmlText reports whether s is valid UTF-8 and contains only characters XML 1.0
+// allows (so the hand-rolled output is always well-formed and valid UTF-8).
 func xmlText(s string) bool {
+	if !utf8.ValidString(s) {
+		return false
+	}
 	for i := 0; i < len(s); i++ {
-		if !xmlByte(s[i]) {
+		c := s[i]
+		if c < 0x80 && c < 0x20 && c != '\t' && c != '\n' && c != '\r' {
 			return false
 		}
 	}
 	return true
 }
 
-// xmlByte reports whether b is allowed in XML 1.0 character data: any byte at or
-// above 0x20 (including UTF-8 multibyte sequences), or tab, newline or return.
-func xmlByte(b byte) bool {
-	return b >= 0x20 || b == '\t' || b == '\n' || b == '\r'
+// xmlChar reports whether a single indicator or subfield-code byte is a printable
+// ASCII character (these are never multibyte, so a high byte would be invalid
+// UTF-8).
+func xmlChar(b byte) bool {
+	return b >= 0x20 && b < 0x7f
+}
+
+// validTag reports whether tag can be written into an XML attribute. It is
+// emitted unescaped, so it must be printable ASCII with no attribute-significant
+// characters (a real MARC tag is three digits or letters).
+func validTag(tag string) bool {
+	for i := 0; i < len(tag); i++ {
+		c := tag[i]
+		if c < 0x20 || c >= 0x7f || c == '"' || c == '<' || c == '&' || c == '>' {
+			return false
+		}
+	}
+	return true
 }
 
 // indByte parses a one-character indicator attribute, defaulting a missing

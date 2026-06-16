@@ -25,6 +25,7 @@ import (
 	"io"
 	"iter"
 	"os"
+	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
 )
@@ -121,9 +122,35 @@ func codeByte(s string) byte {
 	return s[0]
 }
 
-// Encode serializes a record as a single compact MARC-in-JSON object.
+// Encode serializes a record as a single compact MARC-in-JSON object. It returns
+// an error if a value is not valid UTF-8 (which JSON cannot represent).
 func Encode(r *codex.Record) ([]byte, error) {
+	if err := validate(r); err != nil {
+		return nil, err
+	}
 	return appendRecord(nil, r), nil
+}
+
+// validate reports an error if any value is not valid UTF-8; JSON strings must be
+// valid UTF-8, so such a record cannot be represented.
+func validate(r *codex.Record) error {
+	if !utf8.ValidString(r.Leader().String()) {
+		return fmt.Errorf("marcjson: leader is not valid UTF-8")
+	}
+	for _, f := range r.Fields() {
+		if f.IsControl() {
+			if !utf8.ValidString(f.Value) {
+				return fmt.Errorf("marcjson: control field %s value is not valid UTF-8", f.Tag)
+			}
+			continue
+		}
+		for _, s := range f.Subfields {
+			if !utf8.ValidString(s.Value) {
+				return fmt.Errorf("marcjson: field %s subfield value is not valid UTF-8", f.Tag)
+			}
+		}
+	}
+	return nil
 }
 
 // ---- decoding ----
@@ -461,6 +488,9 @@ func (wr *Writer) Write(r *codex.Record) error {
 	}
 	if wr.closed {
 		return fmt.Errorf("marcjson: Write after Close")
+	}
+	if err := validate(r); err != nil {
+		return err
 	}
 	if err := wr.open(); err != nil {
 		return err

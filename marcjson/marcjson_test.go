@@ -233,6 +233,27 @@ func TestDecodeErrors(t *testing.T) {
 
 // FuzzDecode ensures decoding never panics on arbitrary input and that a record
 // that decodes can be re-encoded and decoded again.
+// FuzzFromMARC ensures the MARC->marcjson path produces valid, re-decodable JSON
+// (or a clean error) and never invalid output or a panic.
+func FuzzFromMARC(f *testing.F) {
+	mrc, _ := iso2709.Encode(sample())
+	f.Add(mrc)
+	f.Add([]byte{})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		rec, _, err := iso2709.Decode(data)
+		if err != nil || rec == nil {
+			return
+		}
+		b, err := Encode(rec)
+		if err != nil {
+			return // not valid UTF-8
+		}
+		if _, err := Decode(b); err != nil {
+			t.Errorf("re-decode of MARC->marcjson output failed: %v\n%s", err, b)
+		}
+	})
+}
+
 func FuzzDecode(f *testing.F) {
 	b, _ := Encode(sample())
 	f.Add(b)
