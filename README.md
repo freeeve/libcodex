@@ -132,6 +132,28 @@ w.Close()
 
 Any of the 4 × 4 source/target combinations works and preserves the model.
 
+## Export converters (one-way)
+
+Beyond the four round-trip serializations, the library exports to formats that
+use a *different*, lossy model — a documented MARC→target crosswalk, not a codec.
+Their `Writer`s implement `codex.RecordWriter`, so they also work with
+`codex.Convert`:
+
+| Package      | Target                                  |
+|--------------|-----------------------------------------|
+| `mods`       | MODS (LoC XML, near-lossless)           |
+| `dublincore` | Dublin Core — `oai_dc` XML and DC-JSON  |
+| `citation`   | RIS and BibTeX (reference managers)     |
+
+```go
+// Binary MARC → BibTeX for a reference manager.
+codex.Convert(iso2709.NewReader(in), citation.NewBibTeXWriter(out))
+// Or a single record: b, _ := mods.Encode(rec) / dublincore.Encode(rec) / citation.RIS(rec)
+```
+
+These are export-only (the targets cannot round-trip back to full MARC) and carry
+only the common fields; each package documents its crosswalk.
+
 ## Accessors
 
 On `*Record`:

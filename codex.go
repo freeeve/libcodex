@@ -195,6 +195,12 @@ func (l Leader) RecordType() byte {
 	return l.byteAt(6)
 }
 
+// BibLevel returns leader byte 7 (the bibliographic level: 'm' monograph, 's'
+// serial, 'a' monographic component part, etc.), or 0 if the leader is malformed.
+func (l Leader) BibLevel() byte {
+	return l.byteAt(7)
+}
+
 // Encoding returns leader byte 9, the character coding scheme: 'a' for UTF-8
 // (Unicode) or blank for MARC-8.
 func (l Leader) Encoding() byte {

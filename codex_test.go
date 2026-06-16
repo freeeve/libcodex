@@ -306,6 +306,9 @@ func TestLeaderAccessors(t *testing.T) {
 	if got := l.RecordType(); got != 'a' {
 		t.Errorf("RecordType = %q, want 'a'", got)
 	}
+	if got := l.BibLevel(); got != 'm' {
+		t.Errorf("BibLevel = %q, want 'm'", got)
+	}
 	if got := l.Encoding(); got != 'a' {
 		t.Errorf("Encoding = %q, want 'a'", got)
 	}
