@@ -1,6 +1,6 @@
 # libcodex
 
-A small, dependency-free Go module for reading, writing and converting
+A dependency-free Go module for reading, writing and converting
 [MARC 21](https://www.loc.gov/marc/) bibliographic records across four
 serializations: binary [ISO 2709](https://en.wikipedia.org/wiki/ISO_2709)
 (`.mrc`), [MARCXML](https://www.loc.gov/standards/marcxml/), MARC-in-JSON, and
