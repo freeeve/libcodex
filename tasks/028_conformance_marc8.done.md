@@ -31,3 +31,10 @@ tables (extends task 022, which brought all sets into scope).
 
 ## Depends on
 - internal/marc8 (tasks 016, 022).
+
+## Result — done
+Regenerating the tables from the LoC codetables.xml is byte-identical (faithful).
+ANSEL audit against the LoC Extended Latin table: fixed four control codes that
+were passed through lossily (0x8D/0x8E zero-width joiner/non-joiner, 0x88/0x89
+non-sort begin/end). The only remaining deviations are the documented half-mark
+choices (U+FE20-FE23 vs the spanning U+0360/U+0361).

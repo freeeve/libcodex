@@ -28,3 +28,7 @@ each format.
 
 ## Depends on
 - citation (task 019).
+
+## Result — done
+Cross-validated with reference parsers: bibtexparser parses all 20 BibTeX entries
+with 0 failures, and rispy parses all 20 RIS records. No issues.

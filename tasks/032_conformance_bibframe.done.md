@@ -28,3 +28,9 @@ BIBFRAME ontology.
 
 ## Depends on
 - bibframe (task 015).
+
+## Result — done
+Validated with rdflib: both serializations parse as RDF, and all 35 distinct
+bf:/bflc: terms across the corpus are defined in the BIBFRAME ontology. Fixed a
+graph discrepancy: the JSON-LD language node lacked the bf:Language type, so
+RDF/XML and JSON-LD produced different graphs (now identical, 51 == 51 triples).

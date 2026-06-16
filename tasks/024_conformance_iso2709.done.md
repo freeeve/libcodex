@@ -37,3 +37,7 @@ initial pass in task 003).
 
 ## Depends on
 - iso2709 (tasks 002, 004).
+
+## Result — done
+Cross-validated with pymarc: it parses our re-encoded records for the full corpus
+with 0 tag-sequence mismatches across 20 records and matching titles. No issues.

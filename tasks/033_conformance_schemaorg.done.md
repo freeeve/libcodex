@@ -33,3 +33,9 @@ accessibility property values come from the controlled vocabulary.
 
 ## Depends on
 - schemaorg (task 023).
+
+## Result — done
+Validated against the schema.org vocabulary (all @types and properties defined)
+and with rdflib (JSON-LD parses as RDF). Fixed an invalid accessibilityFeature
+value: brailleViaTouch is not in the W3C accessibility vocabulary; braille now
+maps to 'braille' and 007 tactile to 'tactileObject'.

@@ -27,3 +27,7 @@ read and write (there is no ISO standard; the reference is the community spec).
 
 ## Depends on
 - marcjson (task 007).
+
+## Result — done
+Cross-validated with pymarc: pymarc.JSONReader parses all 20 of our MARC-in-JSON
+records with matching titles, confirming the de-facto structure. No issues.

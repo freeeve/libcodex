@@ -26,3 +26,9 @@ and interoperates with MarcEdit's `.mrk`.
 
 ## Depends on
 - mrk (task 008).
+
+## Result — done
+Verified the output follows MARCMaker conventions: =LDR/=TAG with two spaces,
+backslash for blank indicators (0-then-backslash for a mixed pair), the dollar
+subfield delimiter, control fields with no indicators. Escaping and character
+references are covered by the existing round-trip tests. No issues.
