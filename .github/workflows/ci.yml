@@ -39,9 +39,19 @@ jobs:
           go-version: '1.25'
           check-latest: true
 
-      - name: Fuzz smoke (each format)
+      - name: Fuzz smoke (every target, all packages)
+        shell: bash
         run: |
-          for pkg in iso2709 marcxml marcjson mrk; do
-            echo "== fuzzing $pkg =="
-            go test ./$pkg/ -run='^$' -fuzz=FuzzDecode -fuzztime=20s
+          set -uo pipefail
+          rc=0
+          # Discover every Fuzz* target across the module and exercise each one
+          # briefly, so new formats are covered without editing this list.
+          for f in $(grep -rlE '^func Fuzz' --include='*_test.go' .); do
+            dir=$(dirname "$f")
+            pkg="./${dir#./}" # force a relative path so it is not read as an import path
+            for fn in $(grep -oE '^func Fuzz[A-Za-z0-9_]+' "$f" | awk '{print $2}'); do
+              echo "== fuzz $pkg $fn =="
+              go test "$pkg" -run='^$' -fuzz="^${fn}\$" -fuzztime=15s || rc=1
+            done
           done
+          exit $rc
