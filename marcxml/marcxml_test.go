@@ -3,6 +3,7 @@ package marcxml
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -455,6 +456,132 @@ func FuzzDecode(f *testing.F) {
 // expected to be stable: a control field must have zero indicators and no
 // subfields, and a data field must have non-zero (set) indicators, since an
 // unset indicator serializes as a blank space.
+// TestValidateIndicatorError covers the indicator-validation branch in validate.
+// A non-zero indicator byte that is not printable ASCII (xmlChar returns false)
+// must cause Encode to return an error.
+func TestValidateIndicatorError(t *testing.T) {
+	rec := codex.NewRecord().AddField(codex.NewDataField("245", '\x01', '0', codex.NewSubfield('a', "x")))
+	if _, err := Encode(rec); err == nil {
+		t.Error("expected error for indicator with character not allowed in XML")
+	}
+}
+
+// TestEncodeInvalidUTF8 covers the invalid-UTF-8 early-return in xmlText.
+// A subfield value containing a byte sequence that is not valid UTF-8 must be
+// rejected by Encode.
+func TestEncodeInvalidUTF8(t *testing.T) {
+	rec := codex.NewRecord().AddField(codex.NewDataField("245", '1', '0',
+		codex.NewSubfield('a', "x\xffy")))
+	if _, err := Encode(rec); err == nil {
+		t.Error("expected error for invalid UTF-8 in subfield value")
+	}
+}
+
+// TestDecodeControlFieldTextError covers the controlfield text()-error return in readRecord.
+// A missing '>' on the end tag produces a SyntaxError inside text().
+func TestDecodeControlFieldTextError(t *testing.T) {
+	if _, err := Decode([]byte(`<record><controlfield tag="001">x</controlfield`)); err == nil {
+		t.Error("expected error for malformed controlfield end tag")
+	}
+}
+
+// TestDecodeDataFieldTokenError covers the Token()-error path in readDataField and
+// the corresponding datafield-error return in readRecord.  The stream ends
+// immediately after the datafield opening tag, so readDataField's first Token()
+// call encounters an unexpected EOF.
+func TestDecodeDataFieldTokenError(t *testing.T) {
+	if _, err := Decode([]byte(`<record><datafield tag="245" ind1="1" ind2="0">`)); err == nil {
+		t.Error("expected error for stream truncated inside datafield")
+	}
+}
+
+// TestDecodeRecordUnknownSkipError covers the Skip error path for an unknown
+// element at the record level (default branch in readRecord).  The malformed
+// child <malformed causes Skip to return a SyntaxError.
+func TestDecodeRecordUnknownSkipError(t *testing.T) {
+	if _, err := Decode([]byte(`<record><unknown><malformed`)); err == nil {
+		t.Error("expected error when Skip of unknown record element fails")
+	}
+}
+
+// TestDecodeDataFieldUnknownSkipError covers the Skip error path for an unknown
+// element inside a <datafield>.
+func TestDecodeDataFieldUnknownSkipError(t *testing.T) {
+	if _, err := Decode([]byte(`<record><datafield tag="245" ind1="1" ind2="0"><unknown><malformed`)); err == nil {
+		t.Error("expected error when Skip of unknown datafield element fails")
+	}
+}
+
+// TestDecodeLeafSkipError covers the Skip error path inside text() for an
+// unexpected child element of a leaf node (e.g. a subfield value).  It also
+// covers the subfield text()-error return in readDataField.
+func TestDecodeLeafSkipError(t *testing.T) {
+	if _, err := Decode([]byte(`<record><datafield tag="245" ind1="1" ind2="0"><subfield code="a">x<inner><malformed`)); err == nil {
+		t.Error("expected error when Skip of unexpected subfield child fails")
+	}
+}
+
+// TestWrapIOEOF covers the io.EOF pass-through branch of wrap.  The xml.Decoder
+// never returns io.EOF while inside an element (it returns SyntaxError on
+// unexpected EOF instead), so this branch is unreachable through the public API
+// and is tested directly from within the package.
+func TestWrapIOEOF(t *testing.T) {
+	if got := wrap(io.EOF); got != io.EOF {
+		t.Errorf("wrap(io.EOF) = %v, want io.EOF", got)
+	}
+}
+
+// TestReadFileMalformedContent covers the mid-read error return in ReadFile: the
+// function must return records parsed before the error alongside the error itself.
+func TestReadFileMalformedContent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bad.xml")
+	content := `<?xml version="1.0"?><collection>` +
+		`<record><controlfield tag="001">ok</controlfield></record>` +
+		`<record><leader>truncated`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	recs, err := ReadFile(path)
+	if err == nil {
+		t.Error("expected error for file with malformed second record")
+	}
+	if len(recs) != 1 {
+		t.Errorf("want 1 record before error, got %d", len(recs))
+	}
+}
+
+// TestCloseWithOpenError covers the error-return path in Close when open() fails
+// because the underlying writer rejects the collection-header write.
+// Calling Close before any Write causes open() to be invoked from within Close.
+func TestCloseWithOpenError(t *testing.T) {
+	w := NewWriter(&errWriter{failAt: 0}) // first Write (header) fails
+	if err := w.Close(); err == nil {
+		t.Error("expected error from Close when header write fails")
+	}
+}
+
+// TestWriteAllWithPriorError covers writeAll's early-return guard when wr.err is
+// already set.  Because every public method checks wr.err before calling writeAll,
+// this guard is unreachable via the public API and is tested directly from within
+// the package.
+func TestWriteAllWithPriorError(t *testing.T) {
+	sentinel := fmt.Errorf("sentinel error")
+	wr := &Writer{w: &bytes.Buffer{}, err: sentinel}
+	if got := wr.writeAll([]byte("test")); got != sentinel {
+		t.Errorf("writeAll with prior error = %v, want %v", got, sentinel)
+	}
+}
+
+// TestWriteFileWriteError covers the write-error return path in WriteFile by
+// passing a record that fails validation (contains an XML-illegal control character).
+func TestWriteFileWriteError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "out.xml")
+	badRec := codex.NewRecord().AddField(codex.NewControlField("001", "a\x00b"))
+	if err := WriteFile(path, []*codex.Record{badRec}); err == nil {
+		t.Error("expected error from WriteFile when Write fails on invalid record")
+	}
+}
+
 func selfConsistent(rec *codex.Record) bool {
 	for _, f := range rec.Fields() {
 		if f.IsControl() {

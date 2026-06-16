@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
 	"github.com/freeeve/libcodex/iso2709"
@@ -200,6 +202,298 @@ func TestMappingExtras(t *testing.T) {
 	}
 	if !slices.Contains(dc.Identifier, "https://example.org/x") {
 		t.Errorf("identifier = %v", dc.Identifier)
+	}
+}
+
+// FuzzFromMARC ensures any decodable MARC record converts to well-formed XML and
+// valid JSON without panicking.
+// failAfterWriter succeeds for n Write calls then permanently errors.
+type failAfterWriter struct {
+	n    int
+	done int
+}
+
+func (w *failAfterWriter) Write(b []byte) (int, error) {
+	if w.done >= w.n {
+		return 0, errors.New("injected write error")
+	}
+	w.done++
+	return len(b), nil
+}
+
+// TestWriteFile covers WriteFile: success path and os.Create error branch.
+func TestWriteFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "out.xml")
+	recs := []*codex.Record{sample()}
+
+	if err := WriteFile(path, recs); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if len(data) == 0 {
+		t.Error("WriteFile wrote an empty file")
+	}
+	wellFormedXML(t, data)
+
+	// Cover the os.Create error branch (directory does not exist).
+	badPath := filepath.Join(dir, "no-such-dir", "out.xml")
+	if err := WriteFile(badPath, recs); err == nil {
+		t.Error("WriteFile: expected error for non-existent directory")
+	}
+}
+
+// TestWriterErrorPaths exercises sticky errors, write failures, and close
+// idempotency for Writer.
+func TestWriterErrorPaths(t *testing.T) {
+	t.Run("header_fail_then_sticky", func(t *testing.T) {
+		fw := &failAfterWriter{n: 0}
+		w := NewWriter(fw)
+		// First Write triggers header flush which fails immediately.
+		if err := w.Write(sample()); err == nil {
+			t.Fatal("expected error from header write")
+		}
+		// Subsequent Write returns the stored (sticky) error.
+		if err := w.Write(sample()); err == nil {
+			t.Fatal("expected sticky error on second Write")
+		}
+		// Close also returns the sticky error.
+		if err := w.Close(); err == nil {
+			t.Fatal("expected sticky error from Close after failed Write")
+		}
+	})
+
+	t.Run("record_write_fail", func(t *testing.T) {
+		// n=1: header write succeeds; record-body write fails.
+		fw := &failAfterWriter{n: 1}
+		w := NewWriter(fw)
+		if err := w.Write(sample()); err == nil {
+			t.Fatal("expected error writing record body")
+		}
+		// Sticky on next call.
+		if err := w.Write(sample()); err == nil {
+			t.Fatal("expected sticky error on second Write")
+		}
+	})
+
+	t.Run("close_header_fail", func(t *testing.T) {
+		// Close on an unopened writer: the header write fails.
+		fw := &failAfterWriter{n: 0}
+		w := NewWriter(fw)
+		if err := w.Close(); err == nil {
+			t.Fatal("expected error from Close header write")
+		}
+	})
+
+	t.Run("close_closing_tag_fail", func(t *testing.T) {
+		// n=1: header write succeeds; closing-tag write fails.
+		fw := &failAfterWriter{n: 1}
+		w := NewWriter(fw)
+		if err := w.Close(); err == nil {
+			t.Fatal("expected error writing closing tag in Close")
+		}
+	})
+
+	t.Run("close_after_close_ok", func(t *testing.T) {
+		var buf bytes.Buffer
+		w := NewWriter(&buf)
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		// Second Close must be idempotent (return nil).
+		if err := w.Close(); err != nil {
+			t.Fatalf("second Close returned error: %v", err)
+		}
+	})
+}
+
+// TestJSONWriterErrorPaths mirrors TestWriterErrorPaths for JSONWriter.
+func TestJSONWriterErrorPaths(t *testing.T) {
+	t.Run("header_fail_then_sticky", func(t *testing.T) {
+		fw := &failAfterWriter{n: 0}
+		w := NewJSONWriter(fw)
+		if err := w.Write(sample()); err == nil {
+			t.Fatal("expected error from header write")
+		}
+		if err := w.Write(sample()); err == nil {
+			t.Fatal("expected sticky error on second Write")
+		}
+		if err := w.Close(); err == nil {
+			t.Fatal("expected sticky error from Close after failed Write")
+		}
+	})
+
+	t.Run("record_write_fail", func(t *testing.T) {
+		fw := &failAfterWriter{n: 1}
+		w := NewJSONWriter(fw)
+		if err := w.Write(sample()); err == nil {
+			t.Fatal("expected error writing record body")
+		}
+	})
+
+	t.Run("close_header_fail", func(t *testing.T) {
+		fw := &failAfterWriter{n: 0}
+		w := NewJSONWriter(fw)
+		if err := w.Close(); err == nil {
+			t.Fatal("expected error from Close header write")
+		}
+	})
+
+	t.Run("close_closing_tag_fail", func(t *testing.T) {
+		fw := &failAfterWriter{n: 1}
+		w := NewJSONWriter(fw)
+		if err := w.Close(); err == nil {
+			t.Fatal("expected error writing closing tag in Close")
+		}
+	})
+
+	t.Run("close_after_close_ok", func(t *testing.T) {
+		var buf bytes.Buffer
+		w := NewJSONWriter(&buf)
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatalf("second Close returned error: %v", err)
+		}
+	})
+}
+
+// TestXMLEscaping covers the remaining appendXMLText branches: CR (→ &#xD;),
+// control-char drop, valid multi-byte UTF-8 passthrough, and invalid-UTF-8 drop.
+func TestXMLEscaping(t *testing.T) {
+	// \r → &#xD;   \x1e (RS, < 0x20, not tab/newline) → dropped
+	// \xc3\xa9 = é (valid 2-byte UTF-8) → kept as-is
+	// \xff (invalid UTF-8 byte) → dropped
+	special := "tab:\there\nnewline CR:\r ctrl:\x1e caf\xc3\xa9 inv:\xffy"
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00925cam a2200277 a 4500")).
+		AddField(codex.NewDataField("520", ' ', ' ', codex.NewSubfield('a', special)))
+
+	b, err := Encode(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wellFormedXML(t, b)
+	if !utf8.Valid(b) {
+		t.Error("encoded XML is not valid UTF-8")
+	}
+	out := string(b)
+	if !strings.Contains(out, "&#xD;") {
+		t.Errorf("expected &#xD; for CR; got:\n%s", out)
+	}
+	if strings.Contains(out, "\x1e") {
+		t.Error("control char \\x1e should be dropped from XML")
+	}
+	if strings.Contains(out, "\xff") {
+		t.Error("invalid UTF-8 byte \\xff should be dropped from XML")
+	}
+	if !strings.Contains(out, "caf\xc3\xa9") {
+		t.Errorf("valid UTF-8 é should be preserved in XML; got:\n%s", out)
+	}
+	if !strings.Contains(out, "\t") {
+		t.Error("tab character should be preserved in XML")
+	}
+}
+
+// TestJSONEscaping covers the remaining appendJSONString branches: quote,
+// backslash, newline, tab, CR, control-char \u-escape, valid multi-byte UTF-8
+// passthrough, and invalid-UTF-8 drop.
+func TestJSONEscaping(t *testing.T) {
+	// All special JSON characters plus valid and invalid multi-byte UTF-8.
+	special := "q:\"bs:\\nl:\ntab:\tcr:\rctrl:\x01caf\xc3\xa9inv:\xffy"
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00925cam a2200277 a 4500")).
+		AddField(codex.NewDataField("520", ' ', ' ', codex.NewSubfield('a', special)))
+
+	b, err := EncodeJSON(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !json.Valid(b) {
+		t.Fatalf("JSON invalid:\n%s", b)
+	}
+	if !utf8.Valid(b) {
+		t.Error("encoded JSON is not valid UTF-8")
+	}
+	out := string(b)
+	if !strings.Contains(out, `\"`) {
+		t.Errorf("expected \\\" in JSON; got:\n%s", out)
+	}
+	if !strings.Contains(out, `\\`) {
+		t.Errorf("expected \\\\ in JSON; got:\n%s", out)
+	}
+	if !strings.Contains(out, `\n`) {
+		t.Errorf("expected \\n in JSON; got:\n%s", out)
+	}
+	if !strings.Contains(out, `\t`) {
+		t.Errorf("expected \\t in JSON; got:\n%s", out)
+	}
+	if !strings.Contains(out, `\r`) {
+		t.Errorf("expected \\r in JSON; got:\n%s", out)
+	}
+	if !strings.Contains(out, "\\u0001") {
+		t.Errorf("expected \\u0001 for control char; got:\n%s", out)
+	}
+	if strings.Contains(out, "\xff") {
+		t.Error("invalid UTF-8 byte \\xff should be dropped from JSON")
+	}
+	if !strings.Contains(out, "caf\xc3\xa9") {
+		t.Errorf("valid UTF-8 é should be preserved in JSON; got:\n%s", out)
+	}
+}
+
+// TestJSONMultiValueArray verifies the comma separator between array elements
+// in appendJSON (covers the i > 0 branch).
+func TestJSONMultiValueArray(t *testing.T) {
+	// Two ISBN fields produce two identifiers, forcing appendJSON to emit
+	// a comma between the first and second array elements.
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00925cam a2200277 a 4500")).
+		AddField(codex.NewDataField("020", ' ', ' ', codex.NewSubfield('a', "9780786803521"))).
+		AddField(codex.NewDataField("020", ' ', ' ', codex.NewSubfield('a', "9780786803538")))
+
+	b, err := EncodeJSON(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !json.Valid(b) {
+		t.Fatalf("JSON invalid:\n%s", b)
+	}
+	var m map[string][]string
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if len(m["identifier"]) != 2 {
+		t.Errorf("identifier = %v, want 2 values", m["identifier"])
+	}
+}
+
+// TestWriteAllStickyError exercises the defensive sticky-error guard at the top
+// of writeAll (unreachable from the public Write/Close API because those methods
+// check wr.err first; accessible here because the test is in package dublincore).
+func TestWriteAllStickyError(t *testing.T) {
+	sentinel := errors.New("pre-set error")
+
+	// Writer.writeAll with err already set.
+	{
+		w := NewWriter(&bytes.Buffer{})
+		w.err = sentinel
+		if got := w.writeAll([]byte("data")); got != sentinel {
+			t.Errorf("Writer.writeAll sticky: got %v, want sentinel", got)
+		}
+	}
+
+	// JSONWriter.writeAll with err already set.
+	{
+		w := NewJSONWriter(&bytes.Buffer{})
+		w.err = sentinel
+		if got := w.writeAll([]byte("data")); got != sentinel {
+			t.Errorf("JSONWriter.writeAll sticky: got %v, want sentinel", got)
+		}
 	}
 }
 

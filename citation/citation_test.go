@@ -2,6 +2,7 @@ package citation
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,11 @@ import (
 	"github.com/freeeve/libcodex"
 	"github.com/freeeve/libcodex/iso2709"
 )
+
+// failWriter is an io.Writer that always returns the stored error.
+type failWriter struct{ err error }
+
+func (fw failWriter) Write(_ []byte) (int, error) { return 0, fw.err }
 
 func sample() *codex.Record {
 	return codex.NewRecord().
@@ -190,6 +196,154 @@ func FuzzFromMARC(f *testing.F) {
 }
 
 func mustBytes(b []byte, _ error) []byte { return b }
+
+// TestKindMissing covers the kind branches for type-of-record codes that are
+// not exercised by TestKind: 'c'/'d' (notated music → MUSIC), 'g' (projected
+// medium → VIDEO), 'm' (computer file → COMP), and an unrecognised code (→ GEN).
+func TestKindMissing(t *testing.T) {
+	cases := []struct {
+		leader  string
+		risType string
+		bibType string
+	}{
+		{"00000ncm a2200000 a 4500", "MUSIC", "misc"},
+		{"00000ndm a2200000 a 4500", "MUSIC", "misc"},
+		{"00000ngm a2200000 a 4500", "VIDEO", "misc"},
+		{"00000nmm a2200000 a 4500", "COMP", "misc"},
+		{"00000nxm a2200000 a 4500", "GEN", "misc"},
+	}
+	for _, c := range cases {
+		ris, bib := kind(codex.Leader(c.leader))
+		if ris != c.risType || bib != c.bibType {
+			t.Errorf("kind(%q) = %q/%q, want %q/%q",
+				c.leader[6:8], ris, bib, c.risType, c.bibType)
+		}
+	}
+}
+
+// TestFromRecordISSNURLAndYear builds a record that contains an ISSN (022),
+// a URL (856), and an 008 control field with a year but no 260/264 date
+// subfield — covering three FromRecord branches not reached by sample().
+func TestFromRecordISSNURLAndYear(t *testing.T) {
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00000nas a2200000 a 4500")).
+		AddField(codex.NewControlField("008", "921201s2001    nyu           000 0 eng  ")).
+		AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "Test Serial :"))).
+		AddField(codex.NewDataField("022", ' ', ' ', codex.NewSubfield('a', "1234-5678"))).
+		AddField(codex.NewDataField("856", '4', '0', codex.NewSubfield('u', "https://example.com/resource")))
+
+	e := FromRecord(rec)
+
+	if e.Year != "2001" {
+		t.Errorf("008 year fallback: got %q, want %q", e.Year, "2001")
+	}
+	if len(e.ISSN) == 0 || e.ISSN[0] != "1234-5678" {
+		t.Errorf("ISSN: got %v", e.ISSN)
+	}
+	if len(e.URL) == 0 || e.URL[0] != "https://example.com/resource" {
+		t.Errorf("URL: got %v", e.URL)
+	}
+
+	// Exercise RIS/BibTeX renderers so ISSN and URL loop bodies are covered.
+	ris := string(e.RIS())
+	if !strings.Contains(ris, "SN  - 1234-5678\n") {
+		t.Errorf("RIS ISSN missing: %s", ris)
+	}
+	if !strings.Contains(ris, "UR  - https://example.com/resource\n") {
+		t.Errorf("RIS URL missing: %s", ris)
+	}
+
+	bib := string(e.BibTeX())
+	if !strings.Contains(bib, "issn = {1234-5678}") {
+		t.Errorf("BibTeX issn missing: %s", bib)
+	}
+	if !strings.Contains(bib, "url = {https://example.com/resource}") {
+		t.Errorf("BibTeX url missing: %s", bib)
+	}
+}
+
+// TestEmptyEntryOutput calls RIS and BibTeX on an Entry with no populated
+// fields, exercising the early-return paths in risLine and bibField when the
+// value argument is empty.
+func TestEmptyEntryOutput(t *testing.T) {
+	e := &Entry{risType: "GEN", bibType: "misc"}
+	ris := string(e.RIS())
+	if !strings.Contains(ris, "TY  - GEN") {
+		t.Errorf("empty-entry RIS missing TY: %s", ris)
+	}
+	bib := string(e.BibTeX())
+	if !strings.HasPrefix(bib, "@misc{ref,\n") {
+		t.Errorf("empty-entry BibTeX wrong header: %s", bib)
+	}
+}
+
+// TestAppendPlainSpecials covers the newline/CR → space replacement,
+// valid multi-byte UTF-8 pass-through, and invalid UTF-8 byte dropping in
+// appendPlain.
+func TestAppendPlainSpecials(t *testing.T) {
+	// café is valid multi-byte UTF-8 (U+00E9 = 0xC3 0xA9).
+	// \xff is an invalid UTF-8 byte that must be dropped.
+	got := string(appendPlain(nil, "line1\nline2\rend caf\xc3\xa9 x\xffy"))
+	if strings.ContainsAny(got, "\n\r") {
+		t.Errorf("appendPlain: raw newline/CR in output: %q", got)
+	}
+	if !strings.Contains(got, "café") {
+		t.Errorf("appendPlain: multi-byte char lost: %q", got)
+	}
+	if strings.ContainsRune(got, '\xff') {
+		t.Errorf("appendPlain: invalid UTF-8 byte not dropped: %q", got)
+	}
+	if !utf8.Valid([]byte(got)) {
+		t.Errorf("appendPlain: output not valid UTF-8: %q", got)
+	}
+	if !strings.Contains(got, "line1 line2 end") {
+		t.Errorf("appendPlain: newlines not replaced with spaces: %q", got)
+	}
+}
+
+// TestAppendBibTeXSpecials covers backslash, tilde, caret, newline/CR, valid
+// multi-byte UTF-8, and invalid UTF-8 in appendBibTeX.
+func TestAppendBibTeXSpecials(t *testing.T) {
+	// Go raw literal: \\ is a single backslash in the actual string.
+	in := "back\\slash tilde~ caret^ nl\n cr\r caf\xc3\xa9 x\xffy"
+	got := string(appendBibTeX(nil, in))
+
+	for _, want := range []string{
+		`\textbackslash{}`,
+		`\textasciitilde{}`,
+		`\textasciicircum{}`,
+		"café",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("appendBibTeX: missing %q in %q", want, got)
+		}
+	}
+	if strings.ContainsAny(got, "\n\r") {
+		t.Errorf("appendBibTeX: raw newline/CR in output: %q", got)
+	}
+	if !utf8.Valid([]byte(got)) {
+		t.Errorf("appendBibTeX: output not valid UTF-8: %q", got)
+	}
+	if strings.ContainsRune(got, '\xff') {
+		t.Errorf("appendBibTeX: invalid UTF-8 byte not dropped: %q", got)
+	}
+}
+
+// TestBibTeXWriterStickyError verifies that BibTeXWriter.Write propagates a
+// write error and holds it on subsequent calls (covering the early-return path
+// when wr.err is already non-nil).
+func TestBibTeXWriterStickyError(t *testing.T) {
+	fw := failWriter{errors.New("injected write error")}
+	w := NewBibTeXWriter(fw)
+	err1 := w.Write(sample())
+	if err1 == nil {
+		t.Fatal("expected error on first Write")
+	}
+	err2 := w.Write(sample())
+	if err2 != err1 {
+		t.Errorf("sticky error mismatch: got %v, want %v", err2, err1)
+	}
+}
 
 func TestGolden(t *testing.T) {
 	for _, c := range []struct {

@@ -371,6 +371,272 @@ func TestWriteFileError(t *testing.T) {
 	}
 }
 
+// TestAppendStringCarriageReturn covers the \r escape path in appendString.
+func TestAppendStringCarriageReturn(t *testing.T) {
+	if got := string(appendString(nil, "a\rb")); got != `"a\rb"` {
+		t.Errorf("appendString \\r = %q, want %q", got, `"a\rb"`)
+	}
+}
+
+// TestValidateErrors covers all three invalid-UTF-8 paths in validate and the
+// resulting Encode error.
+func TestValidateErrors(t *testing.T) {
+	// invalid leader
+	badLeader := codex.NewRecord()
+	badLeader.SetLeader(codex.Leader("00000nam \xff2200000   4500"))
+	if _, err := Encode(badLeader); err == nil {
+		t.Error("Encode: expected error for invalid UTF-8 in leader")
+	}
+
+	// invalid control field value
+	badCtrl := codex.NewRecord().AddField(codex.NewControlField("001", "\xff"))
+	if _, err := Encode(badCtrl); err == nil {
+		t.Error("Encode: expected error for invalid UTF-8 in control field")
+	}
+
+	// invalid subfield value
+	badSub := codex.NewRecord().AddField(codex.NewDataField("245", '1', '0',
+		codex.NewSubfield('a', "\xff")))
+	if _, err := Encode(badSub); err == nil {
+		t.Error("Encode: expected error for invalid UTF-8 in subfield")
+	}
+}
+
+// TestReadStartsWithUnexpectedDelimiter covers the default branch in Read's
+// opening-token switch (a delimiter that is neither '[' nor '{').
+func TestReadStartsWithUnexpectedDelimiter(t *testing.T) {
+	for _, input := range []string{`]`, `}`} {
+		if _, err := NewReader(strings.NewReader(input)).Read(); err == nil {
+			t.Errorf("expected error for %q at stream start", input)
+		}
+	}
+}
+
+// TestReadNonObjectTokenInStream covers the wrong-token branch inside Read
+// when reading subsequent records from a non-array stream.
+func TestReadNonObjectTokenInStream(t *testing.T) {
+	one, _ := Encode(sample())
+	r := NewReader(strings.NewReader(string(one) + "\n123"))
+	if _, err := r.Read(); err != nil {
+		t.Fatalf("first Read: %v", err)
+	}
+	if _, err := r.Read(); err == nil {
+		t.Error("expected error for number token where record object expected")
+	}
+}
+
+// TestSkipValueDeeplyNested covers the depth-increment path in skipValue when a
+// skipped value contains a nested container.
+func TestSkipValueDeeplyNested(t *testing.T) {
+	// "extra" value is {"a":{"b":2}} — depth reaches 2 inside skipValue.
+	in := `{"leader":"00000nam a2200000   4500","extra":{"a":{"b":2}},"fields":[]}`
+	if _, err := Decode([]byte(in)); err != nil {
+		t.Fatalf("unexpected error decoding deeply-nested skip: %v", err)
+	}
+}
+
+// TestReadFieldDelimNotBrace covers the branch in readField where the field
+// value is a JSON array (a Delim that is not '{').
+func TestReadFieldDelimNotBrace(t *testing.T) {
+	if _, err := Decode([]byte(`{"fields":[{"245":[]}]}`)); err == nil {
+		t.Error("expected error for array as data field value")
+	}
+}
+
+// TestReadFieldTruncatedAfterTag covers the Token() error in readField after
+// the tag key has been read but before the value token arrives.
+func TestReadFieldTruncatedAfterTag(t *testing.T) {
+	if _, err := Decode([]byte(`{"fields":[{"245"`)); err == nil {
+		t.Error("expected error for truncated stream after field tag")
+	}
+}
+
+// TestReadFieldExtraKeyErrors covers the error paths in readField's extra-key
+// loop: skipValue error when the extra value is truncated.
+func TestReadFieldExtraKeyErrors(t *testing.T) {
+	// After the data-field body, there is an extra key with a truncated value.
+	in := `{"fields":[{"245":{"ind1":"1","ind2":"0","subfields":[{"a":"T"}]},"extra":`
+	if _, err := Decode([]byte(in)); err == nil {
+		t.Error("expected error for truncated extra-key value in field object")
+	}
+}
+
+// TestReadRecordBodyTruncatedKey covers the readKey error path in readRecordBody
+// when the stream is truncated inside a key string.
+func TestReadRecordBodyTruncatedKey(t *testing.T) {
+	if _, err := Decode([]byte(`{"leader":"x","`)); err == nil {
+		t.Error("expected error for truncated record body key")
+	}
+}
+
+// TestExpectTokenError covers the Token() error path inside expect when the
+// stream ends before the expected delimiter.
+func TestExpectTokenError(t *testing.T) {
+	// readFields calls expect('[') but the stream ends after "fields":
+	if _, err := Decode([]byte(`{"fields":`)); err == nil {
+		t.Error("expected error for stream truncated before fields array delimiter")
+	}
+}
+
+// TestReadDataFieldInd2NotString covers the readString error path for "ind2"
+// inside readDataField.
+func TestReadDataFieldInd2NotString(t *testing.T) {
+	in := `{"fields":[{"245":{"ind1":"1","ind2":9,"subfields":[]}}]}`
+	if _, err := Decode([]byte(in)); err == nil {
+		t.Error("expected error for non-string ind2")
+	}
+}
+
+// TestReadDataFieldKeyError covers the readKey error path inside readDataField
+// when the stream is truncated mid-key.
+func TestReadDataFieldKeyError(t *testing.T) {
+	in := `{"fields":[{"245":{"ind1":"1","`
+	if _, err := Decode([]byte(in)); err == nil {
+		t.Error("expected error for truncated key inside data field body")
+	}
+}
+
+// TestReadDataFieldSkipError covers the skipValue error path for an unknown key
+// inside readDataField when the skipped value is truncated.
+func TestReadDataFieldSkipError(t *testing.T) {
+	in := `{"fields":[{"245":{"unknown":`
+	if _, err := Decode([]byte(in)); err == nil {
+		t.Error("expected error for truncated unknown value in data field")
+	}
+}
+
+// TestReadSubfieldsTruncatedValue covers the Token() error when consuming the
+// closing '}' of a subfield object whose value has been read but the brace is missing.
+func TestReadSubfieldsTruncatedValue(t *testing.T) {
+	in := `{"fields":[{"245":{"subfields":[{"a":"val"`
+	if _, err := Decode([]byte(in)); err == nil {
+		t.Error("expected error for truncated subfield (missing closing brace)")
+	}
+}
+
+// TestReadFilePartialError covers the error-with-partial-results path in ReadFile.
+func TestReadFilePartialError(t *testing.T) {
+	one, _ := Encode(sample())
+	content := string(one) + "\nnot-valid-json"
+	path := filepath.Join(t.TempDir(), "partial.json")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	recs, err := ReadFile(path)
+	if err == nil {
+		t.Error("expected error for malformed second record")
+	}
+	if len(recs) != 1 {
+		t.Errorf("got %d partial records, want 1", len(recs))
+	}
+}
+
+// TestWriteInvalidRecord covers the validate error path inside Writer.Write.
+func TestWriteInvalidRecord(t *testing.T) {
+	bad := codex.NewRecord().AddField(codex.NewDataField("245", '1', '0',
+		codex.NewSubfield('a', "\xff")))
+	if err := NewWriter(&bytes.Buffer{}).Write(bad); err == nil {
+		t.Error("expected error writing record with invalid UTF-8")
+	}
+}
+
+// TestWriterDoubleClose covers the idempotent double-Close path that returns nil.
+func TestWriterDoubleClose(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if err := w.Close(); err != nil {
+		t.Fatalf("first Close: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Errorf("second Close: expected nil, got %v", err)
+	}
+}
+
+// TestWriterCloseOpenFail covers the path inside Close where open() fails
+// because the underlying writer refuses the first write.
+func TestWriterCloseOpenFail(t *testing.T) {
+	w := NewWriter(&errWriter{failAt: 0})
+	if err := w.Close(); err == nil {
+		t.Error("expected error from Close when underlying writer fails on first write")
+	}
+}
+
+// TestWriterWriteAfterStickyErr covers the writeAll early-return when the sticky
+// error is set before writeAll is invoked from Write.
+func TestWriterWriteAfterStickyErr(t *testing.T) {
+	// failAt:1 lets the "[\n" header through but fails on the first record write.
+	w := NewWriter(&errWriter{failAt: 1})
+	_ = w.Write(sample()) // sets wr.err via writeAll
+	if err := w.Write(sample()); err == nil {
+		t.Error("expected sticky error on second Write")
+	}
+}
+
+// TestWriteFileInvalidRecord covers the Write-error branch inside WriteFile,
+// which closes the file and returns the error when a record fails validation.
+func TestWriteFileInvalidRecord(t *testing.T) {
+	bad := codex.NewRecord().AddField(codex.NewDataField("245", '1', '0',
+		codex.NewSubfield('a', "\xff")))
+	path := filepath.Join(t.TempDir(), "out.json")
+	if err := WriteFile(path, []*codex.Record{bad}); err == nil {
+		t.Error("expected error from WriteFile for invalid UTF-8 record")
+	}
+}
+
+// TestSkipValueTruncatedNested covers the Token() error path inside skipValue's
+// depth loop (when a skipped object/array is truncated mid-stream) and the
+// corresponding skipValue-error return in readRecordBody.
+func TestSkipValueTruncatedNested(t *testing.T) {
+	// "unknown" value is "{" with nothing after it; skipValue enters the depth
+	// loop, then Token() returns EOF.
+	if _, err := Decode([]byte(`{"unknown":{`)); err == nil {
+		t.Error("expected error for truncated nested value in record body skip")
+	}
+}
+
+// TestReadFieldExtraKeyReadKeyError covers the readKey error path inside
+// readField's extra-key loop when the key string is truncated.
+func TestReadFieldExtraKeyReadKeyError(t *testing.T) {
+	// After the data-field body, the extra key is truncated mid-string.
+	in := `{"fields":[{"245":{"ind1":"1","ind2":"0","subfields":[{"a":"T"}]},"extr`
+	if _, err := Decode([]byte(in)); err == nil {
+		t.Error("expected error for truncated extra-key name in field object")
+	}
+}
+
+// TestReadSubfieldsKeyError covers the readKey error path in readSubfields
+// when the subfield object is opened but its key string is truncated.
+func TestReadSubfieldsKeyError(t *testing.T) {
+	// After the subfield "{" is consumed, the key string is truncated.
+	in := `{"fields":[{"245":{"subfields":[{"a`
+	if _, err := Decode([]byte(in)); err == nil {
+		t.Error("expected error for truncated subfield key string")
+	}
+}
+
+// TestWriteFileRoundTrip covers the WriteFile success path and verifies the
+// written file round-trips through ReadFile.
+func TestWriteFileRoundTrip(t *testing.T) {
+	recs := []*codex.Record{
+		sample(),
+		codex.NewRecord().AddField(codex.NewControlField("001", "rt-001")),
+	}
+	path := filepath.Join(t.TempDir(), "rt.json")
+	if err := WriteFile(path, recs); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	got, err := ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d records, want 2", len(got))
+	}
+	if got[1].ControlField("001") != "rt-001" {
+		t.Errorf("001 = %q", got[1].ControlField("001"))
+	}
+}
+
 func TestGolden(t *testing.T) {
 	recs := []*codex.Record{sample(), codex.NewRecord().AddField(codex.NewControlField("001", "x"))}
 	path := filepath.Join("testdata", "sample.json")
