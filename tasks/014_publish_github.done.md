@@ -21,15 +21,21 @@ CI. Do this AFTER the other tasks are complete.
 - Public repo live at github.com/freeeve/libcodex with green CI and a semver tag;
   README renders.
 
-## Status — in progress (published; tag held)
+## Status — done
 - `git init` (main), `.gitignore`, GitHub Actions CI
   (`.github/workflows/ci.yml`: gofmt gate, vet, build, `go test -race -cover`,
-  and a per-format `-fuzztime=20s` smoke job) all added.
-- Verified clean: gofmt -s, go vet, `go test -race ./...`.
-- Semantic initial commit `b84867a`; **public repo created and `main` pushed**:
+  and a fuzz-smoke job that now discovers and exercises every `Fuzz*` target in
+  the module, not just the original four codecs).
+- Disabled setup-go dependency caching (no `go.sum` in a zero-dependency module).
+- Verified clean and green: gofmt -s, go vet, `go test -race ./...`, CI run on
+  the tagged commit passed both jobs.
+- Semantic initial commit `b84867a`; **public repo live and `main` pushed**:
   https://github.com/freeeve/libcodex
-- **Remaining:** tag `v0.1.0` and push the tag — held at the user's request until
-  the live repo / CI is reviewed.
+- **Tagged `v0.1.0`** (annotated) on the green-CI commit `b5933cb` and pushed;
+  GitHub Release published:
+  https://github.com/freeeve/libcodex/releases/tag/v0.1.0
+- Release covers the four round-trip codecs (iso2709/marcxml/marcjson/mrk) plus
+  the export converters (mods, dublincore, citation, bibframe).
 
 ## Depends on
 - All prior tasks. Confirm with the user before the push. [done]
