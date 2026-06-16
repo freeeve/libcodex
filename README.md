@@ -210,29 +210,38 @@ MARC 21 with **UTF-8** (leader byte 9 == `'a'`) is the primary, preferred form.
 The text formats (MARCXML, MARC-in-JSON, `.mrk`) are UTF-8 throughout.
 
 For **older MARC-8** binary records (leader byte 9 == blank), `iso2709` transcodes
-values to UTF-8 on read for the common Western subset, so every value the API
-exposes is a UTF-8 Go string regardless of source encoding:
+values to UTF-8 on read, so every value the API exposes is a UTF-8 Go string
+regardless of source encoding. **Every MARC-8 graphic character set is supported:**
 
-- **Basic Latin** (ASCII, the default G0 set).
-- **ANSEL Extended Latin** (the default G1 set), including spacing graphics and
-  **combining diacritics**. MARC-8 stores a combining mark *before* its base
-  character (the reverse of Unicode); the decoder reorders it and composes common
-  base+mark pairs to a precomposed (NFC) code point (e.g. combining acute + `e` →
-  `é`). The ANSEL table is verified against the LoC code tables, including the
-  2005 alif remapping and the euro/eszett additions.
+- **Basic Latin** (ASCII) and **ANSEL Extended Latin**, including spacing
+  graphics and **combining diacritics**.
+- **Basic and Extended Cyrillic, Basic and Extended Arabic, Basic Hebrew, Basic
+  Greek, Greek Symbols, Subscripts and Superscripts.**
+- the multibyte **East Asian (CJK) set, EACC** — all ~15,700 ideographs.
 
-`iso2709` can also **write** legacy MARC-8 (leader byte 9 = blank) via
-`iso2709.EncodeMARC8`, the inverse of the read path over the same Western subset.
-It returns an error if a value contains a character outside that subset, so you
-never get a record that claims MARC-8 but holds untranscodable data.
+MARC-8 follows ISO 2022: a primary set in G0 governs bytes `0x21–0x7E` and an
+extension set in G1 governs `0xA1–0xFE`, with escape sequences re-designating
+either; combining marks are stored *before* their base (the reverse of Unicode),
+and the decoder reorders them, composing common Latin pairs to NFC (e.g. combining
+acute + `e` → `é`). The non-Latin and EACC tables are generated directly from the
+[LoC MARC-8 code tables](https://www.loc.gov/marc/specifications/codetables.xml)
+(`go generate ./internal/marc8`); the hand-maintained ANSEL table is verified
+against them, including the 2005 alif remapping and the euro/eszett additions.
 
-**Out of scope** (best-effort pass-through, never a crash): EACC/CJK, Cyrillic,
-Greek, Hebrew, Arabic and the subscript/superscript/Greek-symbol sets. On read,
-their escape designations are recognized only well enough to skip them; their
-bytes pass through as Latin-1 rather than being transcoded, and `iso2709.Decode`
-returns a `lossy bool` (and `iso2709.Reader.Lossy()` reports the last read) so
-callers can detect this and avoid re-serializing mojibake as clean UTF-8. On
-write, `EncodeMARC8` rejects them outright.
+`iso2709` also **writes** legacy MARC-8 (leader byte 9 = blank) via
+`iso2709.EncodeMARC8`, the inverse of the read path across all sets — emitting the
+ISO 2022 escape sequences to switch sets and returning to the defaults at the end
+of each value. It returns an error only if a value contains a character no MARC-8
+set can represent (e.g. an emoji), so you never get a record that claims MARC-8
+but holds untranscodable data.
+
+A decode still **never crashes** on malformed input: an unrecognized set
+designation or an unmapped EACC triple passes through best-effort, and
+`iso2709.Decode` returns a `lossy bool` (and `iso2709.Reader.Lossy()` reports the
+last read) so callers can detect it and avoid re-serializing mojibake as clean
+UTF-8. Precomposed accented *non-Latin* text (e.g. NFC Greek `ά`) has no single
+MARC-8 code; supply it in decomposed (NFD) form to encode, which is exactly what
+decoding produces.
 
 ## What each format rejects
 

@@ -352,10 +352,46 @@ func TestEncodeMARC8RoundTrip(t *testing.T) {
 	}
 }
 
-func TestEncodeMARC8RejectsOutOfSubset(t *testing.T) {
-	rec := codex.NewRecord().AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "日本語")))
+func TestEncodeMARC8NonLatin(t *testing.T) {
+	// Non-Latin scripts now encode to MARC-8 and decode back unchanged.
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00000nam a2200000 a 4500")).
+		AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "日本語の本"))).
+		AddField(codex.NewDataField("246", '1', ' ', codex.NewSubfield('a', "Война и мир"))).
+		AddField(codex.NewDataField("880", ' ', ' ', codex.NewSubfield('a', "βιβλιο")))
+	b, err := EncodeMARC8(rec)
+	if err != nil {
+		t.Fatalf("EncodeMARC8: %v", err)
+	}
+	if b[9] != ' ' {
+		t.Errorf("leader byte 9 = %q, want blank (MARC-8)", b[9])
+	}
+	got, lossy, err := Decode(b)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if lossy {
+		t.Error("round trip reported lossy for representable scripts")
+	}
+	for _, c := range []struct {
+		tag  string
+		want string
+	}{
+		{"245", "日本語の本"},
+		{"246", "Война и мир"},
+		{"880", "βιβλιο"},
+	} {
+		if v := got.SubfieldValue(c.tag, 'a'); v != c.want {
+			t.Errorf("%s$a = %q, want %q", c.tag, v, c.want)
+		}
+	}
+}
+
+func TestEncodeMARC8RejectsUnrepresentable(t *testing.T) {
+	// Emoji have no MARC-8 representation, so encoding must fail rather than corrupt.
+	rec := codex.NewRecord().AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "party 🎉")))
 	if _, err := EncodeMARC8(rec); err == nil {
-		t.Error("expected error for out-of-subset characters")
+		t.Error("expected error for an unrepresentable character")
 	}
 }
 

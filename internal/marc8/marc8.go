@@ -1,26 +1,53 @@
-// Package marc8 decodes MARC-8 byte sequences to UTF-8 for the common Western
-// subset: Basic Latin (ASCII, the default G0 set) and ANSEL Extended Latin (the
-// default G1 set), including combining diacritics. It is shared by the MARC
-// serialization codecs that may carry MARC-8 data (e.g. iso2709, mrk).
+// Package marc8 transcodes between MARC-8 byte sequences and UTF-8, supporting
+// every MARC-8 graphic character set:
 //
-// In MARC-8 a combining diacritic is stored BEFORE its base character, the
-// reverse of Unicode, where the combining mark follows the base. This decoder
-// buffers pending marks and emits them after the base character, composing the
-// base and the first mark to a precomposed (NFC) code point when one exists.
+//   - Basic Latin (ASCII) and Extended Latin (ANSEL), with combining diacritics
+//   - Basic and Extended Cyrillic, Basic and Extended Arabic, Basic Hebrew,
+//     Basic Greek, Greek Symbols, Subscripts and Superscripts
+//   - the multibyte East Asian (CJK) set, EACC
 //
-// Out of scope: EACC/CJK, Cyrillic, Greek, Hebrew, Arabic, and the
-// subscript/superscript/Greek-symbol sets. Their escape designations are
-// recognized only well enough to skip the escape bytes and pass subsequent
-// bytes through best-effort (as Latin-1) without crashing.
+// It is shared by the MARC serialization codecs that may carry MARC-8 data
+// (e.g. iso2709, mrk).
+//
+// MARC-8 follows ISO 2022: a primary set occupies G0 (invoked by bytes
+// 0x21-0x7E) and an extension set occupies G1 (invoked by bytes 0xA1-0xFE);
+// escape sequences re-designate either working set. The defaults are Basic Latin
+// in G0 and Extended Latin (ANSEL) in G1. In the ANSEL set a combining diacritic
+// is stored BEFORE its base character, the reverse of Unicode; the decoder
+// reorders such marks after the base and composes the pair to a precomposed (NFC)
+// code point when one exists.
+//
+// Bytes under an unrecognized designation are passed through best-effort (as
+// Latin-1) without crashing, and mark the decode lossy.
 package marc8
 
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // escape (0x1b) introduces a MARC-8 character-set designation sequence.
 const escape = 0x1b
+
+// isCombining reports whether r is a Unicode combining mark. MARC-8 stores such
+// marks before their base character (the reverse of Unicode), so the decoder
+// buffers them and the encoder emits them ahead of the base, for every set.
+func isCombining(r rune) bool {
+	return unicode.In(r, unicode.Mn, unicode.Mc, unicode.Me)
+}
+
+// anselRune returns the rune for an ANSEL (Extended Latin) byte in its home (G1)
+// range, whether the byte denotes a spacing graphic or a combining mark.
+func anselRune(b byte) (rune, bool) {
+	if r, ok := anselGraphic[b]; ok {
+		return r, true
+	}
+	if r, ok := anselCombining[b]; ok {
+		return r, true
+	}
+	return 0, false
+}
 
 // anselGraphic maps ANSEL (Extended Latin, G1) spacing graphic bytes to their
 // Unicode code points.
@@ -138,30 +165,19 @@ func buildCompose() map[[2]rune]rune {
 	return m
 }
 
-// charset identifies the working character set designated to G1, the set that
-// governs high (0x80-0xFF) bytes. G0 is always decoded as Basic Latin within
-// this package's scope.
-type charset int
-
-const (
-	csASCII charset = iota // Basic Latin
-	csANSEL                // Extended Latin (ANSEL)
-	csOther                // unsupported; bytes passed through best-effort
-)
-
-// Decoder decodes MARC-8 with persistent G1 designation state. MARC-8 reinstates
-// the default working sets at the start of each field, not each subfield, so a
-// field is decoded with a single Decoder (create a new one per field) and its
-// subfields share the designation state.
+// Decoder decodes MARC-8 with persistent G0/G1 designation state. MARC-8
+// reinstates the default working sets at the start of each field, not each
+// subfield, so a field is decoded with a single Decoder (create a new one per
+// field) and its subfields share the designation state.
 type Decoder struct {
-	g1    charset
-	lossy bool
+	g0, g1 *charSet
+	lossy  bool
 }
 
 // NewDecoder returns a Decoder initialized to the MARC-8 default working sets
 // (Basic Latin in G0, ANSEL Extended Latin in G1).
 func NewDecoder() *Decoder {
-	return &Decoder{g1: csANSEL}
+	return &Decoder{g0: csASCII, g1: csANSEL}
 }
 
 // Lossy reports whether any Decode call on this Decoder fell back to best-effort
@@ -195,34 +211,43 @@ func (d *Decoder) Decode(data []byte) string {
 
 	for i := 0; i < len(data); {
 		c := data[i]
-		switch {
-		case c == escape:
+		if c == escape {
 			i += d.interpretEscape(data[i:])
-		case c < 0x80:
-			flush(rune(c))
-			i++
-		default:
-			if d.g1 == csANSEL {
-				if m, ok := anselCombining[c]; ok {
-					pending = append(pending, m)
-					i++
-					continue
-				}
-				if r, ok := anselGraphic[c]; ok {
-					flush(r)
-					i++
-					continue
-				}
-			}
-			d.lossy = true // best-effort pass-through (Latin-1) of an out-of-scope byte
-			flush(rune(c))
-			i++
+			continue
 		}
+		set := d.g1
+		if c < 0x80 {
+			set = d.g0 // GL bytes are governed by G0, GR bytes by G1
+		}
+		r, n, ok := set.decodeChar(data[i:], c < 0x80)
+		if !ok {
+			d.lossy = true
+		}
+		if isCombining(r) {
+			pending = append(pending, r)
+		} else {
+			flush(r)
+		}
+		i += n
 	}
 	for _, m := range pending {
 		b.WriteRune(m)
 	}
 	return b.String()
+}
+
+// decodeEACC decodes one EACC character (three bytes) from the front of data,
+// returning the rune (U+FFFD if the triple is truncated or unmapped) and the
+// number of bytes consumed.
+func decodeEACC(data []byte) (rune, int) {
+	if len(data) < 3 {
+		return 0xFFFD, len(data)
+	}
+	code := uint32(data[0]&0x7F)<<16 | uint32(data[1]&0x7F)<<8 | uint32(data[2]&0x7F)
+	if r, ok := eaccDecode(code); ok {
+		return r, 3
+	}
+	return 0xFFFD, 3
 }
 
 // Decode decodes a MARC-8 byte sequence to UTF-8 using a fresh Decoder. It is a
@@ -232,12 +257,11 @@ func Decode(data []byte) string {
 }
 
 // interpretEscape consumes one escape sequence starting at data[0] (the escape
-// byte) and updates the G1 designation. It returns the number of bytes consumed.
-// A Latin designation (ASCII or ANSEL) switches G1; any multibyte or other
-// designation marks the stream lossy because those bytes are out of scope and
-// pass through best-effort. G0 designations are parsed and skipped (GL bytes are
-// always decoded as Basic Latin), but a non-ASCII G0 designation is still
-// flagged lossy.
+// byte) and re-designates G0 or G1 to the indicated character set. It returns the
+// number of bytes consumed. The intermediate bytes select the working set (G0 for
+// '(' / ',', G1 for ')' / '-') and whether the set is multibyte ('$'); the final
+// byte selects the set. An unrecognized designation installs a sentinel set whose
+// bytes pass through best-effort.
 func (d *Decoder) interpretEscape(data []byte) int {
 	n := 1
 	for n < len(data) && data[n] >= 0x20 && data[n] <= 0x2F {
@@ -248,8 +272,11 @@ func (d *Decoder) interpretEscape(data []byte) int {
 		final = data[n]
 		n++
 	}
-	if n == 1 {
-		return 2 // malformed: skip the escape byte and one more
+	if final == 0 {
+		if n == 1 {
+			return 2 // malformed: skip the escape byte and one more
+		}
+		return n
 	}
 
 	targetG1, multibyte := false, false
@@ -264,20 +291,14 @@ func (d *Decoder) interpretEscape(data []byte) int {
 		}
 	}
 
-	set := csOther
-	switch {
-	case multibyte:
-		set = csOther
-	case final == 'B':
-		set = csASCII
-	case final == 'E':
-		set = csANSEL
+	set := setByFinal(final, multibyte)
+	if set == nil {
+		set = csUnsupported
 	}
 	if targetG1 {
 		d.g1 = set
-	}
-	if set == csOther {
-		d.lossy = true
+	} else {
+		d.g0 = set
 	}
 	return n
 }
@@ -316,56 +337,141 @@ func invertCompose() map[rune][2]rune {
 	return m
 }
 
-// Encode encodes a UTF-8 string to MARC-8 for the supported Western subset: ASCII
-// (G0) and ANSEL Extended Latin (G1) including combining diacritics. It is the
-// inverse of Decode: a precomposed Latin character is decomposed to its base and
-// combining mark, and combining marks are emitted BEFORE their base character (as
-// MARC-8 requires, the reverse of Unicode order). It returns an error on the
-// first code point outside the supported subset (e.g. Greek, Cyrillic, CJK), so
-// callers learn the value is not representable rather than producing mojibake.
+// encoder builds a MARC-8 byte stream, tracking the current G0/G1 designations
+// so it emits an escape sequence only when the active set must change.
+type encoder struct {
+	out    []byte
+	g0, g1 *charSet
+}
+
+// designate ensures set is the working set (G0 or G1 per toG1), emitting its
+// escape sequence when the designation actually changes.
+func (e *encoder) designate(set *charSet, toG1 bool) {
+	cur := &e.g0
+	if toG1 {
+		cur = &e.g1
+	}
+	if *cur == set {
+		return
+	}
+	*cur = set
+	e.out = append(e.out, escape)
+	switch {
+	case set.kind == kindEACC:
+		e.out = append(e.out, '$', set.final) // multibyte G0 designation
+	case toG1:
+		e.out = append(e.out, ')', set.final)
+	default:
+		e.out = append(e.out, '(', set.final)
+	}
+}
+
+// reset returns both working sets to the MARC-8 defaults, so each encoded value
+// is self-contained and the next one (sharing a field's decoder) starts clean.
+func (e *encoder) reset() {
+	e.designate(csASCII, false)
+	e.designate(csANSEL, true)
+}
+
+// Encode encodes a UTF-8 string to MARC-8 across all supported character sets,
+// emitting ISO 2022 escape sequences to switch sets as needed and returning to
+// the default sets at the end. It is the inverse of Decode: a precomposed Latin
+// character is decomposed to its base and combining mark, and combining marks are
+// emitted BEFORE their base character (as MARC-8 requires, the reverse of Unicode
+// order). It returns an error on the first code point no MARC-8 set can represent,
+// so callers learn the value is not representable rather than producing mojibake.
 func Encode(s string) ([]byte, error) {
-	out := make([]byte, 0, len(s))
+	e := &encoder{out: make([]byte, 0, len(s)), g0: csASCII, g1: csANSEL}
 	runes := []rune(s)
 	for i := 0; i < len(runes); i++ {
-		r := runes[i]
-		// A bare/leading combining mark (no preceding base) is emitted as-is.
-		if b, ok := encCombining[r]; ok {
-			out = append(out, b)
-			continue
+		if err := e.encodeRune(runes, &i, runes[i]); err != nil {
+			return nil, err
 		}
-
-		var marks []byte
-		var baseByte byte
-		switch {
-		case r < 0x80:
-			// The escape introducer and the ISO 2709 separators are structural in
-			// a MARC-8 stream and cannot appear as data.
-			if r == escape || r == 0x1d || r == 0x1e || r == 0x1f {
-				return nil, fmt.Errorf("marc8: cannot encode reserved control byte 0x%02X", r)
-			}
-			baseByte = byte(r)
-		default:
-			if b, ok := encGraphic[r]; ok {
-				baseByte = b
-			} else if pair, ok := encCompose[r]; ok {
-				marks = append(marks, encCombining[pair[1]])
-				baseByte = byte(pair[0]) // the base is always an ASCII letter
-			} else {
-				return nil, fmt.Errorf("marc8: cannot encode %q (U+%04X)", r, r)
-			}
-		}
-
-		// Gather any following NFD combining marks so they precede the base too.
-		for i+1 < len(runes) {
-			if b, ok := encCombining[runes[i+1]]; ok {
-				marks = append(marks, b)
-				i++
-			} else {
-				break
-			}
-		}
-		out = append(out, marks...)
-		out = append(out, baseByte)
 	}
-	return out, nil
+	e.reset()
+	return e.out, nil
+}
+
+// encodeRune encodes one rune (and any combining marks that follow it, which
+// MARC-8 places before the base). It tries ASCII, then ANSEL spacing and
+// precomposed Latin, then a standalone ANSEL mark, then the single-byte non-Latin
+// sets, then the multibyte CJK set.
+func (e *encoder) encodeRune(runes []rune, i *int, r rune) error {
+	// A combining mark reached here has no preceding base (it is leading, or it
+	// follows another mark), so emit it standalone in its own set. It must NOT
+	// gather following marks: reordering marks among themselves would not round
+	// trip, since the decoder buffers them in stream order.
+	if isCombining(r) {
+		if set, b, ok := combiningByte(r); ok {
+			e.designate(set, set.homeG1)
+			e.out = append(e.out, b)
+			return nil
+		}
+		return fmt.Errorf("marc8: cannot encode combining mark U+%04X", r)
+	}
+
+	switch {
+	case r < 0x80:
+		// The escape introducer and the ISO 2709 separators are structural in a
+		// MARC-8 stream and cannot appear as data.
+		if r == escape || r == 0x1d || r == 0x1e || r == 0x1f {
+			return fmt.Errorf("marc8: cannot encode reserved control byte 0x%02X", r)
+		}
+		e.emitMarks(runes, i)
+		e.designate(csASCII, false)
+		e.out = append(e.out, byte(r))
+		return nil
+	}
+
+	if b, ok := encGraphic[r]; ok { // ANSEL spacing graphic
+		e.emitMarks(runes, i)
+		e.designate(csANSEL, true)
+		e.out = append(e.out, b)
+		return nil
+	}
+	if pair, ok := encCompose[r]; ok { // precomposed Latin -> ANSEL mark + ASCII base
+		e.designate(csANSEL, true)
+		e.out = append(e.out, encCombining[pair[1]])
+		e.emitMarks(runes, i)
+		e.designate(csASCII, false)
+		e.out = append(e.out, byte(pair[0]))
+		return nil
+	}
+	if set, b, ok := encodeSingle(r); ok { // Cyrillic, Greek, Arabic, Hebrew, sub/superscripts
+		e.emitMarks(runes, i)
+		e.designate(set, set.homeG1)
+		e.out = append(e.out, b)
+		return nil
+	}
+	if code, ok := eaccEncode(r); ok { // multibyte CJK
+		e.emitMarks(runes, i)
+		e.designate(csEACC, false)
+		e.out = append(e.out, byte(code>>16), byte(code>>8), byte(code))
+		return nil
+	}
+	return fmt.Errorf("marc8: cannot encode %q (U+%04X)", r, r)
+}
+
+// emitMarks emits the run of combining marks following runes[*i], each in its own
+// character set, advancing *i past them. MARC-8 stores marks before the base, so
+// callers emit the base afterwards. A mark no set can encode is left in place.
+func (e *encoder) emitMarks(runes []rune, i *int) {
+	for *i+1 < len(runes) && isCombining(runes[*i+1]) {
+		set, b, ok := combiningByte(runes[*i+1])
+		if !ok {
+			return
+		}
+		e.designate(set, set.homeG1)
+		e.out = append(e.out, b)
+		*i++
+	}
+}
+
+// combiningByte returns the character set and MARC byte that encode a combining
+// mark, preferring the ANSEL set and falling back to a script's own set.
+func combiningByte(r rune) (*charSet, byte, bool) {
+	if b, ok := encCombining[r]; ok {
+		return csANSEL, b, true
+	}
+	return encodeSingle(r)
 }

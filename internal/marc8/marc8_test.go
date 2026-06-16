@@ -57,7 +57,9 @@ func TestDecoderLossy(t *testing.T) {
 		{"ansel graphic", []byte{0xA5}, false},
 		{"unsupported set", []byte{escape, ')', '1', 0xB5}, true},
 		{"undefined high byte", []byte{0xFF}, true},
-		{"multibyte designation", []byte{escape, '$', '1'}, true},
+		{"eacc designation only", []byte{escape, '$', '1'}, false},
+		{"eacc valid char", []byte{escape, '$', '1', 0x21, 0x30, 0x21}, false},     // U+4E00
+		{"eacc unmapped triple", []byte{escape, '$', '1', 0x21, 0x21, 0x21}, true}, // not in table
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -113,11 +115,64 @@ func TestEncodeReordersCombining(t *testing.T) {
 	}
 }
 
-func TestEncodeRejectsOutOfSubset(t *testing.T) {
-	for _, s := range []string{"Ω", "Привет", "日本語", "Đặng", "一"} {
+func TestEncodeRejectsUnrepresentable(t *testing.T) {
+	// No MARC-8 set covers emoji or mathematical alphanumerics.
+	for _, s := range []string{"😀", "🎉party", "𝔘niverse", "a\U0001F600b"} {
 		if _, err := Encode(s); err == nil {
-			t.Errorf("Encode(%q): expected error for an out-of-subset character", s)
+			t.Errorf("Encode(%q): expected error for an unrepresentable character", s)
 		}
+	}
+}
+
+// TestNonLatinRoundTrip exercises the newly supported scripts: every string must
+// survive Encode then Decode unchanged, including switches back to Latin.
+func TestNonLatinRoundTrip(t *testing.T) {
+	for _, s := range []string{
+		"Привет мир",               // Basic Cyrillic
+		"ґ ђ ѓ",                    // Extended Cyrillic
+		"ΑΒΓΔ αβγδ",                // Basic Greek letters
+		"\u03b1\u0301\u03b2\u03b3", // accented Greek (alpha + combining tonos), NFD form
+		"שלום",                     // Basic Hebrew
+		"العربية",                  // Basic Arabic
+		"日本語と中文",                   // EACC (CJK)
+		"一二三四五",                    // EACC ideographs
+		"H₂O",                      // subscript two
+		"Title: Война и мир / Толстой.", // ASCII -> Cyrillic -> ASCII switching
+		"café 日本 Привет",                // Latin + CJK + Cyrillic in one value
+	} {
+		b, err := Encode(s)
+		if err != nil {
+			t.Fatalf("Encode(%q): %v", s, err)
+		}
+		if got := Decode(b); got != s {
+			t.Errorf("round trip Encode->Decode(%q) = %q (% x)", s, got, b)
+		}
+		// Output must be valid MARC-8: it must end back in the default sets so the
+		// next value decodes correctly (no trailing non-default designation).
+		if !utf8.ValidString(Decode(b)) {
+			t.Errorf("decoded %q is not valid UTF-8", s)
+		}
+	}
+}
+
+// TestEncodeReturnsToDefault verifies a non-Latin value resets G0 to ASCII at the
+// end, so a following ASCII value decodes correctly with the same field decoder.
+func TestEncodeReturnsToDefault(t *testing.T) {
+	cyr, err := Encode("Мир")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ascii, err := Encode("ok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Decode both through one decoder, as iso2709 does for subfields of a field.
+	d := NewDecoder()
+	if got := d.Decode(cyr); got != "Мир" {
+		t.Errorf("first value = %q", got)
+	}
+	if got := d.Decode(ascii); got != "ok" {
+		t.Errorf("second value = %q (designation leaked across values)", got)
 	}
 }
 
@@ -130,11 +185,66 @@ func TestEncodeRejectsStructuralBytes(t *testing.T) {
 	}
 }
 
+// TestEverySetDecodes designates each single-byte set and decodes one of its
+// codes, covering every set's decode path (including those encode never selects).
+func TestEverySetDecodes(t *testing.T) {
+	for _, set := range []*charSet{
+		csBasicHebrew, csBasicCyrillic, csExtCyrillic, csBasicArabic,
+		csExtArabic, csBasicGreek, csGreekSymbols, csSubscripts, csSuperscripts,
+	} {
+		var b byte = 0xFF // lowest code in the set, for a deterministic pick
+		for k := range set.dec {
+			if k < b {
+				b = k
+			}
+		}
+		want := set.dec[b]
+		inter := byte('(') // G0 sets use ESC ( final; G1 sets use ESC ) final
+		if set.homeG1 {
+			inter = ')'
+		}
+		got := []rune(Decode([]byte{escape, inter, set.final, b}))
+		if len(got) == 0 || got[0] != want {
+			t.Errorf("%s: decode 0x%02X = %q, want %q", set.name, b, string(got), string(want))
+		}
+	}
+}
+
+func TestDecodeEscapeEdges(t *testing.T) {
+	// None of these may panic; the lossy flag reports unusable input.
+	cases := []struct {
+		name      string
+		in        []byte
+		wantLossy bool
+	}{
+		{"escape at end", []byte{escape}, false},
+		{"intermediate no final", []byte{escape, '('}, false},
+		{"unknown final to G0", []byte{escape, '(', 'Z', 'a'}, true},
+		{"unknown final to G1", []byte{escape, ')', 'Z', 0xB5}, true},
+		{"truncated eacc triple", []byte{escape, '$', '1', 0x21}, true},
+		{"eacc two bytes", []byte{escape, '$', '1', 0x21, 0x30}, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			d := NewDecoder()
+			if !utf8.ValidString(d.Decode(c.in)) {
+				t.Error("decode produced invalid UTF-8")
+			}
+			if d.Lossy() != c.wantLossy {
+				t.Errorf("Lossy() = %v, want %v", d.Lossy(), c.wantLossy)
+			}
+		})
+	}
+}
+
 // FuzzEncode ensures encoding never panics and that re-encoding the decoded form
 // is stable (Encode is the inverse of Decode on the canonical NFC form).
 func FuzzEncode(f *testing.F) {
 	f.Add("Beyoncé naïve café Łódź æØ")
 	f.Add("plain ascii")
+	f.Add("\u041f\u0440\u0438\u0432\u0435\u0442 \u65e5\u672c\u8a9e \u05e9\u05dc\u05d5\u05dd \u0627\u0644\u0639\u0631\u0628\u064a\u0629 \u0391\u0392\u0393")
+	f.Add("\u03b1\u0301\u03b2 mixed \u4e00\u4e8c H\u2082O")
+	f.Add("\u0314leading mark")
 	f.Fuzz(func(t *testing.T, s string) {
 		if !utf8.ValidString(s) {
 			return

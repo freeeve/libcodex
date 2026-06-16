@@ -63,8 +63,10 @@ func Encode(r *codex.Record) ([]byte, error) {
 
 // EncodeMARC8 serializes a record to ISO 2709 with MARC-8 encoded values and
 // leader byte 9 set to blank, for systems that require legacy MARC-8 rather than
-// UTF-8. It returns an error if any value contains a character outside the
-// supported MARC-8 subset (ASCII plus ANSEL Extended Latin; see internal/marc8).
+// UTF-8. Values are transcoded across all MARC-8 character sets (Latin, Cyrillic,
+// Greek, Hebrew, Arabic, the sub/superscript and Greek-symbol sets, and the
+// multibyte CJK set EACC; see internal/marc8). It returns an error if a value
+// contains a character no MARC-8 set can represent (e.g. an emoji).
 func EncodeMARC8(r *codex.Record) ([]byte, error) {
 	m8, err := toMARC8(r)
 	if err != nil {

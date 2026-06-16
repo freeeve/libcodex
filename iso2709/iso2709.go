@@ -60,10 +60,10 @@ const defaultLeaderTemplate = "00000nam a2200000   4500"
 // MARC-8 encoding, values are transcoded to UTF-8.
 //
 // The returned bool reports whether decoding fell back to best-effort passthrough
-// of an out-of-scope MARC-8 character set, meaning some values may contain
-// mojibake; it is always false for UTF-8 records. Re-serializing a lossy record
-// as UTF-8 persists the mojibake, so callers that must not corrupt data should
-// check it.
+// of an unrecognized MARC-8 designation or an unmapped character, meaning some
+// values may contain mojibake; it is always false for UTF-8 records. Re-serializing
+// a lossy record as UTF-8 persists the mojibake, so callers that must not corrupt
+// data should check it.
 func Decode(b []byte) (*codex.Record, bool, error) {
 	if len(b) < leaderLen {
 		return nil, false, fmt.Errorf("iso2709: record too short: %d bytes", len(b))
