@@ -15,6 +15,7 @@ import (
 	"github.com/freeeve/libcodex/dublincore"
 	"github.com/freeeve/libcodex/iso2709"
 	"github.com/freeeve/libcodex/mods"
+	"github.com/freeeve/libcodex/schemaorg"
 )
 
 // TestExportConvertersCanonical runs every one-way export converter over the
@@ -39,6 +40,7 @@ func TestExportConvertersCanonical(t *testing.T) {
 		{"citation-bibtex", func(w io.Writer) codex.RecordWriter { return citation.NewBibTeXWriter(w) }, utf8NonEmpty},
 		{"bibframe-rdfxml", func(w io.Writer) codex.RecordWriter { return bibframe.NewWriter(w) }, xmlWellFormed},
 		{"bibframe-jsonld", func(w io.Writer) codex.RecordWriter { return bibframe.NewJSONLDWriter(w) }, jsonValid},
+		{"schemaorg", func(w io.Writer) codex.RecordWriter { return schemaorg.NewWriter(w) }, jsonValid},
 	} {
 		t.Run(tgt.name, func(t *testing.T) {
 			var out bytes.Buffer

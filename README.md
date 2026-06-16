@@ -145,6 +145,7 @@ Their `Writer`s implement `codex.RecordWriter`, so they also work with
 | `dublincore` | Dublin Core — `oai_dc` XML and DC-JSON      |
 | `citation`   | RIS and BibTeX (reference managers)         |
 | `bibframe`   | BIBFRAME 2.0 — RDF/XML and JSON-LD          |
+| `schemaorg`  | schema.org JSON-LD (`Book`, with a11y)      |
 
 ```go
 // Binary MARC → BibTeX for a reference manager.
@@ -185,6 +186,31 @@ On `Field`: `IsControl()`, `Indicators() (byte, byte)`, `Subfield(code)`,
 
 On `Leader`: `RecordStatus()` (byte 5), `RecordType()` (byte 6), `Encoding()`
 (byte 9), `IsUnicode()`, `RecordLength()` (`[0:5]`), `BaseAddress()` (`[12:17]`).
+
+### Fixed fields, multilingual linkage and accessibility
+
+Higher-level accessors interpret the harder-to-parse parts of a record:
+
+- **`Control008()`** — typed access to the positional 008 fixed field: `Date1`,
+  `Date2`, `Language`, `Place`, and the material-aware `FormOfItem` (with
+  `IsLargePrint` / `IsBraille`).
+- **Vernacular (alternate-script) linkage** — MARC pairs a romanized field with
+  its original-script `880` via subfield `$6`. `Field.Link()` parses that linkage
+  (tag, occurrence, script code, right-to-left), `Record.AlternateGraphic(field)`
+  returns the linked partner in either direction, and `Record.Vernacular(tag,
+  code)` reads the original-script value directly:
+
+  ```go
+  title := rec.SubfieldValue("245", 'a')   // romanized
+  original := rec.Vernacular("245", 'a')   // e.g. the Cyrillic or CJK form
+  ```
+
+- **`Accessibility()`** — gathers the record's accessibility metadata (008 form
+  of item, 007 tactile category, the 341 Accessibility Content and 532
+  Accessibility Note fields). The `schemaorg` exporter maps it to schema.org
+  `accessMode` / `accessibilityFeature` / `accessibilitySummary` so reading
+  systems and search engines can surface large-print, braille and captioned
+  editions.
 
 ## Performance
 
