@@ -1,13 +1,13 @@
-name: Nightly fuzz
+name: Weekly fuzz
 
 # Deep fuzzing that accumulates coverage across runs: the generated fuzz corpus
-# is cached and restored so each night builds on the last, reaching depths the
+# is cached and restored so each run builds on the last, reaching depths the
 # per-push 15s smoke (in ci.yml) cannot. Runs every target for a few minutes and
 # uploads any failing input it discovers.
 
 on:
   schedule:
-    - cron: '0 4 * * *' # daily, 04:00 UTC
+    - cron: '0 4 * * 0' # weekly, Sundays 04:00 UTC
   workflow_dispatch:
     inputs:
       fuzztime:
