@@ -1,0 +1,232 @@
+// Package iso5426 transcodes between the ISO 5426 character set — the extended
+// Latin character set used by UNIMARC records — and UTF-8.
+//
+// Like MARC-8, ISO 5426 stores a combining diacritic BEFORE the base character it
+// modifies (the reverse of Unicode). The decoder reorders the mark after the base
+// and composes the pair to a precomposed (NFC) code point when ISO 5426 defines
+// one; otherwise it emits the base followed by the standalone combining mark.
+//
+// The graphic and precomposition tables are generated from the ISO 5426 ICU
+// character map (see gen); the standalone combining marks are hand-maintained
+// here, verified against the marc4j ISO 5426 converter.
+package iso5426
+
+//go:generate go run ./gen
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+)
+
+// iso5426Graphic maps an ISO 5426 single graphic byte to its rune: the symbol
+// block (0xA1-0xBF) and the letter block (0xE1-0xFF). Hand-maintained from the
+// standard, cross-checked with the marc4j ISO 5426 converter. Byte 0xF9 is both
+// the letter ø and the combining breve-below mark; the decoder disambiguates it.
+var iso5426Graphic = map[byte]rune{
+	0xA1: 0x00A1, 0xA2: 0x201E, 0xA3: 0x00A3, 0xA4: 0x0024, 0xA5: 0x00A5,
+	0xA6: 0x2020, 0xA7: 0x00A7, 0xA8: 0x2032, 0xA9: 0x2018, 0xAA: 0x201C,
+	0xAB: 0x00AB, 0xAC: 0x266D, 0xAD: 0x00A9, 0xAE: 0x2117, 0xAF: 0x00AE,
+	0xB0: 0x02BB, 0xB1: 0x02BC, 0xB2: 0x201A, 0xB6: 0x2021, 0xB7: 0x00B7,
+	0xB8: 0x2033, 0xB9: 0x2019, 0xBA: 0x201D, 0xBB: 0x00BB, 0xBC: 0x266F,
+	0xBD: 0x02B9, 0xBE: 0x02BA, 0xBF: 0x00BF,
+	0xE1: 0x00C6, 0xE2: 0x0110, 0xE6: 0x0132, 0xE8: 0x0141, 0xE9: 0x00D8,
+	0xEA: 0x0152, 0xEC: 0x00DE,
+	0xF1: 0x00E6, 0xF2: 0x0111, 0xF3: 0x00F0, 0xF5: 0x0131, 0xF6: 0x0133,
+	0xF8: 0x0142, 0xF9: 0x00F8, 0xFA: 0x0153, 0xFB: 0x00DF, 0xFC: 0x00FE,
+}
+
+// iso5426Combining maps an ISO 5426 combining-mark byte to its Unicode combining
+// code point, used when a mark+base pair has no precomposed form.
+var iso5426Combining = map[byte]rune{
+	0xC0: 0x0309, // hook above
+	0xC1: 0x0300, // grave
+	0xC2: 0x0301, // acute
+	0xC3: 0x0302, // circumflex
+	0xC4: 0x0303, // tilde
+	0xC5: 0x0304, // macron
+	0xC6: 0x0306, // breve
+	0xC7: 0x0307, // dot above
+	0xC8: 0x0308, // diaeresis
+	0xC9: 0x0308, // umlaut (same combining point as diaeresis)
+	0xCA: 0x030A, // ring above
+	0xCD: 0x030B, // double acute
+	0xCE: 0x031B, // horn
+	0xCF: 0x030C, // caron
+	0xD0: 0x0327, // cedilla
+	0xD3: 0x0328, // ogonek
+	0xD4: 0x0325, // ring below
+	0xD6: 0x0323, // dot below
+	0xD7: 0x0324, // double dot below
+	0xD8: 0x0332, // low line
+	0xD9: 0x0333, // double low line
+	0xDA: 0x0329, // vertical line below
+	0xF9: 0x032E, // breve below
+}
+
+// Decode decodes an ISO 5426 byte sequence to a UTF-8 string.
+func Decode(data []byte) string {
+	var b strings.Builder
+	for i := 0; i < len(data); {
+		c := data[i]
+		switch {
+		case c < 0x80:
+			b.WriteRune(rune(c))
+			i++
+		case isCombining(c):
+			// A combining mark precedes its base character. Some marks (0xF9) double
+			// as a graphic, so prefer a known composition, then a graphic reading,
+			// then the base + standalone mark.
+			if i+1 < len(data) {
+				if r, ok := iso5426Compose[[2]byte{c, data[i+1]}]; ok {
+					b.WriteRune(r)
+					i += 2
+					continue
+				}
+			}
+			if r, ok := iso5426Graphic[c]; ok { // an ambiguous byte used as a graphic
+				b.WriteRune(r)
+				i++
+				continue
+			}
+			if i+1 < len(data) {
+				b.WriteString(decodeByte(data[i+1]))
+				b.WriteRune(iso5426Combining[c])
+				i += 2
+				continue
+			}
+			b.WriteRune(iso5426Combining[c]) // trailing mark, no base
+			i++
+		default:
+			b.WriteString(decodeByte(c))
+			i++
+		}
+	}
+	return b.String()
+}
+
+func isCombining(c byte) bool { _, ok := iso5426Combining[c]; return ok }
+
+// decodeByte decodes a single non-combining byte (a base or a graphic).
+func decodeByte(c byte) string {
+	if c < 0x80 {
+		return string(rune(c))
+	}
+	if r, ok := iso5426Graphic[c]; ok {
+		return string(r)
+	}
+	return string(rune(c)) // best-effort Latin-1 passthrough
+}
+
+// ---- encoding ----
+
+var (
+	encOnce      sync.Once
+	encGraphic   map[rune]byte    // rune -> graphic byte (runes >= 0x80)
+	encCompose   map[rune][2]byte // precomposed rune -> {mark byte, base byte}
+	encCombining map[rune]byte    // combining mark rune -> mark byte
+	encNFC       map[[2]rune]rune // {base rune, mark rune} -> precomposed rune
+)
+
+func buildEncode() {
+	encGraphic = make(map[rune]byte, len(iso5426Graphic))
+	for b, r := range iso5426Graphic {
+		if r >= 0x80 { // ASCII always encodes to its own byte
+			if _, ok := encGraphic[r]; !ok {
+				encGraphic[r] = b
+			}
+		}
+	}
+	// Build the compose inverse deterministically (lowest byte pair wins).
+	keys := make([][2]byte, 0, len(iso5426Compose))
+	for k := range iso5426Compose {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i][0] != keys[j][0] {
+			return keys[i][0] < keys[j][0]
+		}
+		return keys[i][1] < keys[j][1]
+	})
+	encCompose = make(map[rune][2]byte, len(iso5426Compose))
+	encNFC = make(map[[2]rune]rune, len(iso5426Compose))
+	for _, k := range keys {
+		composed := iso5426Compose[k]
+		if _, ok := encCompose[composed]; !ok {
+			encCompose[composed] = k
+		}
+		base, mark := []rune(decodeByte(k[1]))[0], iso5426Combining[k[0]]
+		if _, ok := encNFC[[2]rune{base, mark}]; !ok {
+			encNFC[[2]rune{base, mark}] = composed
+		}
+	}
+	encCombining = make(map[rune]byte, len(iso5426Combining))
+	for b, r := range iso5426Combining {
+		if _, ok := encCombining[r]; !ok {
+			encCombining[r] = b
+		}
+	}
+}
+
+// Encode encodes a UTF-8 string to ISO 5426. It is the inverse of Decode: a base
+// followed by a combining mark is first composed to its precomposed form, then
+// emitted either as a single graphic byte or as ISO 5426's combining-mark-then-
+// base byte pair. It returns an error on the first code point ISO 5426 cannot
+// represent.
+func Encode(s string) ([]byte, error) {
+	encOnce.Do(buildEncode)
+	out := make([]byte, 0, len(s))
+	runes := []rune(s)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		// Compose a base + following combining mark to NFC so NFC and NFD inputs
+		// produce identical bytes.
+		if i+1 < len(runes) {
+			if c, ok := encNFC[[2]rune{r, runes[i+1]}]; ok {
+				r = c
+				i++
+			}
+		}
+		// A combining mark with no base (leading, or following another mark) is
+		// emitted standalone; it must not gather following marks (that would reorder
+		// marks among themselves and not round-trip).
+		if b, ok := encCombining[r]; ok {
+			out = append(out, b)
+			continue
+		}
+		// A base gathers the combining marks that follow it and emits them first,
+		// as ISO 5426 stores marks before the character they modify.
+		var marks []byte
+		for i+1 < len(runes) {
+			b, ok := encCombining[runes[i+1]]
+			if !ok {
+				break
+			}
+			marks = append(marks, b)
+			i++
+		}
+		out = append(out, marks...)
+		var err error
+		if out, err = encodeBase(out, r); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func encodeBase(out []byte, r rune) ([]byte, error) {
+	if r < 0x80 {
+		if r == 0x1b || r == 0x1d || r == 0x1e || r == 0x1f {
+			return nil, fmt.Errorf("iso5426: cannot encode reserved control byte 0x%02X", r)
+		}
+		return append(out, byte(r)), nil
+	}
+	if b, ok := encGraphic[r]; ok { // a single graphic byte
+		return append(out, b), nil
+	}
+	if pair, ok := encCompose[r]; ok { // mark byte + base byte
+		return append(out, pair[0], pair[1]), nil
+	}
+	return nil, fmt.Errorf("iso5426: cannot encode %q (U+%04X)", r, r)
+}
