@@ -373,3 +373,28 @@ func TestGolden(t *testing.T) {
 		})
 	}
 }
+
+// TestCitationBoundaries pins boundary conditions surfaced by mutation testing:
+// the exact-length 008 checks, the ISBD separator at index 0, and the cite-key
+// surname split.
+func TestCitationBoundaries(t *testing.T) {
+	// trimISBD strips a trailing '/', which is at index 0 of the separator set.
+	if got := trimISBD("Title /"); got != "Title" {
+		t.Errorf("trimISBD(%q) = %q, want Title", "Title /", got)
+	}
+	// An 008 of exactly length 11 still yields the date-1 year (positions 7-10).
+	r11 := codex.NewRecord().AddField(codex.NewControlField("008", "      s2021"))
+	if y := FromRecord(r11).Year; y != "2021" {
+		t.Errorf("008 length 11: year = %q, want 2021", y)
+	}
+	// An 008 of exactly length 38 still yields the language (positions 35-37).
+	r38 := codex.NewRecord().AddField(codex.NewControlField("008", "                                   eng"))
+	if l := FromRecord(r38).Language; l != "eng" {
+		t.Errorf("008 length 38: language = %q, want eng", l)
+	}
+	// citeKey takes the surname up to the first comma; a leading comma yields "".
+	e := &Entry{Authors: []string{",Solo"}, Year: "2000", Title: "Book"}
+	if k := e.citeKey(); k != "2000book" {
+		t.Errorf("citeKey leading-comma author = %q, want 2000book", k)
+	}
+}

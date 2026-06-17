@@ -483,3 +483,29 @@ func FuzzFromMARC(f *testing.F) {
 		}
 	})
 }
+
+// TestMinimalOmitsEmpty checks that a record with no optional fields emits none of
+// the empty array wrappers — pinning the "omit empty" branches in both serializers.
+func TestMinimalOmitsEmpty(t *testing.T) {
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00000nam a2200000 a 4500")).
+		AddField(codex.NewControlField("001", "min1"))
+	jb, _ := EncodeJSONLD(rec)
+	xb, _ := Encode(rec)
+	for _, empty := range []string{
+		`"bf:title":[]`, `"bf:contribution":[]`, `"bf:subject":[]`, `"bf:language":[]`,
+		`"bf:classification":[]`, `"bf:identifiedBy":[]`, `"bf:genreForm":[]`,
+		`"bf:summary":[]`, `"bf:extent":[]`, `"bf:electronicLocator":[]`,
+	} {
+		if strings.Contains(string(jb), empty) {
+			t.Errorf("JSON-LD emits empty wrapper %s:\n%s", empty, jb)
+		}
+	}
+	if err := xmlWellFormed(xb); err != nil {
+		t.Errorf("RDF/XML not well-formed: %v", err)
+	}
+	var v any
+	if err := json.Unmarshal(jb, &v); err != nil {
+		t.Errorf("JSON-LD invalid: %v", err)
+	}
+}
