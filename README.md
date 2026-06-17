@@ -332,4 +332,4 @@ The four bundled codecs are the reference implementations.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Copyright Queer Liberation Library.
+MIT — see [LICENSE](LICENSE). Copyright Eve Freeman.
