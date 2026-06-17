@@ -260,6 +260,8 @@ func FuzzDecode(f *testing.F) {
 	f.Add([]byte(`{"leader":"x","fields":[]}`))
 	f.Add([]byte(`[{"001":"a"},{"245":{"ind1":"1","ind2":"0","subfields":[{"a":"t"}]}}]`))
 	f.Add([]byte(``))
+	// A multi-byte subfield code (first byte 0xEF) cannot round-trip through JSON.
+	f.Add([]byte("{\"leader\":\"00000nam a2200000   4500\",\"fields\":[{\"1\":{\"ind1\":\" \",\"ind2\":\" \",\"subfields\":[{\"ﬀ\":\"\"}]}}]}"))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		rec, err := Decode(data)
 		if err != nil || rec == nil {
@@ -284,15 +286,25 @@ func FuzzDecode(f *testing.F) {
 // selfConsistent reports whether every field's tag-based control/data
 // classification matches the attributes it carries, so the record round-trips. A
 // control field must have zero indicators and no subfields; a data field must
-// have non-zero (set) indicators (an unset one serializes as a blank space).
+// have non-zero (set) indicators (an unset one serializes as a blank space). A
+// data field's indicators and subfield codes must also be ASCII: MARC requires it,
+// and a byte >= 0x80 re-serializes as a multi-byte rune whose first byte differs,
+// so it does not survive a JSON round trip.
 func selfConsistent(rec *codex.Record) bool {
 	for _, f := range rec.Fields() {
 		if f.IsControl() {
 			if f.Ind1 != 0 || f.Ind2 != 0 || len(f.Subfields) > 0 {
 				return false
 			}
-		} else if f.Ind1 == 0 || f.Ind2 == 0 {
+			continue
+		}
+		if f.Ind1 == 0 || f.Ind2 == 0 || f.Ind1 >= 0x80 || f.Ind2 >= 0x80 {
 			return false
+		}
+		for _, s := range f.Subfields {
+			if s.Code >= 0x80 {
+				return false
+			}
 		}
 	}
 	return true
