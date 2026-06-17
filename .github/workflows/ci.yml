@@ -57,3 +57,22 @@ jobs:
             done
           done
           exit $rc
+
+  interop:
+    # Read the library's generated output back with independent third-party
+    # parsers (pymarc, rdflib, bibtexparser, rispy) to catch interop regressions.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          check-latest: true
+          cache: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reference parsers
+        run: pip install pymarc rdflib bibtexparser rispy
+      - name: Interop tests
+        run: go test -run TestInterop -v .
