@@ -39,3 +39,6 @@ rather than leader byte 9).
 
 ## Depends on
 - iso2709 (structure), and the export converters it feeds.
+
+## Result — done
+Delivered: internal/iso5426 codec (decode/encode, generated compose table + hand-coded graphics verified against marc4j, ambiguous 0xF9 handled, fuzz-clean); the unimarc package (charset detection from field 100, UTF-8/ISO 5426 transcoding, accessors, ToMARC21 crosswalk, streaming Reader). Verified end-to-end on a real Italian UNIMARC record: title mojibake gone (read as UTF-8 not MARC-8), ToMARC21 feeds schema.org and the other exporters. The reverse MARC 21 -> UNIMARC direction remains out of scope as decided.

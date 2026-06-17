@@ -168,6 +168,24 @@ b, _ := bibframe.EncodeJSONLD(rec)  // JSON-LD
 These are export-only (the targets cannot round-trip back to full MARC) and carry
 only the common fields; each package documents its crosswalk.
 
+## Reading UNIMARC
+
+[UNIMARC](https://www.ifla.org/g/unimarc-rg/) (IFLA, used widely in Europe) shares
+the ISO 2709 container with MARC 21 but uses a different data dictionary and
+declares its character set in field 100, not the leader. The `unimarc` package
+reads it, selecting the encoding (UTF-8, or legacy **ISO 5426** transcoded to
+UTF-8 like MARC-8) and mapping it to the MARC 21 model so it flows into every
+exporter above:
+
+```go
+recs, _ := unimarc.ReadFile("catalog.unimarc")
+title := unimarc.Title(recs[0])     // 200 $a, non-sort markers stripped
+authors := unimarc.Authors(recs[0]) // 700/701/710 …
+
+m := unimarc.ToMARC21(recs[0])      // re-tag 200→245, 010→020, 700→100, …
+b, _ := schemaorg.Encode(m)         // …then any exporter accepts it
+```
+
 ## Accessors
 
 On `*Record`:
@@ -268,6 +286,10 @@ last read) so callers can detect it and avoid re-serializing mojibake as clean
 UTF-8. Precomposed accented *non-Latin* text (e.g. NFC Greek `ά`) has no single
 MARC-8 code; supply it in decomposed (NFD) form to encode, which is exactly what
 decoding produces.
+
+UNIMARC records use **ISO 5426** (extended Latin) rather than MARC-8; the
+`unimarc` reader transcodes it the same way (combining mark before base, composed
+to NFC), selecting it from field 100. See [Reading UNIMARC](#reading-unimarc).
 
 ## What each format rejects
 
