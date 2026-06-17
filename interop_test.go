@@ -127,6 +127,149 @@ func TestInterop(t *testing.T) {
 	})
 }
 
+// pyRecord mirrors testdata/interop.py's dump-fields output.
+type pyRecord struct {
+	Leader string `json:"leader"`
+	Fields []struct {
+		Tag       string      `json:"tag"`
+		Data      string      `json:"data"`
+		Ind1      string      `json:"ind1"`
+		Ind2      string      `json:"ind2"`
+		Subfields [][2]string `json:"subfields"`
+	} `json:"fields"`
+}
+
+// TestDifferentialPymarc decodes the real MARC-8 corpus with both libcodex and
+// pymarc and compares the parse field-by-field. An independent decoder catches
+// semantic bugs (a wrong-but-consistent parse) that round-trip fuzzing cannot —
+// in particular it cross-checks the MARC-8 transcoding. Skipped without pymarc.
+func TestDifferentialPymarc(t *testing.T) {
+	py := os.Getenv("INTEROP_PYTHON")
+	if py == "" {
+		py = "python3"
+	}
+	script := filepath.Join("testdata", "interop.py")
+	if _, err := runInterop(py, script, "check"); err != nil {
+		t.Skipf("pymarc unavailable: %v", err)
+	}
+
+	corpus := filepath.Join("testdata", "pymarc-sample.mrc")
+	ours, err := iso2709.ReadFile(corpus)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	dumpPath := filepath.Join(t.TempDir(), "pymarc.json")
+	mustInterop(t, py, script, "dump-fields", corpus, dumpPath)
+	var theirs []pyRecord
+	raw, _ := os.ReadFile(dumpPath)
+	if err := json.Unmarshal(raw, &theirs); err != nil {
+		t.Fatalf("parse pymarc dump: %v", err)
+	}
+	if len(ours) != len(theirs) {
+		t.Fatalf("record count: ours=%d pymarc=%d", len(ours), len(theirs))
+	}
+
+	for i := range ours {
+		o, p := ours[i], theirs[i]
+		if string(o.Leader()) != p.Leader {
+			t.Errorf("rec %d leader: ours=%q pymarc=%q", i, o.Leader(), p.Leader)
+		}
+		of := o.Fields()
+		if len(of) != len(p.Fields) {
+			t.Errorf("rec %d field count: ours=%d pymarc=%d", i, len(of), len(p.Fields))
+			continue
+		}
+		for j := range of {
+			f, pf := of[j], p.Fields[j]
+			if f.Tag != pf.Tag {
+				t.Errorf("rec %d field %d tag: ours=%q pymarc=%q", i, j, f.Tag, pf.Tag)
+				continue
+			}
+			if f.IsControl() {
+				if f.Value != pf.Data {
+					t.Errorf("rec %d %s control value:\n ours=%q\n  pym=%q", i, f.Tag, f.Value, pf.Data)
+				}
+				continue
+			}
+			if string(f.Ind1) != pf.Ind1 || string(f.Ind2) != pf.Ind2 {
+				t.Errorf("rec %d %s indicators: ours=%q%q pymarc=%q%q", i, f.Tag, string(f.Ind1), string(f.Ind2), pf.Ind1, pf.Ind2)
+			}
+			if len(f.Subfields) != len(pf.Subfields) {
+				t.Errorf("rec %d %s subfield count: ours=%d pymarc=%d", i, f.Tag, len(f.Subfields), len(pf.Subfields))
+				continue
+			}
+			for k, s := range f.Subfields {
+				if string(s.Code) != pf.Subfields[k][0] || s.Value != pf.Subfields[k][1] {
+					t.Errorf("rec %d %s $%c: ours=%q pymarc=$%s %q", i, f.Tag, s.Code, s.Value, pf.Subfields[k][0], pf.Subfields[k][1])
+				}
+			}
+		}
+	}
+}
+
+// TestDifferentialMARC8Scripts encodes non-Latin scripts to MARC-8 with the
+// library and confirms pymarc decodes them back to the originals — a differential
+// check of the MARC-8 encoder against an independent decoder. Skipped without pymarc.
+func TestDifferentialMARC8Scripts(t *testing.T) {
+	py := os.Getenv("INTEROP_PYTHON")
+	if py == "" {
+		py = "python3"
+	}
+	script := filepath.Join("testdata", "interop.py")
+	if _, err := runInterop(py, script, "check"); err != nil {
+		t.Skipf("pymarc unavailable: %v", err)
+	}
+
+	// Plain (uncomposed) non-Latin letters across scripts the library supports.
+	want := map[byte]string{
+		'a': "Толстой Лев",  // Cyrillic
+		'b': "Ελληνικα",     // Greek
+		'c': "日本語と中文",       // CJK (EACC)
+		'd': "العربية",      // Arabic
+		'e': "שלום",         // Hebrew
+		'f': "Beyoncé café", // Latin with diacritics
+	}
+	subs := make([]codex.Subfield, 0, len(want))
+	for _, code := range []byte{'a', 'b', 'c', 'd', 'e', 'f'} {
+		subs = append(subs, codex.NewSubfield(code, want[code]))
+	}
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00000nam a2200000 a 4500")).
+		AddField(codex.NewControlField("001", "test001")).
+		AddField(codex.NewDataField("245", '1', '0', subs...))
+
+	b, err := iso2709.EncodeMARC8(rec)
+	if err != nil {
+		t.Fatalf("EncodeMARC8: %v", err)
+	}
+	mrc := filepath.Join(t.TempDir(), "scripts.mrc")
+	if err := os.WriteFile(mrc, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dump := filepath.Join(t.TempDir(), "py.json")
+	mustInterop(t, py, script, "dump-fields", mrc, dump)
+	var recs []pyRecord
+	raw, _ := os.ReadFile(dump)
+	if err := json.Unmarshal(raw, &recs); err != nil {
+		t.Fatalf("parse pymarc dump: %v", err)
+	}
+	if len(recs) != 1 {
+		t.Fatalf("pymarc read %d records, want 1", len(recs))
+	}
+	for _, f := range recs[0].Fields {
+		if f.Tag != "245" {
+			continue
+		}
+		for _, sf := range f.Subfields {
+			code := sf[0][0]
+			if got := sf[1]; got != want[code] {
+				t.Errorf("pymarc decoded our MARC-8 245$%s = %q, want %q", sf[0], got, want[code])
+			}
+		}
+	}
+}
+
 func runInterop(py, script string, args ...string) (interopResult, error) {
 	out, err := exec.Command(py, append([]string{script}, args...)...).CombinedOutput()
 	var r interopResult

@@ -33,6 +33,31 @@ def main():
         json.dump([r.as_dict() for r in recs], open(sys.argv[3], "w"))
         emit({"ok": True, "records": len(recs)})
 
+    elif cmd == "dump-fields":
+        # Parse binary ISO 2709 with pymarc and dump each record's fields so the
+        # Go side can compare its own parse field-by-field (a differential check).
+        import pymarc
+        recs = list(pymarc.MARCReader(open(sys.argv[2], "rb"), to_unicode=True, force_utf8=False))
+        out = []
+        for r in recs:
+            fields = []
+            for f in r.get_fields():
+                if f.is_control_field():
+                    fields.append({"tag": f.tag, "data": f.data})
+                    continue
+                subs = []
+                for sf in f.subfields:
+                    # pymarc >=5 yields Subfield(code, value); older yields a flat list.
+                    if hasattr(sf, "code"):
+                        subs.append([sf.code, sf.value])
+                    else:
+                        subs.append([sf, ""])
+                fields.append({"tag": f.tag, "ind1": f.indicator1,
+                               "ind2": f.indicator2, "subfields": subs})
+            out.append({"leader": str(r.leader), "fields": fields})
+        json.dump(out, open(sys.argv[3], "w"))
+        emit({"ok": True, "records": len(recs)})
+
     elif cmd == "read-json":
         import pymarc
         recs = list(pymarc.JSONReader(open(sys.argv[2]).read()))
