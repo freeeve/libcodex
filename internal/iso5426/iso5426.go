@@ -65,58 +65,92 @@ var iso5426Combining = map[byte]rune{
 	0xF9: 0x032E, // breve below
 }
 
-// Decode decodes an ISO 5426 byte sequence to a UTF-8 string.
+// decNFC composes a base rune and a (preceding) combining mark to the precomposed
+// rune ISO 5426 stores as a mark+base byte pair, for the decoder.
+var decNFC = func() map[[2]rune]rune {
+	m := make(map[[2]rune]rune, len(iso5426Compose))
+	for k, composed := range iso5426Compose {
+		m[[2]rune{decodeRune(k[1]), iso5426Combining[k[0]]}] = composed
+	}
+	return m
+}()
+
+// Decode decodes an ISO 5426 byte sequence to a UTF-8 string. Combining marks
+// precede their base in ISO 5426; the decoder buffers them and emits them after
+// the base, composing the base with the nearest mark to a precomposed (NFC) code
+// point when one exists. Stacked marks are preserved.
 func Decode(data []byte) string {
 	var b strings.Builder
+	var pending []rune // combining marks awaiting their base
+
+	flush := func(base rune) {
+		if len(pending) == 0 {
+			b.WriteRune(base)
+			return
+		}
+		// The mark nearest the base (last buffered) composes with it; any remaining
+		// (outer) marks follow in their original order.
+		last := len(pending) - 1
+		if c, ok := decNFC[[2]rune{base, pending[last]}]; ok {
+			b.WriteRune(c)
+			for _, m := range pending[:last] {
+				b.WriteRune(m)
+			}
+		} else {
+			b.WriteRune(base)
+			for _, m := range pending {
+				b.WriteRune(m)
+			}
+		}
+		pending = pending[:0]
+	}
+
 	for i := 0; i < len(data); {
 		c := data[i]
 		switch {
 		case c < 0x80:
-			b.WriteRune(rune(c))
+			flush(rune(c))
 			i++
 		case isCombining(c):
-			// A combining mark precedes its base character. Some marks (0xF9) double
-			// as a graphic, so prefer a known composition, then a graphic reading,
-			// then the base + standalone mark.
-			if i+1 < len(data) {
-				if r, ok := iso5426Compose[[2]byte{c, data[i+1]}]; ok {
-					b.WriteRune(r)
-					i += 2
+			// 0xF9 is both the breve-below mark and the letter ø; treat it as a mark
+			// only when it composes with the following byte, otherwise as the graphic.
+			if g, isGraphic := iso5426Graphic[c]; isGraphic {
+				if i+1 >= len(data) || !composes(c, data[i+1]) {
+					flush(g)
+					i++
 					continue
 				}
 			}
-			if r, ok := iso5426Graphic[c]; ok { // an ambiguous byte used as a graphic
-				b.WriteRune(r)
-				i++
-				continue
-			}
-			if i+1 < len(data) {
-				b.WriteString(decodeByte(data[i+1]))
-				b.WriteRune(iso5426Combining[c])
-				i += 2
-				continue
-			}
-			b.WriteRune(iso5426Combining[c]) // trailing mark, no base
+			pending = append(pending, iso5426Combining[c])
 			i++
 		default:
-			b.WriteString(decodeByte(c))
+			flush(graphicRune(c))
 			i++
 		}
+	}
+	for _, m := range pending {
+		b.WriteRune(m)
 	}
 	return b.String()
 }
 
 func isCombining(c byte) bool { _, ok := iso5426Combining[c]; return ok }
 
-// decodeByte decodes a single non-combining byte (a base or a graphic).
-func decodeByte(c byte) string {
+func composes(mark, base byte) bool { _, ok := iso5426Compose[[2]byte{mark, base}]; return ok }
+
+// decodeRune decodes a single non-combining byte (a base or a graphic) to a rune.
+func decodeRune(c byte) rune {
 	if c < 0x80 {
-		return string(rune(c))
+		return rune(c)
 	}
+	return graphicRune(c)
+}
+
+func graphicRune(c byte) rune {
 	if r, ok := iso5426Graphic[c]; ok {
-		return string(r)
+		return r
 	}
-	return string(rune(c)) // best-effort Latin-1 passthrough
+	return rune(c) // best-effort Latin-1 passthrough
 }
 
 // ---- encoding ----
@@ -126,7 +160,7 @@ var (
 	encGraphic   map[rune]byte    // rune -> graphic byte (runes >= 0x80)
 	encCompose   map[rune][2]byte // precomposed rune -> {mark byte, base byte}
 	encCombining map[rune]byte    // combining mark rune -> mark byte
-	encNFC       map[[2]rune]rune // {base rune, mark rune} -> precomposed rune
+	encNFC       map[[2]rune]rune // {base rune, mark rune} -> precomposed (decNFC inverse)
 )
 
 func buildEncode() {
@@ -150,20 +184,31 @@ func buildEncode() {
 		return keys[i][1] < keys[j][1]
 	})
 	encCompose = make(map[rune][2]byte, len(iso5426Compose))
-	encNFC = make(map[[2]rune]rune, len(iso5426Compose))
+	encNFC = make(map[[2]rune]rune, len(decNFC))
+	for k, v := range decNFC {
+		encNFC[k] = v
+	}
 	for _, k := range keys {
 		composed := iso5426Compose[k]
 		if _, ok := encCompose[composed]; !ok {
 			encCompose[composed] = k
 		}
-		base, mark := []rune(decodeByte(k[1]))[0], iso5426Combining[k[0]]
-		if _, ok := encNFC[[2]rune{base, mark}]; !ok {
-			encNFC[[2]rune{base, mark}] = composed
-		}
 	}
+	// Build the standalone combining-mark inverse deterministically (lowest byte
+	// wins). Skip bytes that are also graphics (0xF9 = ø): a standalone mark there
+	// is ambiguous and only representable as part of a composition.
 	encCombining = make(map[rune]byte, len(iso5426Combining))
-	for b, r := range iso5426Combining {
-		if _, ok := encCombining[r]; !ok {
+	cbytes := make([]int, 0, len(iso5426Combining))
+	for b := range iso5426Combining {
+		cbytes = append(cbytes, int(b))
+	}
+	sort.Ints(cbytes)
+	for _, bi := range cbytes {
+		b := byte(bi)
+		if _, isGraphic := iso5426Graphic[b]; isGraphic {
+			continue
+		}
+		if r := iso5426Combining[b]; encCombining[r] == 0 {
 			encCombining[r] = b
 		}
 	}
@@ -180,18 +225,21 @@ func Encode(s string) ([]byte, error) {
 	runes := []rune(s)
 	for i := 0; i < len(runes); i++ {
 		r := runes[i]
-		// Compose a base + following combining mark to NFC so NFC and NFD inputs
-		// produce identical bytes.
-		if i+1 < len(runes) {
-			if c, ok := encNFC[[2]rune{r, runes[i+1]}]; ok {
-				r = c
-				i++
-			}
-		}
-		// A combining mark with no base (leading, or following another mark) is
-		// emitted standalone; it must not gather following marks (that would reorder
+		// A combining mark with no preceding base. In ISO 5426 a mark applies to the
+		// FOLLOWING character, so if the next rune is a base they compose; otherwise
+		// the mark is emitted standalone (it must not gather, which would reorder
 		// marks among themselves and not round-trip).
 		if b, ok := encCombining[r]; ok {
+			if i+1 < len(runes) {
+				if c, ok := encNFC[[2]rune{runes[i+1], r}]; ok {
+					var err error
+					if out, err = encodeBase(out, c); err != nil {
+						return nil, err
+					}
+					i++
+					continue
+				}
+			}
 			out = append(out, b)
 			continue
 		}

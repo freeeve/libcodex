@@ -75,8 +75,11 @@ func TestEncodeRejectsUnrepresentable(t *testing.T) {
 	}
 }
 
-// FuzzEncode ensures encoding never panics and that re-encoding the decoded form
-// is stable (Encode is the inverse of Decode on the canonical form).
+// FuzzEncode ensures encoding never panics and that the decode/encode/decode
+// cycle preserves text. ISO 5426 has several valid byte encodings for the same
+// characters (a precomposed letter as a graphic byte vs a mark+base pair, spacing
+// characters as a composition vs a direct byte), so the bytes need not be
+// identical across a round trip — but the decoded text must be.
 func FuzzEncode(f *testing.F) {
 	f.Add("Müller café naïve")
 	f.Add("Škoda Œuvre città")
@@ -90,15 +93,15 @@ func FuzzEncode(f *testing.F) {
 			return // outside the ISO 5426 repertoire
 		}
 		canonical := Decode(b)
+		if !utf8.ValidString(canonical) {
+			t.Fatalf("decode produced invalid UTF-8: %q", canonical)
+		}
 		b2, err := Encode(canonical)
 		if err != nil {
 			t.Fatalf("re-encode of decoded form failed: %v", err)
 		}
-		if !bytes.Equal(b, b2) {
-			t.Errorf("Encode not stable: % x vs % x", b, b2)
-		}
 		if got := Decode(b2); got != canonical {
-			t.Errorf("Decode not stable: %q vs %q", got, canonical)
+			t.Errorf("round trip not stable:\n have %q\n want %q\n  b=% x b2=% x", got, canonical, b, b2)
 		}
 	})
 }
