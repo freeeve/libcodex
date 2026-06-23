@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>02039cam a2200409 a 4500</leader>
+  <controlfield tag="001">13151692</controlfield>
+  <controlfield tag="005">20250606200609.2</controlfield>
+  <controlfield tag="007">cr |||||||||||</controlfield>
+  <controlfield tag="008">030407m19969999dcuabo  s    f000 0deng  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">13151692</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">7</subfield>
+    <subfield code="b">cbc</subfield>
+    <subfield code="c">origcop</subfield>
+    <subfield code="d">2</subfield>
+    <subfield code="e">ncip</subfield>
+    <subfield code="f">20</subfield>
+    <subfield code="g">y-gencompf</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="925">
+    <subfield code="a">acquire</subfield>
+    <subfield code="x">policy default</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">vb22 2003-04-07</subfield>
+    <subfield code="i">vb22 2003-04-07</subfield>
+    <subfield code="e">vb22 2003-04-07</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">LCAP batch update 2025-06-01-04:00: LCAPM-989, LCAPM-893</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">  2003556443</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="c">DLC</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="043">
+    <subfield code="a">n------</subfield>
+    <subfield code="a">s------</subfield>
+    <subfield code="a">e-sp---</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">E111</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="245">
+    <subfield code="a">1492</subfield>
+    <subfield code="h">[electronic resource] :</subfield>
+    <subfield code="b">an ongoing voyage.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="246">
+    <subfield code="i">Title in HTML header:</subfield>
+    <subfield code="a">Introduction to 1492</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="260">
+    <subfield code="a">Washington, DC :</subfield>
+    <subfield code="b">Library of Congress</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="336">
+    <subfield code="a">text</subfield>
+    <subfield code="b">txt</subfield>
+    <subfield code="2">rdacontent</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="337">
+    <subfield code="a">computer</subfield>
+    <subfield code="b">c</subfield>
+    <subfield code="2">rdamedia</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="338">
+    <subfield code="a">computer disc</subfield>
+    <subfield code="b">cd</subfield>
+    <subfield code="2">rdacarrier</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="362">
+    <subfield code="a">Began in 1996.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Title from home page (viewed on Apr. 7, 2003; last updated Oct. 11, 2002).</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="505">
+    <subfield code="a">What came to be called "America" -- The Mediterranean world -- Christopher Columbus : man and myth -- Inventing America -- Europe claims America -- Epilogue -- Exhibition overview -- Suggested readings -- Online exhibit credits.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="520">
+    <subfield code="a">Online version of an exhibition held at the Library of Congress from August 13, 1992 to February 14, 1993. Examines the mixture of societies coexisting in five areas of the Western hemisphere before European arrival. Also surveys the polyglot Mediterranean world at a turning point in its development.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="538">
+    <subfield code="a">Mode of access: World Wide Web.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="0" tag="600">
+    <subfield code="a">Columbus, Christopher</subfield>
+    <subfield code="v">Exhibitions.</subfield>
+  </datafield>
+  <datafield ind1="2" ind2="0" tag="610">
+    <subfield code="a">Library of Congress</subfield>
+    <subfield code="v">Exhibitions.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="650">
+    <subfield code="a">Indians</subfield>
+    <subfield code="x">First contact with other peoples</subfield>
+    <subfield code="v">Exhibitions.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="651">
+    <subfield code="a">America</subfield>
+    <subfield code="x">Discovery and exploration</subfield>
+    <subfield code="x">Spanish</subfield>
+    <subfield code="v">Exhibitions.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="7" tag="655">
+    <subfield code="a">Exhibition catalogs.</subfield>
+    <subfield code="2">lcgft</subfield>
+    <subfield code="0">https://id.loc.gov/authorities/genreForms/gf2014026098</subfield>
+  </datafield>
+  <datafield ind1="2" ind2=" " tag="710">
+    <subfield code="a">Library of Congress.</subfield>
+  </datafield>
+  <datafield ind1="4" ind2="0" tag="856">
+    <subfield code="u">http://www.loc.gov/exhibits/1492</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="952">
+    <subfield code="a">Add serial 006</subfield>
+  </datafield>
+</record>

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>03222cam a22004815i 4500</leader>
+  <controlfield tag="001">21654715</controlfield>
+  <controlfield tag="005">20250607102643.3</controlfield>
+  <controlfield tag="006">m    |o  d |      </controlfield>
+  <controlfield tag="007">cr||||||||||||</controlfield>
+  <controlfield tag="008">200207t20192019acaab  gob    000 0 eng  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">21654715</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">0</subfield>
+    <subfield code="b">ibc</subfield>
+    <subfield code="c">origcop</subfield>
+    <subfield code="d">u</subfield>
+    <subfield code="e">ncip</subfield>
+    <subfield code="f">20</subfield>
+    <subfield code="g">y-gencatlg</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="925">
+    <subfield code="a">acquire</subfield>
+    <subfield code="e">doabebook</subfield>
+    <subfield code="x">policy default</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">LCAP batch update 2025-06-02-04:00: LCAPM-893</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">  2019667681</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">9781760463175</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="z">9781760463168</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="b">eng</subfield>
+    <subfield code="e">pn</subfield>
+    <subfield code="e">rda</subfield>
+    <subfield code="c">DLC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="043">
+    <subfield code="a">a-th---</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">HV7911.P464</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="100">
+    <subfield code="a">Reynolds, Craig J.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="0" tag="245">
+    <subfield code="a">Power, protection and magic in Thailand :</subfield>
+    <subfield code="b">the cosmos of a southern policeman /</subfield>
+    <subfield code="c">Craig J. Reynolds.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="1" tag="264">
+    <subfield code="a">Acton, A.C.T. :</subfield>
+    <subfield code="b">ANU Press,</subfield>
+    <subfield code="c">2019.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="4" tag="264">
+    <subfield code="c">©2019</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">1 electronic resource (xxii, 191 pages )</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="336">
+    <subfield code="a">text</subfield>
+    <subfield code="b">txt</subfield>
+    <subfield code="2">rdacontent</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="337">
+    <subfield code="a">computer</subfield>
+    <subfield code="b">c</subfield>
+    <subfield code="2">rdamedia</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="338">
+    <subfield code="a">online resource</subfield>
+    <subfield code="b">cr</subfield>
+    <subfield code="2">rdacarrier</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="490">
+    <subfield code="a">Asian studies series monograph ;</subfield>
+    <subfield code="v">12</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="504">
+    <subfield code="a">Includes bibliographical references (pages 165-191).</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="505">
+    <subfield code="a">Lion Lawman -- The mid south's fathomable past -- Policing and banditry -- Magical thinking to dispel fear and uncertainty -- Invulnerability and protecting the sovereign body.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="506">
+    <subfield code="f">Unrestricted online access</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="520">
+    <subfield code="a">This biographical study of an unusual southern policeman explores the relationship between religion and power in Thailand during the early twentieth century when parts of the country were remote and banditry was rife. Khun Phan (1898-2006), known as Lion Lawman, sometimes used rather too much lethal force in carrying out his orders. He was the most famous graduate of a monastic academy in the mid-south, whose senior teachers imparted occult knowledge favoured by fighters on both sides of the law. Khun Phan imbibed this knowledge to confront the risks and uncertainty that lay ahead and bolster his confidence and self-reliance for his struggle with adversaries.    Against the background of national events, the story is rooted in the mid-south where the policeman was born and died. Based on a wide range of works in Thai language, on field trips to the region and on interviews with local and regional scholars as well as the policeman's descendants, this generously illustrated book, accompanied by short video clips, brings to life the distinctive environment of the lakes district on the Malay Peninsula.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="540">
+    <subfield code="a">Creative Commons Attribution-NonCommercial 4.0 International</subfield>
+    <subfield code="f">CC BY-NC 4.0</subfield>
+    <subfield code="u">https://creativecommons.org/licenses/by-nc/4.0/legalcode</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="588">
+    <subfield code="a">Description based on print version record; resource not viewed.</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="600">
+    <subfield code="a">Phantharakrātchadēt</subfield>
+    <subfield code="q">(But),</subfield>
+    <subfield code="c">Khun.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="650">
+    <subfield code="a">Police</subfield>
+    <subfield code="z">Thailand</subfield>
+    <subfield code="v">Biography.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="7" tag="655">
+    <subfield code="a">Biographies.</subfield>
+    <subfield code="2">lcgft</subfield>
+    <subfield code="0">https://id.loc.gov/authorities/genreForms/gf2014026049</subfield>
+  </datafield>
+  <datafield ind1="2" ind2=" " tag="710">
+    <subfield code="a">Australian National University Press.</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="8" tag="776">
+    <subfield code="i">Print version:</subfield>
+    <subfield code="t">Power, protection and magic in Thailand</subfield>
+    <subfield code="d">Acton, A.C.T. : ANU Press, 2019.</subfield>
+    <subfield code="z">9781760463168</subfield>
+    <subfield code="w">(DLC)  2019394954</subfield>
+  </datafield>
+  <datafield ind1="4" ind2="0" tag="856">
+    <subfield code="d">gdcebookspublic</subfield>
+    <subfield code="f">2019667681</subfield>
+    <subfield code="u">https://hdl.loc.gov/loc.gdc/gdcebookspublic.2019667681</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="985">
+    <subfield code="a">gdc/doab</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="985">
+    <subfield code="a">gdc/scd</subfield>
+  </datafield>
+</record>

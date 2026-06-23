@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><mods xmlns="http://www.loc.gov/mods/v3" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.8" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-8.xsd">
+  <titleInfo>
+    <title>Maiṃ Bhagata Siṅgha ate Maiṃ phira āwāṅga</title>
+  </titleInfo>
+  <titleInfo displayLabel="Title on t.p. verso:" type="alternative">
+    <title>Mein Bhagat Singh ate Mein phil awanga</title>
+  </titleInfo>
+  <titleInfo type="alternative">
+    <title>Maiṃ phira āwāṅga</title>
+  </titleInfo>
+  <name type="personal" usage="primary">
+    <namePart>Pālī Bhupindara Siṅgha,</namePart>
+    <namePart type="date">1965-</namePart>
+  </name>
+  <typeOfResource>text</typeOfResource>
+  <genre authority="rdacontent">text</genre>
+  <originInfo>
+    <place>
+      <placeTerm authority="marccountry" type="code">ii</placeTerm>
+    </place>
+    <issuance>monographic</issuance>
+    <place>
+      <placeTerm type="text">Ludhiāṇā</placeTerm>
+    </place>
+    <agent>
+      <namePart>Cetanā Prakāshana</namePart>
+    </agent>
+    <dateIssued>2008</dateIssued>
+  </originInfo>
+  <language>
+    <languageTerm authority="iso639-2b" type="code">pan</languageTerm>
+  </language>
+  <physicalDescription>
+    <form authority="marcform">print</form>
+    <form authority="rdamedia" type="media">unmediated</form>
+    <form authority="rdacarrier" type="carrier">volume</form>
+    <extent>102 p. ; 22 cm.</extent>
+  </physicalDescription>
+  <note type="statement of responsibility">Pālī Bhupindara Siṅgha.</note>
+  <note>Plays.</note>
+  <note>"Shahīda Bhagata Siṅgha dī janama shatābadī 'te do nāṭaka."</note>
+  <note type="language">In Panjabi.</note>
+  <classification authority="lcc">MLCSA 2008/00378 (P)</classification>
+  <classification authority="lcc">PK2659</classification>
+  <relatedItem type="constituent">
+    <titleInfo>
+      <title>Maiṃ phira āwāṅga</title>
+    </titleInfo>
+    <name type="personal">
+      <namePart>Pālī Bhupindara Siṅgha,</namePart>
+      <namePart type="date">1965-</namePart>
+    </name>
+  </relatedItem>
+  <relatedItem type="constituent">
+    <titleInfo>
+      <title>Maiṃ phira āwāṅga</title>
+    </titleInfo>
+  </relatedItem>
+  <identifier type="isbn">8178834138</identifier>
+  <identifier type="isbn">9788178834139</identifier>
+  <identifier type="lccn">2008305181</identifier>
+  <identifier type="stock number">Library of Congress -- New Delhi Overseas Office</identifier>
+  <recordInfo>
+    <descriptionStandard>aacr</descriptionStandard>
+    <recordContentSource authority="marcorg">DLC</recordContentSource>
+    <recordCreationDate encoding="marc">080505</recordCreationDate>
+    <recordChangeDate encoding="iso8601">20250607024049.2</recordChangeDate>
+    <recordIdentifier>15288192</recordIdentifier>
+    <recordOrigin>Converted from MARCXML to MODS version 3.8 using MARC21slim2MODS3-8_XSLT1-0.xsl
+				(Revision 1.172 20230208)</recordOrigin>
+  </recordInfo>
+</mods>

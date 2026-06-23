@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><mods xmlns="http://www.loc.gov/mods/v3" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.8" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-8.xsd">
+  <titleInfo>
+    <title>Trio sonata in C major for two violins and basso continuo</title>
+  </titleInfo>
+  <titleInfo nameTitleGroup="1" type="uniform">
+    <title>Trio sonatas, violins, continuo</title>
+    <partNumber>HWV 403, C major</partNumber>
+  </titleInfo>
+  <name nameTitleGroup="1" type="personal" usage="primary">
+    <namePart>Handel, George Frideric,</namePart>
+    <namePart type="date">1685-1759</namePart>
+  </name>
+  <name type="personal">
+    <namePart>Gilmore, Margaret.</namePart>
+  </name>
+  <typeOfResource>notated music</typeOfResource>
+  <genre authority="rdacontent">notated music</genre>
+  <originInfo>
+    <place>
+      <placeTerm authority="marccountry" type="code">enk</placeTerm>
+    </place>
+    <dateIssued encoding="marc">1986</dateIssued>
+    <issuance>monographic</issuance>
+    <place>
+      <placeTerm type="text">Oxford [Oxfordshire]</placeTerm>
+    </place>
+    <agent>
+      <namePart>Oxford University Press</namePart>
+    </agent>
+    <dateIssued>c1986</dateIssued>
+  </originInfo>
+  <physicalDescription>
+    <form authority="marcform">print</form>
+    <form authority="rdamedia" type="media">unmediated</form>
+    <form authority="rdacarrier" type="carrier">volume</form>
+    <extent>1 score (20 p.) + 3 parts ; 32 cm.</extent>
+  </physicalDescription>
+  <note type="statement of responsibility">George Frideric Handel ; edited by Margaret Gilmore.</note>
+  <note>Cover title.</note>
+  <note>Unfigured bass is realized; includes part for bass instrument.</note>
+  <note>Edited principally from holograph in the Fitzwilliam Museum (Mu. Ms. 259).</note>
+  <note>Duration: 12:00.</note>
+  <subject authority="lcsh">
+    <topic>Trio sonatas (Violins (2), continuo)</topic>
+    <topic>Scores and parts</topic>
+  </subject>
+  <classification authority="lcc">M312.4 .H152 C maj. 1986</classification>
+  <relatedItem type="series">
+    <titleInfo>
+      <title>Oxford chamber music</title>
+    </titleInfo>
+  </relatedItem>
+  <relatedItem type="series">
+    <titleInfo>
+      <title>Musica da camera (Oxford University Press)</title>
+      <partNumber>89</partNumber>
+    </titleInfo>
+  </relatedItem>
+  <identifier type="isbn">0193569965</identifier>
+  <identifier type="isbn">9780193569966</identifier>
+  <identifier type="lccn">86753184</identifier>
+  <recordInfo>
+    <descriptionStandard>aacr</descriptionStandard>
+    <recordContentSource authority="marcorg">DLC</recordContentSource>
+    <recordCreationDate encoding="marc">860714</recordCreationDate>
+    <recordChangeDate encoding="iso8601">20250607222911.3</recordChangeDate>
+    <recordIdentifier>5599410</recordIdentifier>
+    <recordOrigin>Converted from MARCXML to MODS version 3.8 using MARC21slim2MODS3-8_XSLT1-0.xsl
+				(Revision 1.172 20230208)</recordOrigin>
+  </recordInfo>
+</mods>

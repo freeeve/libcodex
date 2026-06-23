@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>01410cam a22003857a 4500</leader>
+  <controlfield tag="001">15288192</controlfield>
+  <controlfield tag="005">20250607024049.2</controlfield>
+  <controlfield tag="008">080505s2008    ii            000 0 pan  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">15288192</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">7</subfield>
+    <subfield code="b">ibc</subfield>
+    <subfield code="c">origode</subfield>
+    <subfield code="d">4</subfield>
+    <subfield code="e">ncip</subfield>
+    <subfield code="f">20</subfield>
+    <subfield code="g">y-gencatlg</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="925">
+    <subfield code="a">acquire</subfield>
+    <subfield code="b">1 shelf copy</subfield>
+    <subfield code="x">policy default</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">wd33 2008-05-21 to Asian</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">LCAP batch update 2025-06-01-04:00: LCAPM-644, LCAPM-150</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">  2008305181</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">8178834138</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">9788178834139</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="025">
+    <subfield code="a">I-Pan-2008-305181; 10</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="037">
+    <subfield code="b">Library of Congress -- New Delhi Overseas Office</subfield>
+    <subfield code="c">Rs120.00</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="c">DLC</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="042">
+    <subfield code="a">lcode</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">MLCSA 2008/00378 (P)</subfield>
+    <subfield code="a">PK2659</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="100">
+    <subfield code="a">Pālī Bhupindara Siṅgha,</subfield>
+    <subfield code="d">1965-</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="0" tag="245">
+    <subfield code="a">Maiṃ Bhagata Siṅgha ate Maiṃ phira āwāṅga /</subfield>
+    <subfield code="c">Pālī Bhupindara Siṅgha.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="246">
+    <subfield code="i">Title on t.p. verso:</subfield>
+    <subfield code="a">Mein Bhagat Singh ate Mein phil awanga</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="260">
+    <subfield code="a">Ludhiāṇā :</subfield>
+    <subfield code="b">Cetanā Prakāshana,</subfield>
+    <subfield code="c">2008.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">102 p. ;</subfield>
+    <subfield code="c">22 cm.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="336">
+    <subfield code="a">text</subfield>
+    <subfield code="b">txt</subfield>
+    <subfield code="2">rdacontent</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="337">
+    <subfield code="a">unmediated</subfield>
+    <subfield code="b">n</subfield>
+    <subfield code="2">rdamedia</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="338">
+    <subfield code="a">volume</subfield>
+    <subfield code="b">nc</subfield>
+    <subfield code="2">rdacarrier</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Plays.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">"Shahīda Bhagata Siṅgha dī janama shatābadī 'te do nāṭaka."</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="546">
+    <subfield code="a">In Panjabi.</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="2" tag="700">
+    <subfield code="a">Pālī Bhupindara Siṅgha,</subfield>
+    <subfield code="d">1965-</subfield>
+    <subfield code="t">Maiṃ phira āwāṅga.</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="2" tag="740">
+    <subfield code="a">Maiṃ phira āwāṅga.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="985">
+    <subfield code="e">ODE-nd</subfield>
+  </datafield>
+</record>

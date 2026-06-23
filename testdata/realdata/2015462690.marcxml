@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>01311cam a22003737i 4500</leader>
+  <controlfield tag="001">18869018</controlfield>
+  <controlfield tag="005">20250607065739.2</controlfield>
+  <controlfield tag="008">151123s2015    quc           000 1 eng  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">18869018</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">7</subfield>
+    <subfield code="b">cbc</subfield>
+    <subfield code="c">copycat</subfield>
+    <subfield code="d">3</subfield>
+    <subfield code="e">ncip</subfield>
+    <subfield code="f">20</subfield>
+    <subfield code="g">y-gencatlg</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="925">
+    <subfield code="a">acquire</subfield>
+    <subfield code="b">1 shelf copy</subfield>
+    <subfield code="x">policy default</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="b">hc08 2015-11-23 z-processor</subfield>
+    <subfield code="i">hc08 2015-12-22 to BCCD</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">  2015462690</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="016">
+    <subfield code="a">20159027187</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">9781550654226</subfield>
+    <subfield code="q">paperback</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">9781550654301</subfield>
+    <subfield code="q">epub</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">(OCoLC)910986192</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">NLC</subfield>
+    <subfield code="b">eng</subfield>
+    <subfield code="c">NLC</subfield>
+    <subfield code="e">rda</subfield>
+    <subfield code="d">OCLCO</subfield>
+    <subfield code="d">TOH</subfield>
+    <subfield code="d">YDXCP</subfield>
+    <subfield code="d">CNSOA</subfield>
+    <subfield code="d">CDX</subfield>
+    <subfield code="d">OCLCO</subfield>
+    <subfield code="d">VP@</subfield>
+    <subfield code="d">OCLCF</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="042">
+    <subfield code="a">lccopycat</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">PS3564.O914</subfield>
+    <subfield code="b">E9 2015</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="4" tag="082">
+    <subfield code="a">813/.54</subfield>
+    <subfield code="2">23</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="100">
+    <subfield code="a">Novakovich, Josip,</subfield>
+    <subfield code="d">1956-</subfield>
+    <subfield code="e">author.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="0" tag="240">
+    <subfield code="a">Short stories.</subfield>
+    <subfield code="k">Selections</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="0" tag="245">
+    <subfield code="a">Ex-Yu :</subfield>
+    <subfield code="b">stories /</subfield>
+    <subfield code="c">Josip Novakovich.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="1" tag="264">
+    <subfield code="a">Montreal :</subfield>
+    <subfield code="b">Esplanade Books,</subfield>
+    <subfield code="c">[2015]</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">207 pages ;</subfield>
+    <subfield code="c">22 cm</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="336">
+    <subfield code="a">text</subfield>
+    <subfield code="b">txt</subfield>
+    <subfield code="2">rdacontent</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="337">
+    <subfield code="a">unmediated</subfield>
+    <subfield code="b">n</subfield>
+    <subfield code="2">rdamedia</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="338">
+    <subfield code="a">volume</subfield>
+    <subfield code="b">nc</subfield>
+    <subfield code="2">rdacarrier</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Short stories.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="530">
+    <subfield code="a">Issued also in electronic format.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="7" tag="650">
+    <subfield code="a">Short stories.</subfield>
+    <subfield code="2">fast</subfield>
+    <subfield code="0">(OCoLC)fst01117043</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="776">
+    <subfield code="a">Novakovich, Josip, 1956-, author.</subfield>
+    <subfield code="t">Ex-Yu.</subfield>
+    <subfield code="w">(CaOONL)20159027195</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="923">
+    <subfield code="a">Purchase</subfield>
+    <subfield code="d">2015-11-23</subfield>
+    <subfield code="n">I-20089383</subfield>
+    <subfield code="s">ProQuest</subfield>
+  </datafield>
+</record>

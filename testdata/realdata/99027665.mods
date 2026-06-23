@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><mods xmlns="http://www.loc.gov/mods/v3" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.8" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-8.xsd">
+  <titleInfo>
+    <title>Weaving the Web</title>
+    <subTitle>the original design and ultimate destiny of the World Wide Web by its inventor</subTitle>
+  </titleInfo>
+  <name type="personal" usage="primary">
+    <namePart>Berners-Lee, Tim.</namePart>
+  </name>
+  <name type="personal">
+    <namePart>Fischetti, Mark.</namePart>
+  </name>
+  <typeOfResource>text</typeOfResource>
+  <genre authority="rdacontent">text</genre>
+  <originInfo>
+    <place>
+      <placeTerm authority="marccountry" type="code">cau</placeTerm>
+    </place>
+    <dateIssued encoding="marc">1999</dateIssued>
+    <issuance>monographic</issuance>
+    <place>
+      <placeTerm type="text">San Francisco</placeTerm>
+    </place>
+    <agent>
+      <namePart>HarperSanFrancisco</namePart>
+    </agent>
+    <dateIssued>c1999</dateIssued>
+    <edition>1st ed.</edition>
+  </originInfo>
+  <language>
+    <languageTerm authority="iso639-2b" type="code">eng</languageTerm>
+  </language>
+  <physicalDescription>
+    <form authority="marcform">print</form>
+    <form authority="rdamedia" type="media">unmediated</form>
+    <form authority="rdacarrier" type="carrier">volume</form>
+    <extent>xi, 226 p. ; 25 cm.</extent>
+  </physicalDescription>
+  <note type="statement of responsibility">Tim Berners-Lee with Mark Fischetti.</note>
+  <note>Includes index.</note>
+  <subject authority="lcsh">
+    <name type="personal">
+      <namePart>Berners-Lee, Tim.</namePart>
+    </name>
+  </subject>
+  <subject authority="lcsh">
+    <topic>World Wide Web</topic>
+    <topic>History</topic>
+  </subject>
+  <classification authority="lcc">TK5105.888 .B46 1999</classification>
+  <classification authority="ddc" edition="21">025.04</classification>
+  <identifier type="isbn">0062515861</identifier>
+  <identifier type="isbn">006251587X</identifier>
+  <identifier type="isbn">9780062515865</identifier>
+  <identifier type="lccn">99027665</identifier>
+  <relatedItem>
+    <location>
+      <url displayLabel="Publisher description">http://www.loc.gov/catdir/description/hc044/99027665.html</url>
+    </location>
+  </relatedItem>
+  <recordInfo>
+    <descriptionStandard>aacr</descriptionStandard>
+    <recordContentSource authority="marcorg">DLC</recordContentSource>
+    <recordCreationDate encoding="marc">990407</recordCreationDate>
+    <recordChangeDate encoding="iso8601">20250606183127.3</recordChangeDate>
+    <recordIdentifier>1213651</recordIdentifier>
+    <recordOrigin>Converted from MARCXML to MODS version 3.8 using MARC21slim2MODS3-8_XSLT1-0.xsl
+				(Revision 1.172 20230208)</recordOrigin>
+  </recordInfo>
+</mods>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><mods xmlns="http://www.loc.gov/mods/v3" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.8" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-8.xsd">
+  <titleInfo>
+    <title>Ex-Yu</title>
+    <subTitle>stories</subTitle>
+  </titleInfo>
+  <titleInfo nameTitleGroup="1" type="uniform">
+    <title>Short stories. Selections</title>
+  </titleInfo>
+  <name nameTitleGroup="1" type="personal" usage="primary">
+    <namePart>Novakovich, Josip,</namePart>
+    <namePart type="date">1956-</namePart>
+    <role>
+      <roleTerm type="text">author</roleTerm>
+    </role>
+  </name>
+  <typeOfResource>text</typeOfResource>
+  <genre authority="rdacontent">text</genre>
+  <originInfo>
+    <place>
+      <placeTerm authority="marccountry" type="code">quc</placeTerm>
+    </place>
+    <dateIssued encoding="marc">2015</dateIssued>
+    <issuance>monographic</issuance>
+  </originInfo>
+  <originInfo eventType="publication">
+    <place>
+      <placeTerm type="text">Montreal :</placeTerm>
+    </place>
+    <agent>
+      <namePart>Esplanade Books,</namePart>
+      <role>
+        <roleTerm>publisher</roleTerm>
+      </role>
+    </agent>
+    <dateIssued>[2015]</dateIssued>
+  </originInfo>
+  <language>
+    <languageTerm authority="iso639-2b" type="code">eng</languageTerm>
+  </language>
+  <physicalDescription>
+    <form authority="marcform">print</form>
+    <form authority="rdamedia" type="media">unmediated</form>
+    <form authority="rdacarrier" type="carrier">volume</form>
+    <extent>207 pages ; 22 cm</extent>
+  </physicalDescription>
+  <note type="statement of responsibility">Josip Novakovich.</note>
+  <note>Short stories.</note>
+  <note type="additional physical form">Issued also in electronic format.</note>
+  <subject xmlns:xlink="http://www.w3.org/1999/xlink" authority="fast" xlink:href="(OCoLC)fst01117043">
+    <topic>Short stories</topic>
+  </subject>
+  <classification authority="lcc">PS3564.O914 E9 2015</classification>
+  <classification authority="ddc" edition="23">813/.54</classification>
+  <relatedItem type="otherFormat">
+    <titleInfo>
+      <title>Ex-Yu</title>
+    </titleInfo>
+    <identifier type="local">(CaOONL)20159027195</identifier>
+    <name>
+      <namePart>Novakovich, Josip, 1956-, author.</namePart>
+    </name>
+  </relatedItem>
+  <identifier type="isbn">9781550654226</identifier>
+  <identifier type="isbn">9781550654301</identifier>
+  <identifier type="lccn">2015462690</identifier>
+  <identifier type="oclc">910986192</identifier>
+  <recordInfo>
+    <descriptionStandard>rda</descriptionStandard>
+    <recordContentSource authority="marcorg">NLC</recordContentSource>
+    <recordCreationDate encoding="marc">151123</recordCreationDate>
+    <recordChangeDate encoding="iso8601">20250607065739.2</recordChangeDate>
+    <recordIdentifier>18869018</recordIdentifier>
+    <recordOrigin>Converted from MARCXML to MODS version 3.8 using MARC21slim2MODS3-8_XSLT1-0.xsl
+				(Revision 1.172 20230208)</recordOrigin>
+    <languageOfCataloging>
+      <languageTerm authority="iso639-2b" type="code">eng</languageTerm>
+    </languageOfCataloging>
+  </recordInfo>
+</mods>

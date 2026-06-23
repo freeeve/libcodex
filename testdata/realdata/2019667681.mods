@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><mods xmlns="http://www.loc.gov/mods/v3" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.8" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-8.xsd">
+  <titleInfo>
+    <title>Power, protection and magic in Thailand</title>
+    <subTitle>the cosmos of a southern policeman</subTitle>
+  </titleInfo>
+  <name type="personal" usage="primary">
+    <namePart>Reynolds, Craig J.</namePart>
+  </name>
+  <name type="corporate">
+    <namePart>Australian National University Press.</namePart>
+  </name>
+  <typeOfResource>text</typeOfResource>
+  <genre authority="marcgt">bibliography</genre>
+  <genre authority="rdacontent">text</genre>
+  <genre authority="lcgft" valueURI="https://id.loc.gov/authorities/genreForms/gf2014026049">Biographies.</genre>
+  <originInfo>
+    <place>
+      <placeTerm authority="marccountry" type="code">aca</placeTerm>
+    </place>
+    <dateIssued encoding="marc">2019</dateIssued>
+    <copyrightDate encoding="marc">2019</copyrightDate>
+    <issuance>monographic</issuance>
+  </originInfo>
+  <originInfo eventType="publication">
+    <place>
+      <placeTerm type="text">Acton, A.C.T. :</placeTerm>
+    </place>
+    <agent>
+      <namePart>ANU Press,</namePart>
+      <role>
+        <roleTerm>publisher</roleTerm>
+      </role>
+    </agent>
+    <dateIssued>2019.</dateIssued>
+  </originInfo>
+  <language>
+    <languageTerm authority="iso639-2b" type="code">eng</languageTerm>
+  </language>
+  <physicalDescription>
+    <form authority="marccategory">electronic resource</form>
+    <form authority="marcsmd">remote</form>
+    <form authority="rdamedia" type="media">computer</form>
+    <form authority="rdacarrier" type="carrier">online resource</form>
+    <extent>1 electronic resource (xxii, 191 pages )</extent>
+  </physicalDescription>
+  <abstract type="Review">This biographical study of an unusual southern policeman explores the relationship between religion and power in Thailand during the early twentieth century when parts of the country were remote and banditry was rife. Khun Phan (1898-2006), known as Lion Lawman, sometimes used rather too much lethal force in carrying out his orders. He was the most famous graduate of a monastic academy in the mid-south, whose senior teachers imparted occult knowledge favoured by fighters on both sides of the law. Khun Phan imbibed this knowledge to confront the risks and uncertainty that lay ahead and bolster his confidence and self-reliance for his struggle with adversaries.    Against the background of national events, the story is rooted in the mid-south where the policeman was born and died. Based on a wide range of works in Thai language, on field trips to the region and on interviews with local and regional scholars as well as the policeman's descendants, this generously illustrated book, accompanied by short video clips, brings to life the distinctive environment of the lakes district on the Malay Peninsula.</abstract>
+  <tableOfContents type="Contents">Lion Lawman -- The mid south's fathomable past -- Policing and banditry -- Magical thinking to dispel fear and uncertainty -- Invulnerability and protecting the sovereign body.</tableOfContents>
+  <accessCondition type="restriction on access"/>
+  <accessCondition type="use and reproduction">Creative Commons Attribution-NonCommercial 4.0 International</accessCondition>
+  <targetAudience authority="marctarget">general</targetAudience>
+  <note type="statement of responsibility">Craig J. Reynolds.</note>
+  <note type="bibliography">Includes bibliographical references (pages 165-191).</note>
+  <note>Description based on print version record; resource not viewed.</note>
+  <subject>
+    <geographicCode authority="marcgac">a-th---</geographicCode>
+  </subject>
+  <subject authority="lcsh">
+    <name type="personal">
+      <namePart>Phantharakrātchadēt (But),</namePart>
+      <namePart type="termsOfAddress">Khun.</namePart>
+    </name>
+  </subject>
+  <subject authority="lcsh">
+    <topic>Police</topic>
+    <geographic>Thailand</geographic>
+    <genre>Biography</genre>
+  </subject>
+  <classification authority="lcc">HV7911.P464</classification>
+  <location>
+    <url displayLabel="electronic resource" usage="primary display">https://hdl.loc.gov/loc.gdc/gdcebookspublic.2019667681</url>
+  </location>
+  <relatedItem type="series">
+    <titleInfo>
+      <title>Asian studies series monograph</title>
+      <partNumber>12</partNumber>
+    </titleInfo>
+  </relatedItem>
+  <relatedItem displayLabel="Print version:" otherType="Print version:" type="otherFormat">
+    <titleInfo>
+      <title>Power, protection and magic in Thailand</title>
+    </titleInfo>
+    <originInfo>
+      <publisher>Acton, A.C.T. : ANU Press, 2019</publisher>
+    </originInfo>
+    <identifier type="isbn">9781760463168</identifier>
+    <identifier type="local">(DLC)  2019394954</identifier>
+  </relatedItem>
+  <identifier type="isbn">9781760463175</identifier>
+  <identifier invalid="yes" type="isbn">9781760463168</identifier>
+  <identifier type="lccn">2019667681</identifier>
+  <recordInfo>
+    <descriptionStandard>pn</descriptionStandard>
+    <recordContentSource authority="marcorg">DLC</recordContentSource>
+    <recordCreationDate encoding="marc">200207</recordCreationDate>
+    <recordChangeDate encoding="iso8601">20250607102643.3</recordChangeDate>
+    <recordIdentifier>21654715</recordIdentifier>
+    <recordOrigin>Converted from MARCXML to MODS version 3.8 using MARC21slim2MODS3-8_XSLT1-0.xsl
+				(Revision 1.172 20230208)</recordOrigin>
+    <languageOfCataloging>
+      <languageTerm authority="iso639-2b" type="code">eng</languageTerm>
+    </languageOfCataloging>
+  </recordInfo>
+</mods>

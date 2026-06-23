@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>01639ccm a2200433 a 4500</leader>
+  <controlfield tag="001">5599410</controlfield>
+  <controlfield tag="005">20250607222911.3</controlfield>
+  <controlfield tag="008">860714s1986    enktsa         n         </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">5599410</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">7</subfield>
+    <subfield code="b">cbc</subfield>
+    <subfield code="c">orignew</subfield>
+    <subfield code="d">3</subfield>
+    <subfield code="e">ncip</subfield>
+    <subfield code="f">19</subfield>
+    <subfield code="g">y-genmusic</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">LCAP batch update 2025-06-02-04:00: LCAPM-695, LCAPM-150</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">   86753184 </subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">0193569965</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">9780193569966</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="9">(DLC)   86753184</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="c">DLC</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="048">
+    <subfield code="a">sa02</subfield>
+    <subfield code="a">ke</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">M312.4</subfield>
+    <subfield code="b">.H152 C maj. 1986</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="100">
+    <subfield code="a">Handel, George Frideric,</subfield>
+    <subfield code="d">1685-1759.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="0" tag="240">
+    <subfield code="a">Trio sonatas,</subfield>
+    <subfield code="m">violins, continuo,</subfield>
+    <subfield code="n">HWV 403,</subfield>
+    <subfield code="r">C major</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="245">
+    <subfield code="a">Trio sonata in C major for two violins and basso continuo /</subfield>
+    <subfield code="c">George Frideric Handel ; edited by Margaret Gilmore.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="260">
+    <subfield code="a">Oxford [Oxfordshire] :</subfield>
+    <subfield code="b">Oxford University Press,</subfield>
+    <subfield code="c">c1986.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">1 score (20 p.) + 3 parts ;</subfield>
+    <subfield code="c">32 cm.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="306">
+    <subfield code="a">001200</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="336">
+    <subfield code="a">notated music</subfield>
+    <subfield code="b">ntm</subfield>
+    <subfield code="2">rdacontent</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="337">
+    <subfield code="a">unmediated</subfield>
+    <subfield code="b">n</subfield>
+    <subfield code="2">rdamedia</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="338">
+    <subfield code="a">volume</subfield>
+    <subfield code="b">nc</subfield>
+    <subfield code="2">rdacarrier</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="440">
+    <subfield code="a">Oxford chamber music</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="490">
+    <subfield code="a">Musica da camera ;</subfield>
+    <subfield code="v">89</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Cover title.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Unfigured bass is realized; includes part for bass instrument.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Edited principally from holograph in the Fitzwilliam Museum (Mu. Ms. 259).</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Duration: 12:00.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="650">
+    <subfield code="a">Trio sonatas (Violins (2), continuo)</subfield>
+    <subfield code="x">Scores and parts.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="700">
+    <subfield code="a">Gilmore, Margaret.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="830">
+    <subfield code="a">Musica da camera (Oxford University Press) ;</subfield>
+    <subfield code="v">89.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="952">
+    <subfield code="a">U.t. changed.  vk11.  1-16-87.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="953">
+    <subfield code="a">TA28</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="991">
+    <subfield code="b">c-Music</subfield>
+    <subfield code="h">M312.4</subfield>
+    <subfield code="i">.H152 C maj. 1986</subfield>
+    <subfield code="t">Copy 1</subfield>
+    <subfield code="w">MUSIC</subfield>
+  </datafield>
+</record>
