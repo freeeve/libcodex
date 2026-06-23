@@ -547,18 +547,17 @@ func TurtleHeader(prefixes map[string]string) []byte {
 func (g *Graph) TurtleBody(prefixes map[string]string) []byte {
 	var b []byte
 	var order []Term
-	seen := map[string]bool{}
-	bySubj := map[string][]Triple{}
+	seen := map[Term]bool{}
+	bySubj := map[Term][]Triple{}
 	for _, t := range g.Triples {
-		k := t.S.key()
-		if !seen[k] {
-			seen[k] = true
+		if !seen[t.S] {
+			seen[t.S] = true
 			order = append(order, t.S)
 		}
-		bySubj[k] = append(bySubj[k], t)
+		bySubj[t.S] = append(bySubj[t.S], t)
 	}
 	for _, s := range order {
-		b = appendTurtleSubject(b, s, bySubj[s.key()], prefixes)
+		b = appendTurtleSubject(b, s, bySubj[s], prefixes)
 	}
 	return b
 }
@@ -566,31 +565,30 @@ func (g *Graph) TurtleBody(prefixes map[string]string) []byte {
 func appendTurtleSubject(b []byte, s Term, triples []Triple, prefixes map[string]string) []byte {
 	b = appendTurtleTerm(b, s, prefixes, false)
 
-	var predOrder []Term
-	predSeen := map[string]bool{}
-	byPred := map[string][]Term{}
-	for _, t := range triples {
-		k := t.P.key()
-		if !predSeen[k] {
-			predSeen[k] = true
-			predOrder = append(predOrder, t.P)
+	// Group objects by predicate in first-seen order with a linear scan: a subject
+	// has only a handful of predicates, so this beats allocating maps per subject.
+	done := make([]bool, len(triples))
+	first := true
+	for i := range triples {
+		if done[i] {
+			continue
 		}
-		byPred[k] = append(byPred[k], t.O)
-	}
-	for i, pterm := range predOrder {
-		if i == 0 {
+		if first {
 			b = append(b, ' ')
+			first = false
 		} else {
 			b = append(b, " ;\n    "...)
 		}
-		b = appendTurtleTerm(b, pterm, prefixes, true)
-		for j, o := range byPred[pterm.key()] {
-			if j == 0 {
-				b = append(b, ' ')
-			} else {
+		b = appendTurtleTerm(b, triples[i].P, prefixes, true)
+		b = append(b, ' ')
+		b = appendTurtleTerm(b, triples[i].O, prefixes, false)
+		done[i] = true
+		for j := i + 1; j < len(triples); j++ {
+			if !done[j] && triples[j].P == triples[i].P {
 				b = append(b, ", "...)
+				b = appendTurtleTerm(b, triples[j].O, prefixes, false)
+				done[j] = true
 			}
-			b = appendTurtleTerm(b, o, prefixes, false)
 		}
 	}
 	return append(b, " .\n"...)
@@ -604,8 +602,8 @@ func appendTurtleTerm(b []byte, t Term, prefixes map[string]string, predicate bo
 		if predicate && t.Value == TypeIRI {
 			return append(b, 'a')
 		}
-		if pn, ok := compactIRI(t.Value, prefixes); ok {
-			return append(b, pn...)
+		if nb, ok := appendCompactIRI(b, t.Value, prefixes); ok {
+			return nb
 		}
 		b = append(b, '<')
 		b = appendEscapedIRI(b, t.Value)
@@ -623,8 +621,8 @@ func appendTurtleTerm(b []byte, t Term, prefixes map[string]string, predicate bo
 		}
 		if t.Datatype != "" && t.Datatype != XSDString {
 			b = append(b, "^^"...)
-			if pn, ok := compactIRI(t.Datatype, prefixes); ok {
-				return append(b, pn...)
+			if nb, ok := appendCompactIRI(b, t.Datatype, prefixes); ok {
+				return nb
 			}
 			b = append(b, '<')
 			b = appendEscapedIRI(b, t.Datatype)
@@ -634,9 +632,11 @@ func appendTurtleTerm(b []byte, t Term, prefixes map[string]string, predicate bo
 	}
 }
 
-// compactIRI returns iri as a prefixed name against the longest matching
-// namespace, when the remaining local part is a valid bare local name.
-func compactIRI(iri string, prefixes map[string]string) (string, bool) {
+// appendCompactIRI appends iri as a prefixed name against the longest matching
+// namespace when the remaining local part is a valid bare local name, reporting
+// whether it compacted. It writes straight to b, allocating no intermediate
+// string.
+func appendCompactIRI(b []byte, iri string, prefixes map[string]string) ([]byte, bool) {
 	bestLabel, bestNS := "", ""
 	for label, ns := range prefixes {
 		if len(ns) > len(bestNS) && strings.HasPrefix(iri, ns) {
@@ -646,9 +646,12 @@ func compactIRI(iri string, prefixes map[string]string) (string, bool) {
 		}
 	}
 	if bestNS == "" {
-		return "", false
+		return b, false
 	}
-	return bestLabel + ":" + iri[len(bestNS):], true
+	b = append(b, bestLabel...)
+	b = append(b, ':')
+	b = append(b, iri[len(bestNS):]...)
+	return b, true
 }
 
 // validLocal reports whether s is a non-empty local name that can be written bare

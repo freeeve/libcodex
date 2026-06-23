@@ -56,29 +56,17 @@ func (t Term) IsIRI() bool     { return t.Kind == IRI }
 func (t Term) IsBlank() bool   { return t.Kind == Blank }
 func (t Term) IsLiteral() bool { return t.Kind == Literal }
 
-// key returns a comparable identity for indexing (kind, value, and for literals
-// the language and datatype).
-func (t Term) key() string {
-	switch t.Kind {
-	case IRI:
-		return "<" + t.Value
-	case Blank:
-		return "_" + t.Value
-	default:
-		return "\"" + t.Value + "\x00" + t.Lang + "\x00" + t.Datatype
-	}
-}
-
 // Triple is an RDF statement.
 type Triple struct {
 	S, P, O Term
 }
 
-// Graph is a set of triples with simple lookup helpers built on first use.
+// Graph is a set of triples with simple lookup helpers built on first use. Term
+// is comparable, so it indexes by subject term directly — no key strings.
 type Graph struct {
 	Triples []Triple
 
-	spo map[string][]Triple // subject key -> triples
+	spo map[Term][]Triple // subject -> triples
 }
 
 // Add appends a triple.
@@ -91,10 +79,9 @@ func (g *Graph) index() {
 	if g.spo != nil {
 		return
 	}
-	g.spo = make(map[string][]Triple, len(g.Triples))
+	g.spo = make(map[Term][]Triple, len(g.Triples))
 	for _, t := range g.Triples {
-		k := t.S.key()
-		g.spo[k] = append(g.spo[k], t)
+		g.spo[t.S] = append(g.spo[t.S], t)
 	}
 }
 
@@ -103,7 +90,7 @@ func (g *Graph) index() {
 func (g *Graph) Objects(subject Term, predicate string) []Term {
 	g.index()
 	var out []Term
-	for _, t := range g.spo[subject.key()] {
+	for _, t := range g.spo[subject] {
 		if t.P.Kind == IRI && t.P.Value == predicate {
 			out = append(out, t.O)
 		}
@@ -111,33 +98,52 @@ func (g *Graph) Objects(subject Term, predicate string) []Term {
 	return out
 }
 
-// Object returns the first object for (subject, predicate), or false.
+// Object returns the first object for (subject, predicate), or false. It scans the
+// index without allocating an intermediate slice.
 func (g *Graph) Object(subject Term, predicate string) (Term, bool) {
-	if objs := g.Objects(subject, predicate); len(objs) > 0 {
-		return objs[0], true
+	g.index()
+	for _, t := range g.spo[subject] {
+		if t.P.Kind == IRI && t.P.Value == predicate {
+			return t.O, true
+		}
 	}
 	return Term{}, false
 }
 
-// HasType reports whether the subject has rdf:type typeIRI.
+// HasType reports whether the subject has rdf:type typeIRI. It scans the index
+// without allocating.
 func (g *Graph) HasType(subject Term, typeIRI string) bool {
-	for _, o := range g.Objects(subject, TypeIRI) {
-		if o.Kind == IRI && o.Value == typeIRI {
+	g.index()
+	for _, t := range g.spo[subject] {
+		if t.P.Kind == IRI && t.P.Value == TypeIRI && t.O.Kind == IRI && t.O.Value == typeIRI {
 			return true
 		}
 	}
 	return false
 }
 
+// Literal returns the value of the subject's first literal object for the
+// predicate, or false. It scans the index without allocating an intermediate
+// slice, serving the frequent single-value field reads.
+func (g *Graph) Literal(subject Term, predicate string) (string, bool) {
+	g.index()
+	for _, t := range g.spo[subject] {
+		if t.P.Kind == IRI && t.P.Value == predicate && t.O.Kind == Literal {
+			return t.O.Value, true
+		}
+	}
+	return "", false
+}
+
 // SubjectsOfType returns every subject with rdf:type typeIRI, in document order
 // (deduplicated).
 func (g *Graph) SubjectsOfType(typeIRI string) []Term {
 	var out []Term
-	seen := map[string]bool{}
+	seen := map[Term]bool{}
 	for _, t := range g.Triples {
 		if t.P.Kind == IRI && t.P.Value == TypeIRI && t.O.Kind == IRI && t.O.Value == typeIRI {
-			if k := t.S.key(); !seen[k] {
-				seen[k] = true
+			if !seen[t.S] {
+				seen[t.S] = true
 				out = append(out, t.S)
 			}
 		}

@@ -294,8 +294,13 @@ func agentClass(g *rdf.Graph, agent rdf.Term) string {
 
 // contribTag picks the MARC tag for an agent class and primary/added entry.
 func contribTag(class string, primary bool) string {
-	base := map[string]string{"Organization": "10", "Jurisdiction": "10", "Meeting": "11"}[class]
-	if base == "" {
+	var base string
+	switch class {
+	case "Organization", "Jurisdiction":
+		base = "10"
+	case "Meeting":
+		base = "11"
+	default:
 		base = "00" // Person, Family and unknown agents use the X00 personal-name tag
 	}
 	if primary {
@@ -507,12 +512,8 @@ func instanceBackref(g *rdf.Graph, work rdf.Term) (rdf.Term, bool) {
 // literal returns the lexical value of subject's first literal object for the
 // predicate, or "".
 func literal(g *rdf.Graph, subject rdf.Term, predicate string) string {
-	for _, o := range g.Objects(subject, predicate) {
-		if o.IsLiteral() {
-			return o.Value
-		}
-	}
-	return ""
+	v, _ := g.Literal(subject, predicate)
+	return v
 }
 
 // labelsOf returns the rdfs:label of every node object reached through the

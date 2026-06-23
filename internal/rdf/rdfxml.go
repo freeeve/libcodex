@@ -1,6 +1,7 @@
 package rdf
 
 import (
+	"bytes"
 	"encoding/xml"
 	"io"
 	"strconv"
@@ -16,7 +17,7 @@ const xmlNS = "http://www.w3.org/XML/1998/namespace"
 // xml:lang, property attributes, and rdf:parseType="Resource". It does not handle
 // RDF containers, reification, or rdf:parseType="Literal"/"Collection".
 func ParseRDFXML(data []byte) (*Graph, error) {
-	p := &xmlParser{dec: xml.NewDecoder(strings.NewReader(string(data))), g: &Graph{}}
+	p := &xmlParser{dec: xml.NewDecoder(bytes.NewReader(data)), g: &Graph{}}
 	for {
 		tok, err := p.dec.Token()
 		if err == io.EOF {
