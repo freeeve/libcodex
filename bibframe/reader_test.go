@@ -3,6 +3,8 @@ package bibframe
 import (
 	"bytes"
 	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -341,6 +343,63 @@ func TestDecodeLoCContribution(t *testing.T) {
 	}
 }
 
+// TestDecodeLoCFields locks the field shapes LoC's marc2bibframe2 emits that
+// differ from this library's own output: the language code in bf:code (not the
+// rdfs:label human name), the transcribed publication statement in
+// bflc:simplePlace/simpleAgent (the controlled bf:place being an authority form),
+// and an LCCN as bf:Lccn (-> 010, not 024).
+func TestDecodeLoCFields(t *testing.T) {
+	const bf, bflc = "http://id.loc.gov/ontologies/bibframe/", "http://id.loc.gov/ontologies/bflc/"
+	doc := `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	            xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+	            xmlns:bf="` + bf + `" xmlns:bflc="` + bflc + `">
+	  <bf:Work rdf:about="http://ex/w">
+	    <bf:title><bf:Title><bf:mainTitle>T</bf:mainTitle></bf:Title></bf:title>
+	    <bf:language><bf:Language rdf:about="http://id.loc.gov/vocabulary/languages/fre">
+	      <rdfs:label xml:lang="en">French</rdfs:label>
+	      <bf:code rdf:datatype="http://www.w3.org/2001/XMLSchema#string">fre</bf:code>
+	    </bf:Language></bf:language>
+	    <bf:hasInstance rdf:resource="http://ex/i"/>
+	  </bf:Work>
+	  <bf:Instance rdf:about="http://ex/i">
+	    <bf:instanceOf rdf:resource="http://ex/w"/>
+	    <bf:title><bf:Title><bf:mainTitle>T</bf:mainTitle></bf:Title></bf:title>
+	    <bf:provisionActivity><bf:ProvisionActivity>
+	      <rdf:type rdf:resource="` + bf + `Publication"/>
+	      <bf:date rdf:datatype="http://id.loc.gov/datatypes/edtf">1995</bf:date>
+	      <bf:place><bf:Place rdf:about="http://id.loc.gov/vocabulary/countries/miu">
+	        <rdfs:label>Michigan</rdfs:label></bf:Place></bf:place>
+	      <bflc:simplePlace>Ann Arbor</bflc:simplePlace>
+	      <bflc:simpleAgent>University of Michigan Press</bflc:simpleAgent>
+	    </bf:ProvisionActivity></bf:provisionActivity>
+	    <bf:identifiedBy><bf:Lccn><rdf:value>   94036501 </rdf:value></bf:Lccn></bf:identifiedBy>
+	  </bf:Instance></rdf:RDF>`
+	recs, err := Decode([]byte(doc))
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("Decode: %v (%d records)", err, len(recs))
+	}
+	rec := recs[0]
+	if f := firstField(rec, "041"); f == nil || f.SubfieldValue('a') != "fre" {
+		t.Errorf("language: want 041 $a 'fre' from bf:code, got %+v", f)
+	}
+	f := firstField(rec, "260")
+	if f == nil || f.SubfieldValue('a') != "Ann Arbor" {
+		t.Errorf("place: want 260 $a 'Ann Arbor' from bflc:simplePlace, got %+v", f)
+	}
+	if f != nil && f.SubfieldValue('b') != "University of Michigan Press" {
+		t.Errorf("publisher: want 260 $b from bflc:simpleAgent, got %q", f.SubfieldValue('b'))
+	}
+	if f != nil && f.SubfieldValue('c') != "1995" {
+		t.Errorf("date: want 260 $c '1995', got %q", f.SubfieldValue('c'))
+	}
+	if f := firstField(rec, "010"); f == nil || f.SubfieldValue('a') != "94036501" {
+		t.Errorf("lccn: want 010 $a '94036501', got %+v", f)
+	}
+	if firstField(rec, "024") != nil {
+		t.Error("LCCN must not also appear as 024")
+	}
+}
+
 // firstField returns the first field with the tag, or nil.
 func firstField(r *codex.Record, tag string) *codex.Field {
 	for i := range r.Fields() {
@@ -351,15 +410,63 @@ func firstField(r *codex.Record, tag string) *codex.Field {
 	return nil
 }
 
-// FuzzDecode asserts the reader never panics on arbitrary input.
+// FuzzDecode fuzzes the reader. Beyond never panicking, it asserts the crosswalk
+// is a stable right inverse of the forward one: re-encoding a decoded record and
+// decoding it again must reproduce the same BIBFRAME graph, for both
+// serializations. It is seeded with this library's own output and the real LoC
+// corpus so mutation explores realistic graphs.
 func FuzzDecode(f *testing.F) {
-	b, _ := Encode(sample())
-	f.Add(b)
-	j, _ := EncodeJSONLD(sample())
-	f.Add(j)
+	if b, err := Encode(sample()); err == nil {
+		f.Add(b)
+	}
+	if j, err := EncodeJSONLD(sample()); err == nil {
+		f.Add(j)
+	}
+	if paths, err := filepath.Glob(filepath.Join("testdata", "loc", "*")); err == nil {
+		for _, p := range paths {
+			if d, err := os.ReadFile(p); err == nil {
+				f.Add(d)
+			}
+		}
+	}
 	f.Add([]byte("<rdf:RDF>"))
 	f.Add([]byte("{}"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_, _ = Decode(data)
+		recs, err := Decode(data)
+		if err != nil {
+			return
+		}
+		for _, rec := range recs {
+			want := normalize(FromRecord(rec))
+			for _, enc := range [][]byte{mustReencode(t, rec, false), mustReencode(t, rec, true)} {
+				back, err := Decode(enc)
+				if err != nil {
+					t.Fatalf("re-decode of encoded record failed: %v", err)
+				}
+				if len(back) != 1 {
+					t.Fatalf("re-decode produced %d records, want 1", len(back))
+				}
+				if got := normalize(FromRecord(back[0])); !reflect.DeepEqual(want, got) {
+					t.Fatalf("crosswalk not stable under encode/decode:\n want %+v\n got  %+v", want, got)
+				}
+			}
+		}
 	})
+}
+
+// mustReencode serializes a record to RDF/XML (jsonld=false) or JSON-LD, failing
+// the test on error.
+func mustReencode(t *testing.T, rec *codex.Record, jsonld bool) []byte {
+	t.Helper()
+	var b []byte
+	var err error
+	if jsonld {
+		b, err = EncodeJSONLD(rec)
+	} else {
+		b, err = Encode(rec)
+	}
+	if err != nil {
+		t.Fatalf("re-encode failed: %v", err)
+	}
+	return b
 }

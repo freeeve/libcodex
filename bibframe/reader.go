@@ -43,6 +43,13 @@ const (
 	pExtent       = bfNS + "extent"
 	pIdentifiedBy = bfNS + "identifiedBy"
 	pLocator      = bfNS + "electronicLocator"
+	pCode         = bfNS + "code"
+
+	// LoC's marc2bibframe2 carries the transcribed publication statement in these
+	// bflc properties, alongside the controlled bf:place / bf:date.
+	pSimplePlace = bflcNS + "simplePlace"
+	pSimpleAgent = bflcNS + "simpleAgent"
+	pSimpleDate  = bflcNS + "simpleDate"
 
 	primaryContribution   = bflcNS + "PrimaryContribution"
 	bfPrimaryContribution = bfNS + "PrimaryContribution"
@@ -271,6 +278,8 @@ func identifierFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
 			fields = append(fields, codex.NewDataField("020", ' ', ' ', codex.NewSubfield('a', value)))
 		case "Issn":
 			fields = append(fields, codex.NewDataField("022", ' ', ' ', codex.NewSubfield('a', value)))
+		case "Lccn":
+			fields = append(fields, codex.NewDataField("010", ' ', ' ', codex.NewSubfield('a', strings.TrimSpace(value))))
 		default:
 			fields = append(fields, codex.NewDataField("024", '8', ' ', codex.NewSubfield('a', value)))
 		}
@@ -300,12 +309,8 @@ func classificationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 func languageField(g *rdf.Graph, work rdf.Term) []codex.Field {
 	var subs []codex.Subfield
 	for _, l := range g.Objects(work, pLanguage) {
-		code := literal(g, l, pLabel)
-		if code == "" && l.IsIRI() {
-			code = rdf.LocalName(l.Value)
-		}
-		if isLangCode(strings.TrimSpace(code)) {
-			subs = append(subs, codex.NewSubfield('a', strings.TrimSpace(code)))
+		if code := langCode(g, l); code != "" {
+			subs = append(subs, codex.NewSubfield('a', code))
 		}
 	}
 	if len(subs) == 0 {
@@ -314,23 +319,55 @@ func languageField(g *rdf.Graph, work rdf.Term) []codex.Field {
 	return []codex.Field{codex.NewDataField("041", ' ', ' ', subs...)}
 }
 
-// provisionSubfields reverses bf:provisionActivity into 260 $a/$b/$c.
+// langCode resolves a bf:Language node to a three-letter code, trying bf:code,
+// then the vocabulary IRI's local name, then rdfs:label. LoC puts the code in
+// bf:code and a human name ("English") in rdfs:label, while this library's own
+// output carries the code in rdfs:label — so bf:code and the IRI take precedence.
+func langCode(g *rdf.Graph, l rdf.Term) string {
+	candidates := []string{literal(g, l, pCode)}
+	if l.IsIRI() {
+		candidates = append(candidates, rdf.LocalName(l.Value))
+	}
+	candidates = append(candidates, literal(g, l, pLabel))
+	for _, c := range candidates {
+		if c = strings.TrimSpace(c); isLangCode(c) {
+			return c
+		}
+	}
+	return ""
+}
+
+// provisionSubfields reverses bf:provisionActivity into 260 $a/$b/$c. It prefers
+// LoC's transcribed bflc:simplePlace/simpleAgent/simpleDate (which map directly to
+// the 260 statement) over the controlled bf:place/bf:agent nodes (whose labels are
+// authority forms — e.g. the country, not the city), and falls back to the
+// controlled labels this library's own output uses.
 func provisionSubfields(g *rdf.Graph, inst rdf.Term) []codex.Subfield {
 	prov, ok := g.Object(inst, pProvision)
 	if !ok {
 		return nil
 	}
 	var subs []codex.Subfield
-	if place := literal(g, mustNode(g, prov, pPlace), pLabel); place != "" {
+	if place := firstNonEmpty(literal(g, prov, pSimplePlace), literal(g, mustNode(g, prov, pPlace), pLabel)); place != "" {
 		subs = append(subs, codex.NewSubfield('a', place))
 	}
-	if pub := literal(g, mustNode(g, prov, pAgent), pLabel); pub != "" {
+	if pub := firstNonEmpty(literal(g, prov, pSimpleAgent), literal(g, mustNode(g, prov, pAgent), pLabel)); pub != "" {
 		subs = append(subs, codex.NewSubfield('b', pub))
 	}
-	if date := literal(g, prov, pDate); date != "" {
+	if date := firstNonEmpty(literal(g, prov, pDate), literal(g, prov, pSimpleDate)); date != "" {
 		subs = append(subs, codex.NewSubfield('c', date))
 	}
 	return subs
+}
+
+// firstNonEmpty returns the first non-empty string, or "".
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // locators returns the bf:electronicLocator URIs (IRI references or literals).

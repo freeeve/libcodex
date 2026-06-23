@@ -97,35 +97,64 @@ func TestLoCStress(t *testing.T) {
 			t.Errorf("%s: reconstructed 245 has empty $a", id)
 		}
 
-		// Cross-check the title against LoC's own bflc:marcKey for 245.
-		if key := marcKey(merged, "245"); key != "" {
-			if a := marcKeySubfield(key, 'a'); a != "" && !sameTitle(a, title) {
-				t.Errorf("%s: 245 $a %q does not match marcKey $a %q", id, title, a)
+		// Cross-check contributions (and any 245) against LoC's own bflc:marcKey,
+		// which records the source MARC field verbatim.
+		for _, tag := range []string{"245", "100", "110", "111"} {
+			ours := subfield(rec, tag, 'a')
+			key := marcKey(merged, tag)
+			if ours == "" || key == "" {
+				continue
+			}
+			if want := marcKeySubfield(key, 'a'); want != "" && !sameTitle(want, ours) {
+				t.Errorf("%s: %s $a %q does not match marcKey %q", id, tag, ours, want)
 			}
 		}
-		t.Logf("%-9s [%s] %q  author=%q  subj=%d id=%d fields=%d",
+
+		// A bf:language with a resolvable code must produce an 041.
+		if hasLanguage(merged, works[0]) && subfield(rec, "041", 'a') == "" {
+			t.Errorf("%s: bf:language present but 041 missing", id)
+		}
+		// The transcribed publication place/agent must surface in 260.
+		if hasLiteralPred(merged, pSimplePlace) && subfield(rec, "260", 'a') == "" {
+			t.Errorf("%s: bflc:simplePlace present but 260 $a missing", id)
+		}
+		if hasLiteralPred(merged, pSimpleAgent) && subfield(rec, "260", 'b') == "" {
+			t.Errorf("%s: bflc:simpleAgent present but 260 $b missing", id)
+		}
+		t.Logf("%-9s [%s] %q  author=%q  pub=%q/%q lang=%q lccn=%q subj=%d",
 			id, string(rec.Leader().RecordType()), title,
 			firstNonEmpty(subfield(rec, "100", 'a'), subfield(rec, "110", 'a'), subfield(rec, "111", 'a'),
 				subfield(rec, "700", 'a'), subfield(rec, "710", 'a'), subfield(rec, "711", 'a')),
-			count(rec, "650")+count(rec, "651")+count(rec, "600")+count(rec, "610")+count(rec, "611"),
-			count(rec, "020")+count(rec, "022")+count(rec, "024"), len(rec.Fields()))
+			subfield(rec, "260", 'a'), subfield(rec, "260", 'b'), subfield(rec, "041", 'a'), subfield(rec, "010", 'a'),
+			count(rec, "650")+count(rec, "651")+count(rec, "600")+count(rec, "610")+count(rec, "611"))
 	}
+}
+
+// hasLanguage reports whether the work has a bf:language node with a resolvable
+// three-letter code.
+func hasLanguage(g *rdf.Graph, work rdf.Term) bool {
+	for _, l := range g.Objects(work, pLanguage) {
+		if langCode(g, l) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// hasLiteralPred reports whether any triple uses the predicate with a literal.
+func hasLiteralPred(g *rdf.Graph, predicate string) bool {
+	for _, tr := range g.Triples {
+		if tr.P.IsIRI() && tr.P.Value == predicate && tr.O.IsLiteral() {
+			return true
+		}
+	}
+	return false
 }
 
 // subfield returns the first value of code in the first field with tag, or "".
 func subfield(r *codex.Record, tag string, code byte) string {
 	if f := firstField(r, tag); f != nil {
 		return f.SubfieldValue(code)
-	}
-	return ""
-}
-
-// firstNonEmpty returns the first non-empty argument, or "".
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
 	}
 	return ""
 }

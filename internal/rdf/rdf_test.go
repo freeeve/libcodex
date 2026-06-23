@@ -152,19 +152,44 @@ func TestParseTypeResource(t *testing.T) {
 	}
 }
 
-// FuzzRDFXML and FuzzJSONLD assert the parsers never panic on arbitrary input.
+// wellFormed asserts an RDF graph invariant the parsers must always uphold: every
+// triple has a non-literal subject and an IRI predicate. A literal subject or a
+// blank/literal predicate would be a parser bug.
+func wellFormed(t *testing.T, g *Graph) {
+	for _, tr := range g.Triples {
+		if tr.S.IsLiteral() {
+			t.Fatalf("triple has a literal subject: %+v", tr)
+		}
+		if !tr.P.IsIRI() {
+			t.Fatalf("triple predicate is not an IRI: %+v", tr)
+		}
+	}
+}
+
+// FuzzRDFXML and FuzzJSONLD assert the parsers never panic and always produce a
+// well-formed graph.
 func FuzzRDFXML(f *testing.F) {
 	f.Add([]byte(sampleXML))
+	f.Add([]byte(coverXML))
 	f.Add([]byte("<rdf:RDF"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_, _ = ParseRDFXML(data)
+		g, err := ParseRDFXML(data)
+		if err != nil {
+			return
+		}
+		wellFormed(t, g)
 	})
 }
 
 func FuzzJSONLD(f *testing.F) {
 	f.Add([]byte(sampleJSONLD))
+	f.Add([]byte(coverJSONLD))
 	f.Add([]byte("{"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_, _ = ParseJSONLD(data)
+		g, err := ParseJSONLD(data)
+		if err != nil {
+			return
+		}
+		wellFormed(t, g)
 	})
 }
