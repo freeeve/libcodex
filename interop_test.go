@@ -12,6 +12,7 @@ import (
 	"github.com/freeeve/libcodex"
 	"github.com/freeeve/libcodex/bibframe"
 	"github.com/freeeve/libcodex/citation"
+	"github.com/freeeve/libcodex/internal/rdf"
 	"github.com/freeeve/libcodex/iso2709"
 	"github.com/freeeve/libcodex/marcjson"
 	"github.com/freeeve/libcodex/schemaorg"
@@ -91,16 +92,25 @@ func TestInterop(t *testing.T) {
 	t.Run("bibframe-rdfxml->rdflib", func(t *testing.T) {
 		b, _ := bibframe.Encode(recs[0])
 		r := mustInterop(t, py, script, "parse-rdf", write("bf.rdf", b), "xml")
-		if r.Triples == 0 {
-			t.Error("rdflib parsed 0 triples from our BIBFRAME RDF/XML")
+		g, err := rdf.ParseRDFXML(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Our hand-rolled RDF/XML parser must agree with rdflib triple-for-triple.
+		if len(g.Triples) != r.Triples || r.Triples == 0 {
+			t.Errorf("RDF/XML triples: ours=%d rdflib=%d", len(g.Triples), r.Triples)
 		}
 	})
 
 	t.Run("bibframe-jsonld->rdflib", func(t *testing.T) {
 		b, _ := bibframe.EncodeJSONLD(recs[0])
 		r := mustInterop(t, py, script, "parse-rdf", write("bf.jsonld", b), "json-ld")
-		if r.Triples == 0 {
-			t.Error("rdflib parsed 0 triples from our BIBFRAME JSON-LD")
+		g, err := rdf.ParseJSONLD(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(g.Triples) != r.Triples || r.Triples == 0 {
+			t.Errorf("JSON-LD triples: ours=%d rdflib=%d", len(g.Triples), r.Triples)
 		}
 	})
 

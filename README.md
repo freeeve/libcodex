@@ -132,10 +132,11 @@ w.Close()
 
 Any of the 4 × 4 source/target combinations works and preserves the model.
 
-## Export converters (one-way)
+## Export converters
 
 Beyond the four round-trip serializations, the library exports to formats that
-use a *different*, lossy model — a documented MARC→target crosswalk, not a codec.
+use a *different*, lossy model — a documented MARC→target crosswalk, not a codec
+(`bibframe` also reads its graph back, see below).
 Their `Writer`s implement `codex.RecordWriter`, so they also work with
 `codex.Convert`:
 
@@ -144,7 +145,7 @@ Their `Writer`s implement `codex.RecordWriter`, so they also work with
 | `mods`       | MODS (LoC XML, near-lossless)               |
 | `dublincore` | Dublin Core — `oai_dc` XML and DC-JSON      |
 | `citation`   | RIS and BibTeX (reference managers)         |
-| `bibframe`   | BIBFRAME 2.0 — RDF/XML and JSON-LD          |
+| `bibframe`   | BIBFRAME 2.0 — RDF/XML and JSON-LD (also reads) |
 | `schemaorg`  | schema.org JSON-LD (`Book`, with a11y)      |
 
 ```go
@@ -165,8 +166,22 @@ b, _ := bibframe.EncodeJSONLD(rec)  // JSON-LD
 // Streaming collections (must be closed): bibframe.NewWriter / NewJSONLDWriter.
 ```
 
-These are export-only (the targets cannot round-trip back to full MARC) and carry
-only the common fields; each package documents its crosswalk.
+Unlike the other converters, `bibframe` also **reads** — a dependency-free RDF
+parser (RDF/XML and JSON-LD, autodetected) plus a BIBFRAME→MARC 21 reverse
+crosswalk turn a BIBFRAME graph back into records. It reads the vocabulary this
+library emits and the common shape of LoC `marc2bibframe2` output:
+
+```go
+recs, _ := bibframe.Decode(b)       // []*codex.Record from RDF/XML or JSON-LD
+recs, _ := bibframe.ReadFile(path)
+// As a Convert source: codex.Convert(bibframe.NewReader(in), iso2709.NewWriter(out))
+```
+
+BIBFRAME is a lossier model than MARC, so a decoded record carries the
+crosswalked fields rather than the original byte-for-byte; re-encoding it yields
+an equivalent graph. The other four converters (`mods`, `dublincore`, `citation`,
+`schemaorg`) are export-only and carry only the common fields; each package
+documents its crosswalk.
 
 ## Reading UNIMARC
 
