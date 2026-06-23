@@ -145,7 +145,7 @@ Their `Writer`s implement `codex.RecordWriter`, so they also work with
 | `mods`       | MODS (LoC XML, near-lossless)               |
 | `dublincore` | Dublin Core — `oai_dc` XML and DC-JSON      |
 | `citation`   | RIS and BibTeX (reference managers)         |
-| `bibframe`   | BIBFRAME 2.0 — RDF/XML and JSON-LD (also reads) |
+| `bibframe`   | BIBFRAME 2.0 — RDF/XML, JSON-LD, Turtle, N-Triples (reads + writes) |
 | `schemaorg`  | schema.org JSON-LD (`Book`, with a11y)      |
 
 ```go
@@ -157,22 +157,27 @@ codex.Convert(iso2709.NewReader(in), citation.NewBibTeXWriter(out))
 `bibframe` is the one that changes data *model*, not just serialization: each MARC
 record becomes a small RDF graph of a `bf:Work` (intellectual content) and a
 `bf:Instance` (a publication of it), linked by `bf:instanceOf`/`bf:hasInstance`.
-Both serializations are hand-written with the standard library — no RDF dependency:
+It reads and writes **four RDF serializations** — RDF/XML, JSON-LD, Turtle and
+N-Triples — all hand-written with the standard library, including the RDF parsers
+(no RDF dependency):
 
 ```go
-// Binary MARC → BIBFRAME RDF/XML (canonical) or JSON-LD.
-b, _ := bibframe.Encode(rec)        // RDF/XML
-b, _ := bibframe.EncodeJSONLD(rec)  // JSON-LD
-// Streaming collections (must be closed): bibframe.NewWriter / NewJSONLDWriter.
+// Binary MARC → BIBFRAME, in any serialization.
+b, _ := bibframe.Encode(rec)         // RDF/XML (canonical)
+b, _ := bibframe.EncodeJSONLD(rec)   // JSON-LD
+b, _ := bibframe.EncodeTurtle(rec)   // Turtle
+b, _ := bibframe.EncodeNTriples(rec) // N-Triples
+// Streaming collections: bibframe.NewWriter / NewJSONLDWriter / NewTurtleWriter /
+// NewNTriplesWriter (the XML and JSON-LD writers wrap a container, so close them).
 ```
 
 Unlike the other converters, `bibframe` also **reads** — a dependency-free RDF
-parser (RDF/XML and JSON-LD, autodetected) plus a BIBFRAME→MARC 21 reverse
+parser (all four serializations, autodetected) plus a BIBFRAME→MARC 21 reverse
 crosswalk turn a BIBFRAME graph back into records. It reads the vocabulary this
 library emits and the common shape of LoC `marc2bibframe2` output:
 
 ```go
-recs, _ := bibframe.Decode(b)       // []*codex.Record from RDF/XML or JSON-LD
+recs, _ := bibframe.Decode(b)       // []*codex.Record; the format is detected
 recs, _ := bibframe.ReadFile(path)
 // As a Convert source: codex.Convert(bibframe.NewReader(in), iso2709.NewWriter(out))
 ```

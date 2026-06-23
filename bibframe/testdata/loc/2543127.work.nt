@@ -1,0 +1,450 @@
+<http://id.loc.gov/resources/works/2543127> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Work> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bflc/aap> "Mignolo, Walter. The darker side of the Renaissance" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bflc/aap-normalized> "mignolowalterthedarkersideoftherenaissance" .
+<http://id.loc.gov/resources/works/2543127> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Text> .
+<http://id.loc.gov/resources/works/2543127> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Monograph> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/language> <http://id.loc.gov/vocabulary/languages/eng> .
+<http://id.loc.gov/vocabulary/languages/eng> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Language> .
+<http://id.loc.gov/vocabulary/languages/eng> <http://www.w3.org/2000/01/rdf-schema#label> "English"@en .
+<http://id.loc.gov/vocabulary/languages/eng> <http://id.loc.gov/ontologies/bibframe/code> "eng"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/illustrativeContent> <http://id.loc.gov/vocabulary/millus/ill> .
+<http://id.loc.gov/vocabulary/millus/ill> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Illustration> .
+<http://id.loc.gov/vocabulary/millus/ill> <http://www.w3.org/2000/01/rdf-schema#label> "illustrations" .
+<http://id.loc.gov/vocabulary/millus/ill> <http://id.loc.gov/ontologies/bibframe/code> "ill" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/illustrativeContent> <http://id.loc.gov/vocabulary/millus/map> .
+<http://id.loc.gov/vocabulary/millus/map> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Illustration> .
+<http://id.loc.gov/vocabulary/millus/map> <http://www.w3.org/2000/01/rdf-schema#label> "maps" .
+<http://id.loc.gov/vocabulary/millus/map> <http://id.loc.gov/ontologies/bibframe/code> "map" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/supplementaryContent> <http://id.loc.gov/vocabulary/msupplcont/bibliography> .
+<http://id.loc.gov/vocabulary/msupplcont/bibliography> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/SupplementaryContent> .
+<http://id.loc.gov/vocabulary/msupplcont/bibliography> <http://www.w3.org/2000/01/rdf-schema#label> "bibliography" .
+<http://id.loc.gov/vocabulary/msupplcont/bibliography> <http://id.loc.gov/ontologies/bibframe/code> "bibliography" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/supplementaryContent> <http://id.loc.gov/vocabulary/msupplcont/index> .
+<http://id.loc.gov/vocabulary/msupplcont/index> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/SupplementaryContent> .
+<http://id.loc.gov/vocabulary/msupplcont/index> <http://www.w3.org/2000/01/rdf-schema#label> "index" .
+<http://id.loc.gov/vocabulary/msupplcont/index> <http://id.loc.gov/ontologies/bibframe/code> "index" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/geographicCoverage> <http://id.loc.gov/vocabulary/geographicAreas/cl> .
+<http://id.loc.gov/vocabulary/geographicAreas/cl> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/GeographicCoverage> .
+<http://id.loc.gov/vocabulary/geographicAreas/cl> <http://www.w3.org/2000/01/rdf-schema#label> "Latin America"@en .
+<http://id.loc.gov/vocabulary/geographicAreas/cl> <http://id.loc.gov/ontologies/bibframe/code> "cl-----"^^<http://id.loc.gov/datatypes/codes/gac> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/geographicCoverage> <http://id.loc.gov/vocabulary/geographicAreas/e-sp> .
+<http://id.loc.gov/vocabulary/geographicAreas/e-sp> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/GeographicCoverage> .
+<http://id.loc.gov/vocabulary/geographicAreas/e-sp> <http://www.w3.org/2000/01/rdf-schema#label> "Spain"@en .
+<http://id.loc.gov/vocabulary/geographicAreas/e-sp> <http://id.loc.gov/ontologies/bibframe/code> "e-sp---"^^<http://id.loc.gov/datatypes/codes/gac> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/classification> _:b52iddOtlocdOtgovresourcesworks2543127 .
+_:b52iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/ClassificationLcc> .
+_:b52iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/classificationPortion> "F1409.7" .
+_:b52iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/itemPortion> ".M56 1995" .
+_:b52iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/assigner> <http://id.loc.gov/vocabulary/organizations/dlc> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Organization> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/2000/01/rdf-schema#label> "United States, Library of Congress" .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "DLC"^^<http://id.loc.gov/datatypes/orgs/code> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "dlc"^^<http://id.loc.gov/datatypes/orgs/normalized> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "US-dlc"^^<http://id.loc.gov/datatypes/orgs/iso15511> .
+_:b52iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/status> <http://id.loc.gov/vocabulary/mstatus/uba> .
+<http://id.loc.gov/vocabulary/mstatus/uba> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Status> .
+<http://id.loc.gov/vocabulary/mstatus/uba> <http://www.w3.org/2000/01/rdf-schema#label> "used by assigner" .
+<http://id.loc.gov/vocabulary/mstatus/uba> <http://id.loc.gov/ontologies/bibframe/code> "uba" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/classification> _:b74iddOtlocdOtgovresourcesworks2543127 .
+_:b74iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/ClassificationDdc> .
+_:b74iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/classificationPortion> "980/.013" .
+_:b74iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/source> _:b78iddOtlocdOtgovresourcesworks2543127 .
+_:b78iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+_:b78iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/code> "20" .
+_:b74iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/edition> "full" .
+_:b74iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/assigner> <http://id.loc.gov/vocabulary/organizations/dlc> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Organization> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/2000/01/rdf-schema#label> "United States, Library of Congress" .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "DLC"^^<http://id.loc.gov/datatypes/orgs/code> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "dlc"^^<http://id.loc.gov/datatypes/orgs/normalized> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "US-dlc"^^<http://id.loc.gov/datatypes/orgs/iso15511> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/contribution> _:b94iddOtlocdOtgovresourcesworks2543127 .
+_:b94iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Contribution> .
+_:b94iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/PrimaryContribution> .
+_:b94iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/agent> <http://id.loc.gov/rwo/agents/n79057375> .
+<http://id.loc.gov/rwo/agents/n79057375> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Agent> .
+<http://id.loc.gov/rwo/agents/n79057375> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Person> .
+<http://id.loc.gov/rwo/agents/n79057375> <http://www.w3.org/2000/01/rdf-schema#label> "Mignolo, Walter" .
+<http://id.loc.gov/rwo/agents/n79057375> <http://id.loc.gov/ontologies/bflc/marcKey> "1001 $aMignolo, Walter" .
+_:b94iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/role> <http://id.loc.gov/vocabulary/relators/aut> .
+<http://id.loc.gov/vocabulary/relators/aut> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Role> .
+<http://id.loc.gov/vocabulary/relators/aut> <http://www.w3.org/2000/01/rdf-schema#label> "author" .
+<http://id.loc.gov/vocabulary/relators/aut> <http://id.loc.gov/ontologies/bibframe/code> "aut" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/title> _:b110iddOtlocdOtgovresourcesworks2543127 .
+_:b110iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Title> .
+_:b110iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/mainTitle> "The darker side of the Renaissance" .
+_:b110iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/nonSortNum> "4" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/content> <http://id.loc.gov/vocabulary/contentTypes/txt> .
+<http://id.loc.gov/vocabulary/contentTypes/txt> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Content> .
+<http://id.loc.gov/vocabulary/contentTypes/txt> <http://www.w3.org/2000/01/rdf-schema#label> "text" .
+<http://id.loc.gov/vocabulary/contentTypes/txt> <http://id.loc.gov/ontologies/bibframe/code> "txt" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> <http://id.loc.gov/authorities/subjects/sh85065042> .
+<http://id.loc.gov/authorities/subjects/sh85065042> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+<http://id.loc.gov/authorities/subjects/sh85065042> <http://www.w3.org/2000/01/rdf-schema#label> "Indigenous peoples--Historiography"@en .
+<http://id.loc.gov/authorities/subjects/sh85065042> <http://id.loc.gov/ontologies/bflc/marcKey> "150 $aIndigenous peoples$xHistoriography" .
+<http://id.loc.gov/authorities/subjects/sh85065042> <http://www.loc.gov/mads/rdf/v1#componentList> _:b128iddOtlocdOtgovresourcesworks2543127 .
+_:b128iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b129iddOtlocdOtgovresourcesworks2543127 .
+_:b128iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0136 .
+_:b129iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b129iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b129iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Indigenous peoples"@en .
+_:b129iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b133iddOtlocdOtgovresourcesworks2543127 .
+_:b133iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b134iddOtlocdOtgovresourcesworks2543127 .
+_:b133iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b134iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b134iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Indigenous peoples"@en .
+_:b0136 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b137iddOtlocdOtgovresourcesworks2543127 .
+_:b0136 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b137iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b137iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b137iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Historiography"@en .
+_:b137iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b141iddOtlocdOtgovresourcesworks2543127 .
+_:b141iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b142iddOtlocdOtgovresourcesworks2543127 .
+_:b141iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b142iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b142iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Historiography"@en .
+<http://id.loc.gov/authorities/subjects/sh85065042> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> <http://id.loc.gov/authorities/subjects/sh2010110741> .
+<http://id.loc.gov/authorities/subjects/sh2010110741> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+<http://id.loc.gov/authorities/subjects/sh2010110741> <http://www.w3.org/2000/01/rdf-schema#label> "Renaissance--Spain"@en .
+<http://id.loc.gov/authorities/subjects/sh2010110741> <http://id.loc.gov/ontologies/bflc/marcKey> "150 $aRenaissance$zSpain" .
+<http://id.loc.gov/authorities/subjects/sh2010110741> <http://www.loc.gov/mads/rdf/v1#componentList> _:b155iddOtlocdOtgovresourcesworks2543127 .
+_:b155iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b156iddOtlocdOtgovresourcesworks2543127 .
+_:b155iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0163 .
+_:b156iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b156iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b156iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Renaissance"@en .
+_:b156iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b160iddOtlocdOtgovresourcesworks2543127 .
+_:b160iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b161iddOtlocdOtgovresourcesworks2543127 .
+_:b160iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b161iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b161iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Renaissance"@en .
+_:b0163 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b164iddOtlocdOtgovresourcesworks2543127 .
+_:b0163 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b164iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Geographic> .
+_:b164iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b164iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Spain"@en .
+_:b164iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b168iddOtlocdOtgovresourcesworks2543127 .
+_:b168iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b169iddOtlocdOtgovresourcesworks2543127 .
+_:b168iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b169iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#GeographicElement> .
+_:b169iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Spain"@en .
+<http://id.loc.gov/authorities/subjects/sh2010110741> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> _:b176iddOtlocdOtgovresourcesworks2543127 .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#ComplexSubject> .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/2000/01/rdf-schema#label> "Language and history--Latin America" .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Language and history--Latin America" .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#isMemberOfMADSScheme> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#MADSScheme> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "Library of Congress Subject Headings"@en .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#componentList> _:b187iddOtlocdOtgovresourcesworks2543127 .
+_:b187iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/authorities/subjects/sh85074517> .
+_:b187iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0196 .
+<http://id.loc.gov/authorities/subjects/sh85074517> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+<http://id.loc.gov/authorities/subjects/sh85074517> <http://www.w3.org/2000/01/rdf-schema#label> "Language and history"@en .
+<http://id.loc.gov/authorities/subjects/sh85074517> <http://id.loc.gov/ontologies/bflc/marcKey> "150 0$aLanguage and history" .
+<http://id.loc.gov/authorities/subjects/sh85074517> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+_:b0196 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/authorities/subjects/sh85074879-781> .
+_:b0196 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://id.loc.gov/authorities/subjects/sh85074879-781> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Geographic> .
+<http://id.loc.gov/authorities/subjects/sh85074879-781> <http://www.w3.org/2000/01/rdf-schema#label> "Latin America"@en .
+<http://id.loc.gov/authorities/subjects/sh85074879-781> <http://id.loc.gov/ontologies/bflc/marcKey> "181 $zLatin America" .
+<http://id.loc.gov/authorities/subjects/sh85074879-781> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/aap-normalized> "languageandhistorylatinamerica" .
+_:b176iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "Library of Congress Subject Headings"@en .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> <http://id.loc.gov/authorities/subjects/sh85065074> .
+<http://id.loc.gov/authorities/subjects/sh85065074> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+<http://id.loc.gov/authorities/subjects/sh85065074> <http://www.w3.org/2000/01/rdf-schema#label> "Indigenous peoples--Languages--Writing"@en .
+<http://id.loc.gov/authorities/subjects/sh85065074> <http://id.loc.gov/ontologies/bflc/marcKey> "150 $aIndigenous peoples$xLanguages$xWriting" .
+<http://id.loc.gov/authorities/subjects/sh85065074> <http://www.loc.gov/mads/rdf/v1#componentList> _:b218iddOtlocdOtgovresourcesworks2543127 .
+_:b218iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b219iddOtlocdOtgovresourcesworks2543127 .
+_:b218iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0226 .
+_:b219iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b219iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b219iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Indigenous peoples"@en .
+_:b219iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b223iddOtlocdOtgovresourcesworks2543127 .
+_:b223iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b224iddOtlocdOtgovresourcesworks2543127 .
+_:b223iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b224iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b224iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Indigenous peoples"@en .
+_:b0226 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b227iddOtlocdOtgovresourcesworks2543127 .
+_:b0226 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0234 .
+_:b227iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b227iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b227iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Languages"@en .
+_:b227iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b231iddOtlocdOtgovresourcesworks2543127 .
+_:b231iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b232iddOtlocdOtgovresourcesworks2543127 .
+_:b231iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b232iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b232iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Languages"@en .
+_:b0234 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b235iddOtlocdOtgovresourcesworks2543127 .
+_:b0234 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b235iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b235iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b235iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Writing"@en .
+_:b235iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b239iddOtlocdOtgovresourcesworks2543127 .
+_:b239iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b240iddOtlocdOtgovresourcesworks2543127 .
+_:b239iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b240iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b240iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Writing"@en .
+<http://id.loc.gov/authorities/subjects/sh85065074> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> <http://id.loc.gov/authorities/subjects/sh85148638> .
+<http://id.loc.gov/authorities/subjects/sh85148638> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+<http://id.loc.gov/authorities/subjects/sh85148638> <http://www.w3.org/2000/01/rdf-schema#label> "Writing--History"@en .
+<http://id.loc.gov/authorities/subjects/sh85148638> <http://id.loc.gov/ontologies/bflc/marcKey> "150 0$aWriting$xHistory" .
+<http://id.loc.gov/authorities/subjects/sh85148638> <http://www.loc.gov/mads/rdf/v1#componentList> _:b253iddOtlocdOtgovresourcesworks2543127 .
+_:b253iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b254iddOtlocdOtgovresourcesworks2543127 .
+_:b253iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0261 .
+_:b254iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b254iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b254iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Writing"@en .
+_:b254iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b258iddOtlocdOtgovresourcesworks2543127 .
+_:b258iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b259iddOtlocdOtgovresourcesworks2543127 .
+_:b258iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b259iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b259iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Writing"@en .
+_:b0261 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b262iddOtlocdOtgovresourcesworks2543127 .
+_:b0261 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b262iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b262iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b262iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "History"@en .
+_:b262iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b266iddOtlocdOtgovresourcesworks2543127 .
+_:b266iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b267iddOtlocdOtgovresourcesworks2543127 .
+_:b266iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b267iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b267iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "History"@en .
+<http://id.loc.gov/authorities/subjects/sh85148638> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> _:b274iddOtlocdOtgovresourcesworks2543127 .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#ComplexSubject> .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/2000/01/rdf-schema#label> "Cartography--Spain--History" .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Cartography--Spain--History" .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#isMemberOfMADSScheme> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#MADSScheme> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "Library of Congress Subject Headings"@en .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#componentList> _:b285iddOtlocdOtgovresourcesworks2543127 .
+_:b285iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/authorities/subjects/sh85020515> .
+_:b285iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0294 .
+<http://id.loc.gov/authorities/subjects/sh85020515> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+<http://id.loc.gov/authorities/subjects/sh85020515> <http://www.w3.org/2000/01/rdf-schema#label> "Cartography"@en .
+<http://id.loc.gov/authorities/subjects/sh85020515> <http://id.loc.gov/ontologies/bflc/marcKey> "150 $aCartography" .
+<http://id.loc.gov/authorities/subjects/sh85020515> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+_:b0294 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/rwo/agents/n79006971-781> .
+_:b0294 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0299 .
+<http://id.loc.gov/rwo/agents/n79006971-781> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Geographic> .
+<http://id.loc.gov/rwo/agents/n79006971-781> <http://www.w3.org/2000/01/rdf-schema#label> "Spain" .
+<http://id.loc.gov/rwo/agents/n79006971-781> <http://id.loc.gov/ontologies/bflc/marcKey> "181 $zSpain" .
+_:b0299 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/authorities/subjects/sh99005024> .
+_:b0299 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://www.w3.org/2000/01/rdf-schema#label> "History"@en .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://id.loc.gov/ontologies/bflc/marcKey> "180 $xHistory" .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/aap-normalized> "cartographyspainhistory" .
+_:b274iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "Library of Congress Subject Headings"@en .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> <http://id.loc.gov/authorities/subjects/sh2008116021> .
+<http://id.loc.gov/authorities/subjects/sh2008116021> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+<http://id.loc.gov/authorities/subjects/sh2008116021> <http://www.w3.org/2000/01/rdf-schema#label> "Latin America--Historiography"@en .
+<http://id.loc.gov/authorities/subjects/sh2008116021> <http://id.loc.gov/ontologies/bflc/marcKey> "151 $aLatin America$xHistoriography" .
+<http://id.loc.gov/authorities/subjects/sh2008116021> <http://www.loc.gov/mads/rdf/v1#componentList> _:b321iddOtlocdOtgovresourcesworks2543127 .
+_:b321iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b322iddOtlocdOtgovresourcesworks2543127 .
+_:b321iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0329 .
+_:b322iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Geographic> .
+_:b322iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b322iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Latin America"@en .
+_:b322iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b326iddOtlocdOtgovresourcesworks2543127 .
+_:b326iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b327iddOtlocdOtgovresourcesworks2543127 .
+_:b326iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b327iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#GeographicElement> .
+_:b327iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Latin America"@en .
+_:b0329 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b330iddOtlocdOtgovresourcesworks2543127 .
+_:b0329 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b330iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b330iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b330iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Historiography"@en .
+_:b330iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b334iddOtlocdOtgovresourcesworks2543127 .
+_:b334iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b335iddOtlocdOtgovresourcesworks2543127 .
+_:b334iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b335iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b335iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Historiography"@en .
+<http://id.loc.gov/authorities/subjects/sh2008116021> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> <http://id.loc.gov/authorities/subjects/sh85074896> .
+<http://id.loc.gov/authorities/subjects/sh85074896> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+<http://id.loc.gov/authorities/subjects/sh85074896> <http://www.w3.org/2000/01/rdf-schema#label> "Latin America--History--To 1600"@en .
+<http://id.loc.gov/authorities/subjects/sh85074896> <http://id.loc.gov/ontologies/bflc/marcKey> "151 0$aLatin America$xHistory$yTo 1600" .
+<http://id.loc.gov/authorities/subjects/sh85074896> <http://www.loc.gov/mads/rdf/v1#componentList> _:b348iddOtlocdOtgovresourcesworks2543127 .
+_:b348iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b349iddOtlocdOtgovresourcesworks2543127 .
+_:b348iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0356 .
+_:b349iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Geographic> .
+_:b349iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b349iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Latin America"@en .
+_:b349iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b353iddOtlocdOtgovresourcesworks2543127 .
+_:b353iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b354iddOtlocdOtgovresourcesworks2543127 .
+_:b353iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b354iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#GeographicElement> .
+_:b354iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "Latin America"@en .
+_:b0356 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b357iddOtlocdOtgovresourcesworks2543127 .
+_:b0356 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0364 .
+_:b357iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+_:b357iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b357iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "History"@en .
+_:b357iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b361iddOtlocdOtgovresourcesworks2543127 .
+_:b361iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b362iddOtlocdOtgovresourcesworks2543127 .
+_:b361iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b362iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TopicElement> .
+_:b362iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "History"@en .
+_:b0364 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b365iddOtlocdOtgovresourcesworks2543127 .
+_:b0364 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b365iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Temporal> .
+_:b365iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Authority> .
+_:b365iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "To 1600"@en .
+_:b365iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementList> _:b369iddOtlocdOtgovresourcesworks2543127 .
+_:b369iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b370iddOtlocdOtgovresourcesworks2543127 .
+_:b369iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b370iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#TemporalElement> .
+_:b370iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#elementValue> "To 1600"@en .
+<http://id.loc.gov/authorities/subjects/sh85074896> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/subject> _:b377iddOtlocdOtgovresourcesworks2543127 .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Topic> .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#ComplexSubject> .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/2000/01/rdf-schema#label> "Latin America--Maps--History" .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#authoritativeLabel> "Latin America--Maps--History" .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#isMemberOfMADSScheme> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#MADSScheme> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "Library of Congress Subject Headings"@en .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://www.loc.gov/mads/rdf/v1#componentList> _:b388iddOtlocdOtgovresourcesworks2543127 .
+_:b388iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/authorities/subjects/sh85074879> .
+_:b388iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0399 .
+<http://id.loc.gov/authorities/subjects/sh85074879> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Geographic> .
+<http://id.loc.gov/authorities/subjects/sh85074879> <http://www.w3.org/2000/01/rdf-schema#label> "Latin America"@en .
+<http://id.loc.gov/authorities/subjects/sh85074879> <http://id.loc.gov/ontologies/bflc/marcKey> "151 $aLatin America" .
+<http://id.loc.gov/authorities/subjects/sh85074879> <http://id.loc.gov/ontologies/bibframe/code> "cl-----"^^<http://id.loc.gov/datatypes/codes/gac> .
+<http://id.loc.gov/authorities/subjects/sh85074879> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+_:b0399 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/authorities/subjects/sh99002035> .
+_:b0399 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b0408 .
+<http://id.loc.gov/authorities/subjects/sh99002035> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+<http://id.loc.gov/authorities/subjects/sh99002035> <http://www.w3.org/2000/01/rdf-schema#label> "Maps"@en .
+<http://id.loc.gov/authorities/subjects/sh99002035> <http://id.loc.gov/ontologies/bflc/marcKey> "180 $xMaps" .
+<http://id.loc.gov/authorities/subjects/sh99002035> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+_:b0408 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://id.loc.gov/authorities/subjects/sh99005024> .
+_:b0408 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.loc.gov/mads/rdf/v1#Topic> .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://www.w3.org/2000/01/rdf-schema#label> "History"@en .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://id.loc.gov/ontologies/bflc/marcKey> "180 $xHistory" .
+<http://id.loc.gov/authorities/subjects/sh99005024> <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "LC Subject Headings" .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/aap-normalized> "latinamericamapshistory" .
+_:b377iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/source> <http://id.loc.gov/authorities/subjects> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Source> .
+<http://id.loc.gov/authorities/subjects> <http://www.w3.org/2000/01/rdf-schema#label> "Library of Congress Subject Headings"@en .
+<http://id.loc.gov/resources/works/2543127> <http://purl.org/dc/terms/isPartOf> <http://id.loc.gov/resources/works> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/hasInstance> <http://id.loc.gov/resources/instances/2543127> .
+<http://id.loc.gov/resources/instances/2543127> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Instance> .
+<http://id.loc.gov/resources/instances/2543127> <http://id.loc.gov/ontologies/bibframe/title> _:b427iddOtlocdOtgovresourcesworks2543127 .
+_:b427iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Title> .
+_:b427iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/mainTitle> "The darker side of the Renaissance" .
+_:b427iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/subtitle> "literacy, territoriality, and colonization" .
+_:b427iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/nonSortNum> "4" .
+<http://id.loc.gov/resources/instances/2543127> <http://id.loc.gov/ontologies/bibframe/publicationStatement> "Ann Arbor: University of Michigan Press, c1995" .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/adminMetadata> _:b437iddOtlocdOtgovresourcesworks2543127 .
+_:b437iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/AdminMetadata> .
+_:b437iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/status> <http://id.loc.gov/vocabulary/mstatus/n> .
+<http://id.loc.gov/vocabulary/mstatus/n> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Status> .
+<http://id.loc.gov/vocabulary/mstatus/n> <http://www.w3.org/2000/01/rdf-schema#label> "new" .
+<http://id.loc.gov/vocabulary/mstatus/n> <http://id.loc.gov/ontologies/bibframe/code> "n" .
+_:b437iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/date> "1994-09-23"^^<http://www.w3.org/2001/XMLSchema#date> .
+_:b437iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/agent> <http://id.loc.gov/vocabulary/organizations/dlc> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Agent> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Organization> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/2000/01/rdf-schema#label> "United States, Library of Congress" .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "DLC"^^<http://id.loc.gov/datatypes/orgs/code> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "dlc"^^<http://id.loc.gov/datatypes/orgs/normalized> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "US-dlc"^^<http://id.loc.gov/datatypes/orgs/iso15511> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/adminMetadata> _:b458iddOtlocdOtgovresourcesworks2543127 .
+_:b458iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/AdminMetadata> .
+_:b458iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/status> <http://id.loc.gov/vocabulary/mstatus/c> .
+<http://id.loc.gov/vocabulary/mstatus/c> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Status> .
+<http://id.loc.gov/vocabulary/mstatus/c> <http://www.w3.org/2000/01/rdf-schema#label> "changed" .
+<http://id.loc.gov/vocabulary/mstatus/c> <http://id.loc.gov/ontologies/bibframe/code> "c" .
+_:b458iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/date> "2004-12-14T11:21:00"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+_:b458iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/descriptionModifier> <http://id.loc.gov/vocabulary/organizations/dlc> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Organization> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/2000/01/rdf-schema#label> "United States, Library of Congress" .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "DLC"^^<http://id.loc.gov/datatypes/orgs/code> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "dlc"^^<http://id.loc.gov/datatypes/orgs/normalized> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "US-dlc"^^<http://id.loc.gov/datatypes/orgs/iso15511> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/adminMetadata> _:b478iddOtlocdOtgovresourcesworks2543127 .
+_:b478iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/AdminMetadata> .
+_:b478iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/status> <http://id.loc.gov/vocabulary/mstatus/c> .
+<http://id.loc.gov/vocabulary/mstatus/c> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Status> .
+<http://id.loc.gov/vocabulary/mstatus/c> <http://www.w3.org/2000/01/rdf-schema#label> "changed" .
+<http://id.loc.gov/vocabulary/mstatus/c> <http://id.loc.gov/ontologies/bibframe/code> "c" .
+_:b478iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/agent> <http://id.loc.gov/vocabulary/organizations/dlcmrc> .
+<http://id.loc.gov/vocabulary/organizations/dlcmrc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Agent> .
+<http://id.loc.gov/vocabulary/organizations/dlcmrc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Organization> .
+<http://id.loc.gov/vocabulary/organizations/dlcmrc> <http://www.w3.org/2000/01/rdf-schema#label> "United States, Library of Congress, Network Development and MARC Standards Office" .
+<http://id.loc.gov/vocabulary/organizations/dlcmrc> <http://id.loc.gov/ontologies/bibframe/code> "DLC-MRC"^^<http://id.loc.gov/datatypes/orgs/code> .
+<http://id.loc.gov/vocabulary/organizations/dlcmrc> <http://id.loc.gov/ontologies/bibframe/code> "dlcmrc"^^<http://id.loc.gov/datatypes/orgs/normalized> .
+<http://id.loc.gov/vocabulary/organizations/dlcmrc> <http://id.loc.gov/ontologies/bibframe/code> "US-dlcmrc"^^<http://id.loc.gov/datatypes/orgs/iso15511> .
+_:b478iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/generationProcess> <https://github.com/lcnetdev/marc2bibframe2/releases/tag/v3.0.0> .
+_:b478iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/date> "2026-02-26T03:12:07.904113-05:00"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+<http://id.loc.gov/resources/works/2543127> <http://id.loc.gov/ontologies/bibframe/adminMetadata> _:b500iddOtlocdOtgovresourcesworks2543127 .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/AdminMetadata> .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/descriptionLevel> <http://id.loc.gov/ontologies/bibframe-2-6-0/> .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/encodingLevel> <http://id.loc.gov/vocabulary/menclvl/f> .
+<http://id.loc.gov/vocabulary/menclvl/f> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bflc/EncodingLevel> .
+<http://id.loc.gov/vocabulary/menclvl/f> <http://www.w3.org/2000/01/rdf-schema#label> "full" .
+<http://id.loc.gov/vocabulary/menclvl/f> <http://id.loc.gov/ontologies/bibframe/code> "f" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/descriptionConventions> <http://id.loc.gov/vocabulary/descriptionConventions/aacr> .
+<http://id.loc.gov/vocabulary/descriptionConventions/aacr> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/DescriptionConventions> .
+<http://id.loc.gov/vocabulary/descriptionConventions/aacr> <http://www.w3.org/2000/01/rdf-schema#label> "Anglo-American cataloguing rules" .
+<http://id.loc.gov/vocabulary/descriptionConventions/aacr> <http://id.loc.gov/ontologies/bibframe/code> "aacr" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/identifiedBy> _:b515iddOtlocdOtgovresourcesworks2543127 .
+_:b515iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Local> .
+_:b515iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "2543127" .
+_:b515iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/assigner> <http://id.loc.gov/vocabulary/organizations/dlc> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Organization> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://www.w3.org/2000/01/rdf-schema#label> "United States, Library of Congress" .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "DLC"^^<http://id.loc.gov/datatypes/orgs/code> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "dlc"^^<http://id.loc.gov/datatypes/orgs/normalized> .
+<http://id.loc.gov/vocabulary/organizations/dlc> <http://id.loc.gov/ontologies/bibframe/code> "US-dlc"^^<http://id.loc.gov/datatypes/orgs/iso15511> .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/marcKey> "906 $a7$bcbc$corignew$d1$eocip$f19$gy-gencatlg" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/lclocal/d906> "=906 $a 7 $b cbc $c orignew $d 1 $e ocip $f 19 $g y-gencatlg" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/marcKey> "955 $apc16 to la00 09-23-94; lc07 09-28-94; lc11 09-29-94; lc03 to ddc 09-29-94; CIP ver. pv04 06-27-95" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/lclocal/d955> "=955 $a pc16 to la00 09-23-94; lc07 09-28-94; lc11 09-29-94; lc03 to ddc 09-29-94; CIP ver. pv04 06-27-95" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bflc/marcKey> "955 $aLCAP batch update 2025-06-02-04:00: LCAPM-644" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/lclocal/d955> "=955 $a LCAP batch update 2025-06-02-04:00: LCAPM-644" .
+_:b500iddOtlocdOtgovresourcesworks2543127 <http://id.loc.gov/ontologies/bibframe/note> _:b541iddOtlocdOtgovresourcesworks2543127 .
+_:b541iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Note> .
+_:b541iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/vocabulary/mnotetype/internal> .
+_:b541iddOtlocdOtgovresourcesworks2543127 <http://www.w3.org/2000/01/rdf-schema#label> "040 $aDLC$cDLC$dDLC" .

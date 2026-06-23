@@ -229,25 +229,98 @@ func TestDecodeForeignShape(t *testing.T) {
 	}
 }
 
-// TestEncodersIsomorphic confirms the RDF/XML and JSON-LD serializations of one
-// record, run through their separate parsers, yield isomorphic RDF graphs — a
-// cross-check of both encoders and both parsers at once, independent of blank
-// node labelling and statement order.
+// TestEncodersIsomorphic confirms all four serializations of one record, run
+// through their separate parsers, yield isomorphic RDF graphs — a cross-check of
+// every encoder and parser at once, independent of blank node labelling and
+// statement order.
 func TestEncodersIsomorphic(t *testing.T) {
 	x, _ := Encode(sample())
 	j, _ := EncodeJSONLD(sample())
-	gx, err := rdf.ParseRDFXML(x)
+	nt, _ := EncodeNTriples(sample())
+	ttl, _ := EncodeTurtle(sample())
+
+	graphs := map[string]*rdf.Graph{}
+	for name, p := range map[string]func() (*rdf.Graph, error){
+		"rdfxml":   func() (*rdf.Graph, error) { return rdf.ParseRDFXML(x) },
+		"jsonld":   func() (*rdf.Graph, error) { return rdf.ParseJSONLD(j) },
+		"ntriples": func() (*rdf.Graph, error) { return rdf.ParseNTriples(nt) },
+		"turtle":   func() (*rdf.Graph, error) { return rdf.ParseTurtle(ttl) },
+	} {
+		g, err := p()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		graphs[name] = g
+	}
+
+	want := canonGraph(graphs["rdfxml"])
+	for name, g := range graphs {
+		if got := canonGraph(g); !reflect.DeepEqual(want, got) {
+			t.Errorf("%s graph differs from RDF/XML:\n want %s\n got  %s",
+				name, strings.Join(want, "\n  "), strings.Join(got, "\n  "))
+		}
+	}
+}
+
+// TestRoundTripNTriples and TestRoundTripTurtle exercise the new serializations
+// through Encode -> Decode -> forward crosswalk.
+func TestRoundTripNTriples(t *testing.T) {
+	b, err := EncodeNTriples(sample())
 	if err != nil {
 		t.Fatal(err)
 	}
-	gj, err := rdf.ParseJSONLD(j)
+	roundTrip(t, b)
+}
+
+func TestRoundTripTurtle(t *testing.T) {
+	b, err := EncodeTurtle(sample())
 	if err != nil {
 		t.Fatal(err)
 	}
-	cx, cj := canonGraph(gx), canonGraph(gj)
-	if !reflect.DeepEqual(cx, cj) {
-		t.Errorf("RDF/XML and JSON-LD graphs differ:\n RDF/XML: %s\n JSON-LD: %s",
-			strings.Join(cx, "\n  "), strings.Join(cj, "\n  "))
+	roundTrip(t, b)
+}
+
+// TestCollectionWritersNTTurtle checks the N-Triples and Turtle collection
+// writers emit a document that decodes back to every record.
+func TestCollectionWritersNTTurtle(t *testing.T) {
+	second := sample().RemoveFields("001").AddField(codex.NewControlField("001", "99999999"))
+	for _, tc := range []struct {
+		name string
+		mk   func(*bytes.Buffer) interface {
+			Write(*codex.Record) error
+			Close() error
+		}
+	}{
+		{"ntriples", func(b *bytes.Buffer) interface {
+			Write(*codex.Record) error
+			Close() error
+		} {
+			return NewNTriplesWriter(b)
+		}},
+		{"turtle", func(b *bytes.Buffer) interface {
+			Write(*codex.Record) error
+			Close() error
+		} {
+			return NewTurtleWriter(b)
+		}},
+	} {
+		var buf bytes.Buffer
+		w := tc.mk(&buf)
+		for _, r := range []*codex.Record{sample(), second} {
+			if err := w.Write(r); err != nil {
+				t.Fatalf("%s write: %v", tc.name, err)
+			}
+		}
+		if err := w.Close(); err != nil {
+			t.Fatalf("%s close: %v", tc.name, err)
+		}
+		recs, err := Decode(buf.Bytes())
+		if err != nil {
+			t.Fatalf("%s decode: %v", tc.name, err)
+		}
+		if len(recs) != 2 {
+			t.Errorf("%s: decoded %d records, want 2", tc.name, len(recs))
+		}
 	}
 }
 

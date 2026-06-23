@@ -60,10 +60,11 @@ const (
 // type (as LoC's marc2bibframe2 output does).
 var agentClasses = []string{"Organization", "Meeting", "Person", "Family", "Jurisdiction"}
 
-// Decode parses a BIBFRAME document — RDF/XML or JSON-LD, autodetected — and
-// reverse-crosswalks every bf:Work (with its linked bf:Instance) to a MARC 21
-// record. It reads the vocabulary the forward crosswalk emits and the common
-// shape of LoC marc2bibframe2 output. BIBFRAME is a lossier model than MARC, so
+// Decode parses a BIBFRAME document — RDF/XML, JSON-LD, Turtle or N-Triples,
+// autodetected — and reverse-crosswalks every bf:Work (with its linked
+// bf:Instance) to a MARC 21 record. It reads the vocabulary the forward crosswalk
+// emits and the common shape of LoC marc2bibframe2 output. BIBFRAME is a lossier
+// model than MARC, so
 // the result carries the crosswalked fields rather than reproducing the original
 // record byte for byte; re-encoding it yields an equivalent BIBFRAME graph.
 func Decode(data []byte) ([]*codex.Record, error) {
@@ -78,15 +79,89 @@ func Decode(data []byte) ([]*codex.Record, error) {
 	return out, nil
 }
 
-// parseGraph picks the RDF parser by sniffing the first non-space byte: '{' or
-// '[' is JSON-LD, anything else is RDF/XML.
+// parseGraph picks the RDF parser by sniffing the serialization.
 func parseGraph(data []byte) (*rdf.Graph, error) {
-	t := bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")) // optional UTF-8 BOM
-	t = bytes.TrimLeft(t, " \t\r\n")
-	if len(t) > 0 && (t[0] == '{' || t[0] == '[') {
+	switch sniffFormat(data) {
+	case formatJSONLD:
 		return rdf.ParseJSONLD(data)
+	case formatRDFXML:
+		return rdf.ParseRDFXML(data)
+	case formatTurtle:
+		return rdf.ParseTurtle(data)
+	default:
+		return rdf.ParseNTriples(data)
 	}
-	return rdf.ParseRDFXML(data)
+}
+
+type rdfFormat int
+
+const (
+	formatNTriples rdfFormat = iota
+	formatJSONLD
+	formatRDFXML
+	formatTurtle
+)
+
+// sniffFormat guesses the RDF serialization from the leading bytes: '{'/'[' is
+// JSON-LD; '@' or a PREFIX/BASE keyword is Turtle; a leading '<' is RDF/XML when
+// it opens an element (a name with no '/') or N-Triples/Turtle when it opens a
+// full <IRI>; the line-based remainder is treated as N-Triples (which the Turtle
+// grammar also subsumes).
+func sniffFormat(data []byte) rdfFormat {
+	s := bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")) // optional UTF-8 BOM
+	for {
+		s = bytes.TrimLeft(s, " \t\r\n")
+		if len(s) > 0 && s[0] == '#' { // skip Turtle/N-Triples comment lines
+			if i := bytes.IndexByte(s, '\n'); i >= 0 {
+				s = s[i+1:]
+				continue
+			}
+		}
+		break
+	}
+	if len(s) == 0 {
+		return formatNTriples
+	}
+	switch s[0] {
+	case '{', '[':
+		return formatJSONLD
+	case '@':
+		return formatTurtle
+	case '<':
+		// Distinguish an XML element from an <IRI>: a processing instruction or
+		// doctype, or an attribute (`=`) inside the first tag, means RDF/XML; a
+		// fragment or path ('#' or '/') with no attribute means an N-Triples/Turtle
+		// IRI. (Check `=` before '/', since an xmlns value contains '/'.)
+		if bytes.HasPrefix(s, []byte("<?")) || bytes.HasPrefix(s, []byte("<!")) {
+			return formatRDFXML
+		}
+		inner := s[1:]
+		if i := bytes.IndexByte(inner, '>'); i >= 0 {
+			inner = inner[:i]
+		}
+		switch {
+		case bytes.IndexByte(inner, '=') >= 0:
+			return formatRDFXML
+		case bytes.IndexByte(inner, '#') >= 0 || bytes.IndexByte(inner, '/') >= 0:
+			return formatNTriples
+		default:
+			return formatRDFXML // a bare element name
+		}
+	}
+	if hasKeyword(s, "prefix") || hasKeyword(s, "base") {
+		return formatTurtle
+	}
+	return formatNTriples
+}
+
+// hasKeyword reports whether s begins with the case-insensitive keyword followed
+// by whitespace (a SPARQL-style Turtle directive).
+func hasKeyword(s []byte, kw string) bool {
+	if len(s) <= len(kw) || !strings.EqualFold(string(s[:len(kw)]), kw) {
+		return false
+	}
+	c := s[len(kw)]
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
 // recordFromWork builds a MARC record from one Work node and the Instance it
