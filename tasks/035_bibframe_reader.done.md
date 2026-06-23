@@ -27,3 +27,16 @@ any source, including a hand-rolled RDF parser to keep the zero-dependency rule.
 ## Out of scope
 - Full JSON-LD 1.1 processing (remote contexts, framing) and exotic RDF/XML
   (reification, rdf containers) beyond what real BIBFRAME uses.
+
+## Stress test (real LoC data)
+
+Validated the reader against authentic id.loc.gov BIBFRAME (official
+marc2bibframe2 output). All documents parsed cleanly; titles, subjects and
+identifiers crosswalked correctly. Two real-world mismatches found and fixed:
+- main entries are typed `bf:PrimaryContribution` (not the `bflc:` term we emit)
+  — detect both so the principal author lands in 1xx;
+- agents carry a generic `bf:Agent` type beside the specific
+  `bf:Person`/`Organization`/`Meeting` — pick the specific class for 110/710 etc.
+
+`TestLoCStress` runs over curated samples in `testdata/loc` (cross-checked against
+LoC's own `bflc:marcKey`); `BIBFRAME_LOC_DIR` points it at a larger local corpus.

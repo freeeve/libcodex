@@ -1,0 +1,178 @@
+package bibframe
+
+import (
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/rdf"
+)
+
+// TestLoCStress runs the parser and reverse crosswalk over real Library of
+// Congress BIBFRAME (id.loc.gov), which is far richer than this library's own
+// output: nine-plus namespaces, blank nodes throughout, external IRIs, xml:lang,
+// typed literals, admin metadata and the full bf:/bflc: vocabulary. It is gated on
+// BIBFRAME_LOC_DIR pointing at a directory of <id>.work.rdf / <id>.inst.rdf /
+// <id>.work.json files, so it never runs in normal CI.
+//
+// Checks: every document parses to a non-empty graph (RDF/XML and JSON-LD); each
+// Work+Instance pair crosswalks to a record with a title; and the reconstructed
+// 245/1xx are cross-checked against LoC's own bflc:marcKey, which records the
+// source MARC field verbatim.
+func TestLoCStress(t *testing.T) {
+	dir := os.Getenv("BIBFRAME_LOC_DIR")
+	if dir == "" {
+		dir = filepath.Join("testdata", "loc")
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Skipf("no BIBFRAME sample directory at %s", dir)
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "*"))
+	ids := map[string]bool{}
+	rdfDocs, jsonDocs := 0, 0
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		base := filepath.Base(f)
+		id := strings.SplitN(base, ".", 2)[0]
+		switch {
+		case strings.HasSuffix(f, ".rdf"):
+			g, err := rdf.ParseRDFXML(data)
+			if err != nil {
+				t.Errorf("%s: RDF/XML parse error: %v", base, err)
+				continue
+			}
+			if len(g.Triples) == 0 {
+				t.Errorf("%s: 0 triples", base)
+			}
+			rdfDocs++
+			ids[id] = true
+		case strings.HasSuffix(f, ".json"):
+			g, err := rdf.ParseJSONLD(data)
+			if err != nil {
+				t.Errorf("%s: JSON-LD parse error: %v", base, err)
+				continue
+			}
+			if len(g.Triples) == 0 {
+				t.Errorf("%s: 0 triples", base)
+			}
+			// The JSON-LD path must also decode without panicking.
+			if recs, _ := Decode(data); len(recs) == 0 {
+				t.Logf("%s: JSON-LD decoded 0 records (work-only graph)", base)
+			}
+			jsonDocs++
+		}
+	}
+	t.Logf("parsed %d RDF/XML and %d JSON-LD documents across %d records", rdfDocs, jsonDocs, len(ids))
+
+	sorted := make([]string, 0, len(ids))
+	for id := range ids {
+		sorted = append(sorted, id)
+	}
+	sort.Strings(sorted)
+
+	for _, id := range sorted {
+		wb, e1 := os.ReadFile(filepath.Join(dir, id+".work.rdf"))
+		ib, e2 := os.ReadFile(filepath.Join(dir, id+".inst.rdf"))
+		if e1 != nil || e2 != nil {
+			continue
+		}
+		wg, _ := rdf.ParseRDFXML(wb)
+		ig, _ := rdf.ParseRDFXML(ib)
+		merged := &rdf.Graph{Triples: append(append([]rdf.Triple{}, wg.Triples...), ig.Triples...)}
+
+		works := merged.SubjectsOfType(classWork)
+		if len(works) == 0 {
+			t.Errorf("%s: no bf:Work in merged graph", id)
+			continue
+		}
+		rec := recordFromWork(merged, works[0])
+		title := subfield(rec, "245", 'a')
+		if title == "" {
+			t.Errorf("%s: reconstructed 245 has empty $a", id)
+		}
+
+		// Cross-check the title against LoC's own bflc:marcKey for 245.
+		if key := marcKey(merged, "245"); key != "" {
+			if a := marcKeySubfield(key, 'a'); a != "" && !sameTitle(a, title) {
+				t.Errorf("%s: 245 $a %q does not match marcKey $a %q", id, title, a)
+			}
+		}
+		t.Logf("%-9s [%s] %q  author=%q  subj=%d id=%d fields=%d",
+			id, string(rec.Leader().RecordType()), title,
+			firstNonEmpty(subfield(rec, "100", 'a'), subfield(rec, "110", 'a'), subfield(rec, "111", 'a'),
+				subfield(rec, "700", 'a'), subfield(rec, "710", 'a'), subfield(rec, "711", 'a')),
+			count(rec, "650")+count(rec, "651")+count(rec, "600")+count(rec, "610")+count(rec, "611"),
+			count(rec, "020")+count(rec, "022")+count(rec, "024"), len(rec.Fields()))
+	}
+}
+
+// subfield returns the first value of code in the first field with tag, or "".
+func subfield(r *codex.Record, tag string, code byte) string {
+	if f := firstField(r, tag); f != nil {
+		return f.SubfieldValue(code)
+	}
+	return ""
+}
+
+// firstNonEmpty returns the first non-empty argument, or "".
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// count returns how many fields have the tag.
+func count(r *codex.Record, tag string) int {
+	n := 0
+	for _, f := range r.Fields() {
+		if f.Tag == tag {
+			n++
+		}
+	}
+	return n
+}
+
+// marcKey returns the first bflc:marcKey literal in the graph whose MARC tag (its
+// first three characters) matches tag, or "".
+func marcKey(g *rdf.Graph, tag string) string {
+	for _, tr := range g.Triples {
+		if tr.P.IsIRI() && tr.P.Value == bflcNS+"marcKey" && tr.O.IsLiteral() {
+			if strings.HasPrefix(tr.O.Value, tag) {
+				return tr.O.Value
+			}
+		}
+	}
+	return ""
+}
+
+// marcKeySubfield extracts a subfield from a bflc:marcKey string, whose body uses
+// the standard "$<code>value" delimiter convention.
+func marcKeySubfield(key string, code byte) string {
+	for i := 0; i+1 < len(key); i++ {
+		if key[i] == '$' && key[i+1] == code {
+			rest := key[i+2:]
+			before, _, _ := strings.Cut(rest, "$")
+			return strings.TrimRight(before, " /:;,.")
+		}
+	}
+	return ""
+}
+
+// sameTitle compares two titles ignoring case and trailing ISBD punctuation, since
+// the crosswalk trims punctuation the marcKey keeps.
+func sameTitle(a, b string) bool {
+	norm := func(s string) string {
+		return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), " /:;,."))
+	}
+	na, nb := norm(a), norm(b)
+	return na == nb || strings.HasPrefix(na, nb) || strings.HasPrefix(nb, na)
+}

@@ -300,6 +300,47 @@ func termLabel(t rdf.Term) string {
 	}
 }
 
+// TestDecodeLoCContribution covers the contribution shape LoC's marc2bibframe2
+// emits, which differs from this library's own output: the contribution is typed
+// bf:PrimaryContribution (not bflc:), and the agent carries the generic bf:Agent
+// type alongside the specific bf:Person/bf:Organization. The reader must still
+// route the main entry to 1xx and pick the specific agent class.
+func TestDecodeLoCContribution(t *testing.T) {
+	const bf = "http://id.loc.gov/ontologies/bibframe/"
+	doc := `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	            xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+	            xmlns:bf="` + bf + `">
+	  <bf:Work rdf:about="http://ex/w">
+	    <bf:title><bf:Title><bf:mainTitle>A study</bf:mainTitle></bf:Title></bf:title>
+	    <bf:contribution><bf:Contribution>
+	      <rdf:type rdf:resource="` + bf + `PrimaryContribution"/>
+	      <bf:agent><bf:Agent rdf:about="http://id.loc.gov/rwo/agents/n1">
+	        <rdf:type rdf:resource="` + bf + `Person"/>
+	        <rdfs:label>Doe, Jane</rdfs:label></bf:Agent></bf:agent>
+	      <bf:role><bf:Role><rdfs:label>author</rdfs:label></bf:Role></bf:role>
+	    </bf:Contribution></bf:contribution>
+	    <bf:contribution><bf:Contribution>
+	      <bf:agent><bf:Agent>
+	        <rdf:type rdf:resource="` + bf + `Organization"/>
+	        <rdfs:label>Acme Corp</rdfs:label></bf:Agent></bf:agent>
+	    </bf:Contribution></bf:contribution>
+	  </bf:Work></rdf:RDF>`
+	recs, err := Decode([]byte(doc))
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("Decode: %v (%d records)", err, len(recs))
+	}
+	rec := recs[0]
+	if f := firstField(rec, "100"); f == nil || f.SubfieldValue('a') != "Doe, Jane" || f.SubfieldValue('e') != "author" {
+		t.Errorf("primary person: want 100 $a 'Doe, Jane' $e 'author', got %+v", f)
+	}
+	if firstField(rec, "700") != nil {
+		t.Error("primary contribution must not also appear as 700")
+	}
+	if f := firstField(rec, "710"); f == nil || f.SubfieldValue('a') != "Acme Corp" {
+		t.Errorf("added organization: want 710 $a 'Acme Corp', got %+v", f)
+	}
+}
+
 // firstField returns the first field with the tag, or nil.
 func firstField(r *codex.Record, tag string) *codex.Field {
 	for i := range r.Fields() {

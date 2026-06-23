@@ -1,0 +1,405 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:bf="http://id.loc.gov/ontologies/bibframe/" xmlns:bflc="http://id.loc.gov/ontologies/bflc/" xmlns:owl="http://www.w3.org/2002/07/owl#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:cc="http://creativecommons.org/ns#" xmlns:foaf="http://xmlns.com/foaf/0.1/">
+  <bf:Work rdf:about="http://id.loc.gov/resources/works/5500000">
+    <bflc:aap>Global Graphics Inc. Champion map of northeast Connecticut</bflc:aap>
+    <bflc:aap-normalized>globalgraphicsincchampionmapofnortheastconnecticut</bflc:aap-normalized>
+    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Cartography"/>
+    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Monograph"/>
+    <bf:language>
+      <bf:Language rdf:about="http://id.loc.gov/vocabulary/languages/eng">
+	<rdfs:label xml:lang="en">English</rdfs:label>
+	<bf:code rdf:datatype="http://www.w3.org/2001/XMLSchema#string">eng</bf:code>
+      </bf:Language>
+    </bf:language>
+    <bf:supplementaryContent>
+      <bf:SupplementaryContent rdf:about="http://id.loc.gov/vocabulary/msupplcont/index">
+	<rdfs:label>index</rdfs:label>
+	<bf:code>index</bf:code>
+      </bf:SupplementaryContent>
+    </bf:supplementaryContent>
+    <bf:cartographicAttributes>
+      <bf:Cartographic>
+	<bf:coordinates>W0723200 W0714700 N0420400 N0413400</bf:coordinates>
+      </bf:Cartographic>
+    </bf:cartographicAttributes>
+    <bf:scale>
+      <bf:Scale>
+	<rdf:value>35000</rdf:value>
+	<rdfs:label>linear horizontal</rdfs:label>
+      </bf:Scale>
+    </bf:scale>
+    <bf:classification>
+      <bf:ClassificationLcc>
+	<bf:classificationPortion>G3783.T6 1987 </bf:classificationPortion>
+	<bf:itemPortion>.G5</bf:itemPortion>
+	<bf:assigner>
+	  <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+	    <rdfs:label>United States, Library of Congress</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	  </bf:Organization>
+	</bf:assigner>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/uba">
+	    <rdfs:label>used by assigner</rdfs:label>
+	    <bf:code>uba</bf:code>
+	  </bf:Status>
+	</bf:status>
+      </bf:ClassificationLcc>
+    </bf:classification>
+    <bf:geographicCoverage>
+      <bf:GeographicCoverage rdf:about="http://id.loc.gov/authorities/classification/G3783.T6">
+	<rdfs:label>Tolland</rdfs:label>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Collection>
+	    <rdfs:label>Geography. Anthropology. Recreation</rdfs:label>
+	  </madsrdf:Collection>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Maps</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>By region or country</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>America. Western Hemisphere</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>North America</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>United States</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Eastern United States, 1870 and later</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Northeastern States</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Northeast Atlantic States</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>New England</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Connecticut</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Counties, A-Z</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <madsrdf:ClassNumber>
+	    <madsrdf:authoritativeLabel>Tolland</madsrdf:authoritativeLabel>
+	  </madsrdf:ClassNumber>
+	</madsrdf:componentList>
+	<bf:code>G3783.T6</bf:code>
+      </bf:GeographicCoverage>
+    </bf:geographicCoverage>
+    <bf:geographicCoverage>
+      <bf:GeographicCoverage rdf:about="http://id.loc.gov/authorities/classification/G3783.W5">
+	<rdfs:label>Windham</rdfs:label>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Collection>
+	    <rdfs:label>Geography. Anthropology. Recreation</rdfs:label>
+	  </madsrdf:Collection>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Maps</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>By region or country</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>America. Western Hemisphere</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>North America</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>United States</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Eastern United States, 1870 and later</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Northeastern States</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Northeast Atlantic States</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>New England</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Connecticut</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <lcc:ClassNumber xmlns:lcc="http://id.loc.gov/ontologies/lcc#">
+	    <madsrdf:authoritativeLabel>Counties, A-Z</madsrdf:authoritativeLabel>
+	  </lcc:ClassNumber>
+	  <madsrdf:ClassNumber>
+	    <madsrdf:authoritativeLabel>Windham</madsrdf:authoritativeLabel>
+	  </madsrdf:ClassNumber>
+	</madsrdf:componentList>
+	<bf:code>G3783.W5</bf:code>
+      </bf:GeographicCoverage>
+    </bf:geographicCoverage>
+    <bf:contribution>
+      <bf:Contribution>
+	<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/PrimaryContribution"/>
+	<bf:agent>
+	  <bf:Agent>
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>Global Graphics Inc</rdfs:label>
+	    <bflc:marcKey>1102 $aGlobal Graphics Inc.</bflc:marcKey>
+	  </bf:Agent>
+	</bf:agent>
+	<bf:role>
+	  <bf:Role rdf:about="http://id.loc.gov/vocabulary/relators/ctb">
+	    <rdfs:label>contributor</rdfs:label>
+	    <bf:code>ctb</bf:code>
+	  </bf:Role>
+	</bf:role>
+      </bf:Contribution>
+    </bf:contribution>
+    <bf:title>
+      <bf:Title>
+	<bf:mainTitle>Champion map of northeast Connecticut</bf:mainTitle>
+      </bf:Title>
+    </bf:title>
+    <bf:scale>
+      <bf:Scale>
+	<rdfs:label>Scale [ca. 1:35,000]</rdfs:label>
+      </bf:Scale>
+    </bf:scale>
+    <bf:cartographicAttributes>
+      <bf:Cartographic>
+	<bf:coordinates>W 72⁰32ʹ--W 71⁰47ʹ/N 42⁰04ʹ--N 41⁰34ʹ</bf:coordinates>
+      </bf:Cartographic>
+    </bf:cartographicAttributes>
+    <bf:content>
+      <bf:Content rdf:about="http://id.loc.gov/vocabulary/contentTypes/cri">
+	<rdfs:label>cartographic image</rdfs:label>
+	<bf:code>cri</bf:code>
+      </bf:Content>
+    </bf:content>
+    <bf:subject>
+      <bf:Topic>
+	<rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+	<rdfs:label>Tolland County (Conn.)--Maps.</rdfs:label>
+	<madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Tolland County (Conn.)--Maps.</madsrdf:authoritativeLabel>
+	<madsrdf:isMemberOfMADSScheme xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:MADSScheme rdf:about="http://id.loc.gov/authorities/subjects">
+	    <rdfs:label xml:lang="en">Library of Congress Subject Headings</rdfs:label>
+	  </madsrdf:MADSScheme>
+	</madsrdf:isMemberOfMADSScheme>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Geographic rdf:about="http://id.loc.gov/rwo/agents/n82097437">
+	    <rdfs:label>Tolland County (Conn.)</rdfs:label>
+	    <bflc:marcKey>151  $aTolland County (Conn.)</bflc:marcKey>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/codes/gac">n-us-ct</bf:code>
+	  </madsrdf:Geographic>
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh99002035">
+	    <rdfs:label xml:lang="en">Maps</rdfs:label>
+	    <bflc:marcKey>180  $xMaps</bflc:marcKey>
+	    <bf:source>
+	      <bf:Source rdf:about="http://id.loc.gov/authorities/subjects">
+		<rdfs:label>LC Subject Headings</rdfs:label>
+	      </bf:Source>
+	    </bf:source>
+	  </madsrdf:Topic>
+	</madsrdf:componentList>
+	<bflc:aap-normalized>tollandcounty(conn)maps</bflc:aap-normalized>
+	<bf:source>
+	  <bf:Source rdf:about="http://id.loc.gov/authorities/subjects">
+	    <rdfs:label xml:lang="en">Library of Congress Subject Headings</rdfs:label>
+	  </bf:Source>
+	</bf:source>
+      </bf:Topic>
+    </bf:subject>
+    <bf:subject>
+      <bf:Topic>
+	<rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+	<rdfs:label>Windham County (Conn.)--Maps.</rdfs:label>
+	<madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Windham County (Conn.)--Maps.</madsrdf:authoritativeLabel>
+	<madsrdf:isMemberOfMADSScheme xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:MADSScheme rdf:about="http://id.loc.gov/authorities/subjects">
+	    <rdfs:label xml:lang="en">Library of Congress Subject Headings</rdfs:label>
+	  </madsrdf:MADSScheme>
+	</madsrdf:isMemberOfMADSScheme>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Geographic rdf:about="http://id.loc.gov/rwo/agents/n81019659">
+	    <rdfs:label>Windham County (Conn.)</rdfs:label>
+	    <bflc:marcKey>151  $aWindham County (Conn.)</bflc:marcKey>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/codes/gac">n-us-ct</bf:code>
+	  </madsrdf:Geographic>
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh99002035">
+	    <rdfs:label xml:lang="en">Maps</rdfs:label>
+	    <bflc:marcKey>180  $xMaps</bflc:marcKey>
+	    <bf:source>
+	      <bf:Source rdf:about="http://id.loc.gov/authorities/subjects">
+		<rdfs:label>LC Subject Headings</rdfs:label>
+	      </bf:Source>
+	    </bf:source>
+	  </madsrdf:Topic>
+	</madsrdf:componentList>
+	<bflc:aap-normalized>windhamcounty(conn)maps</bflc:aap-normalized>
+	<bf:source>
+	  <bf:Source rdf:about="http://id.loc.gov/authorities/subjects">
+	    <rdfs:label xml:lang="en">Library of Congress Subject Headings</rdfs:label>
+	  </bf:Source>
+	</bf:source>
+      </bf:Topic>
+    </bf:subject>
+    <bf:contribution>
+      <bf:Contribution>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/rwo/agents/n79126488">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>Champion Map Corporation</rdfs:label>
+	    <bflc:marcKey>1102 $aChampion Map Corporation</bflc:marcKey>
+	  </bf:Agent>
+	</bf:agent>
+	<bf:role>
+	  <bf:Role rdf:about="http://id.loc.gov/vocabulary/relators/ctb">
+	    <rdfs:label>contributor</rdfs:label>
+	    <bf:code>ctb</bf:code>
+	  </bf:Role>
+	</bf:role>
+      </bf:Contribution>
+    </bf:contribution>
+    <bf:relation>
+      <bf:Relation>
+	<bf:relationship>
+	  <bf:Relationship rdf:about="http://id.loc.gov/vocabulary/relationship/relatedwork">
+	    <rdfs:label>related work</rdfs:label>
+	    <bf:code>relatedwork</bf:code>
+	  </bf:Relationship>
+	</bf:relationship>
+	<bf:associatedResource>
+	  <bf:Work>
+	    <bflc:aap>Northeast Connecticut</bflc:aap>
+	    <bflc:aap-normalized>northeastconnecticut</bflc:aap-normalized>
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bflc/Uncontrolled"/>
+	    <bf:title>
+	      <bf:Title>
+		<bf:mainTitle>Northeast Connecticut</bf:mainTitle>
+		<bflc:nonSortNum>0</bflc:nonSortNum>
+	      </bf:Title>
+	    </bf:title>
+	  </bf:Work>
+	</bf:associatedResource>
+      </bf:Relation>
+    </bf:relation>
+    <dcterms:isPartOf rdf:resource="http://id.loc.gov/resources/works"/>
+    <bf:hasInstance>
+      <bf:Instance rdf:about="http://id.loc.gov/resources/instances/5500000">
+	<bf:title>
+	  <bf:Title>
+	    <bf:mainTitle>Champion map of northeast Connecticut</bf:mainTitle>
+	  </bf:Title>
+	</bf:title>
+	<bf:publicationStatement xmlns:exsl="http://exslt.org/common">Daytona Beach, Fla: Champion Map Corp</bf:publicationStatement>
+      </bf:Instance>
+    </bf:hasInstance>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/n">
+	    <rdfs:label>new</rdfs:label>
+	    <bf:code>n</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">1988-02-04</bf:date>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>United States, Library of Congress</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	  </bf:Agent>
+	</bf:agent>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/c">
+	    <rdfs:label>changed</rdfs:label>
+	    <bf:code>c</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">1995-02-27T10:38:41</bf:date>
+	<bf:descriptionModifier>
+	  <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+	    <rdfs:label>United States, Library of Congress</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	  </bf:Organization>
+	</bf:descriptionModifier>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/c">
+	    <rdfs:label>changed</rdfs:label>
+	    <bf:code>c</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/vocabulary/organizations/dlcmrc">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>United States, Library of Congress, Network Development and MARC Standards Office</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC-MRC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlcmrc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlcmrc</bf:code>
+	  </bf:Agent>
+	</bf:agent>
+	<bf:generationProcess rdf:resource="https://github.com/lcnetdev/marc2bibframe2/releases/tag/v2.10.0"/>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-02-21T21:31:29.499125-05:00</bf:date>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:descriptionLevel rdf:resource="http://id.loc.gov/ontologies/bibframe-2-6-0/"/>
+	<bflc:encodingLevel>
+	  <bflc:EncodingLevel rdf:about="http://id.loc.gov/vocabulary/menclvl/f">
+	    <rdfs:label>full</rdfs:label>
+	    <bf:code>f</bf:code>
+	  </bflc:EncodingLevel>
+	</bflc:encodingLevel>
+	<bf:descriptionConventions>
+	  <bf:DescriptionConventions rdf:about="http://id.loc.gov/vocabulary/descriptionConventions/aacr">
+	    <rdfs:label>Anglo-American cataloguing rules</rdfs:label>
+	    <bf:code>aacr</bf:code>
+	  </bf:DescriptionConventions>
+	</bf:descriptionConventions>
+	<bf:identifiedBy>
+	  <bf:Local>
+	    <rdf:value>5500000</rdf:value>
+	    <bf:assigner>
+	      <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+		<rdfs:label>United States, Library of Congress</rdfs:label>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	      </bf:Organization>
+	    </bf:assigner>
+	  </bf:Local>
+	</bf:identifiedBy>
+	<bflc:marcKey>906  $a7$bcbc$corignew$du$encip$f19$gy-geogmaps</bflc:marcKey>
+	<lclocal:d906 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=906     $a 7 $b cbc $c orignew $d u $e ncip $f 19 $g y-geogmaps</lclocal:d906>
+	<bflc:marcKey>955  $aga05;ga15</bflc:marcKey>
+	<lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $a ga05;ga15</lclocal:d955>
+	<bflc:marcKey>955  $aLCAP batch update 2025-06-02-04:00: LCAPM-779</bflc:marcKey>
+	<lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $a LCAP batch update 2025-06-02-04:00: LCAPM-779</lclocal:d955>
+	<bf:note>
+	  <bf:Note>
+	    <rdf:type rdf:resource="http://id.loc.gov/vocabulary/mnotetype/internal"/>
+	    <rdfs:label>040  $aDLC$cDLC$dDLC</rdfs:label>
+	  </bf:Note>
+	</bf:note>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+  </bf:Work>
+</rdf:RDF>

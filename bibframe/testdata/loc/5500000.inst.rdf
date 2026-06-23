@@ -1,0 +1,348 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:bf="http://id.loc.gov/ontologies/bibframe/" xmlns:bflc="http://id.loc.gov/ontologies/bflc/" xmlns:owl="http://www.w3.org/2002/07/owl#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:cc="http://creativecommons.org/ns#" xmlns:foaf="http://xmlns.com/foaf/0.1/">
+  <bf:Instance rdf:about="http://id.loc.gov/resources/instances/5500000">
+    <bf:issuance>
+      <bf:Issuance rdf:about="http://id.loc.gov/vocabulary/issuance/mono">
+	<rdfs:label>single unit</rdfs:label>
+	<bf:code>mono</bf:code>
+      </bf:Issuance>
+    </bf:issuance>
+    <bf:genreForm>
+      <bf:GenreForm rdf:about="http://id.loc.gov/authorities/genreForms/gf2011026387">
+	<rdfs:label xml:lang="en">Maps</rdfs:label>
+	<bflc:marcKey>155  $aMaps</bflc:marcKey>
+	<bf:source>
+	  <bf:Source rdf:about="http://id.loc.gov/authorities/genreForms">
+	    <rdfs:label>LC Genre/Forms</rdfs:label>
+	  </bf:Source>
+	</bf:source>
+      </bf:GenreForm>
+    </bf:genreForm>
+    <bf:baseMaterial>
+      <bf:BaseMaterial rdf:about="http://id.loc.gov/vocabulary/mmaterial/pap">
+	<rdfs:label>paper</rdfs:label>
+	<bf:code>pap</bf:code>
+      </bf:BaseMaterial>
+    </bf:baseMaterial>
+    <bf:colorContent>
+      <bf:ColorContent rdf:about="http://id.loc.gov/vocabulary/mcolor/mul">
+	<rdfs:label>color</rdfs:label>
+	<bf:code>mul</bf:code>
+      </bf:ColorContent>
+    </bf:colorContent>
+    <bf:provisionActivity>
+      <bf:ProvisionActivity>
+	<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Publication"/>
+	<bflc:simplePlace>Daytona Beach, Fla</bflc:simplePlace>
+	<bflc:simpleAgent>Champion Map Corp</bflc:simpleAgent>
+      </bf:ProvisionActivity>
+    </bf:provisionActivity>
+    <bf:publicationStatement>Daytona Beach, Fla: Champion Map Corp</bf:publicationStatement>
+    <bf:provisionActivity>
+      <bf:ProvisionActivity>
+	<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Publication"/>
+	<bf:date rdf:datatype="http://id.loc.gov/datatypes/edtf">1987</bf:date>
+	<bf:place>
+	  <bf:Place rdf:about="http://id.loc.gov/vocabulary/countries/flu">
+	    <rdfs:label xml:lang="en">Florida</rdfs:label>
+	    <bf:code rdf:datatype="http://www.w3.org/2001/XMLSchema#string">flu</bf:code>
+	  </bf:Place>
+	</bf:place>
+	<bflc:simplePlace>Marlborough, MA</bflc:simplePlace>
+	<bflc:simpleAgent>Champion Map Corp., New England Division [distributor]</bflc:simpleAgent>
+	<bflc:simpleDate>c1987</bflc:simpleDate>
+      </bf:ProvisionActivity>
+    </bf:provisionActivity>
+    <bf:publicationStatement>Marlborough, MA: Champion Map Corp., New England Division [distributor], c1987</bf:publicationStatement>
+    <bf:identifiedBy>
+      <bf:Lccn>
+	<rdf:value>   88690749 </rdf:value>
+      </bf:Lccn>
+    </bf:identifiedBy>
+    <bf:identifiedBy>
+      <bf:CopyrightNumber>
+	<rdf:value>VA 280-958</rdf:value>
+	<bf:assigner>
+	  <bf:Organization>
+	    <rdfs:label>U.S. Copyright Office</rdfs:label>
+	  </bf:Organization>
+	</bf:assigner>
+      </bf:CopyrightNumber>
+    </bf:identifiedBy>
+    <bf:responsibilityStatement>cartography by Global Graphics</bf:responsibilityStatement>
+    <bf:title>
+      <bf:Title>
+	<bf:mainTitle>Champion map of northeast Connecticut</bf:mainTitle>
+      </bf:Title>
+    </bf:title>
+    <bf:acquisitionSource>
+      <bf:AcquisitionSource>
+	<rdfs:label>Champion Map Corporation, New England Division, 186 Cedar Hill St., Marlborough, MA 01752</rdfs:label>
+      </bf:AcquisitionSource>
+    </bf:acquisitionSource>
+    <bf:extent>
+      <bf:Extent>
+	<rdfs:label>1 map</rdfs:label>
+	<bf:note>
+	  <bf:Note>
+	    <rdf:type rdf:resource="http://id.loc.gov/vocabulary/mnotetype/physical"/>
+	    <rdfs:label>col., plastic-treated</rdfs:label>
+	  </bf:Note>
+	</bf:note>
+      </bf:Extent>
+    </bf:extent>
+    <bf:dimensions>142 x 167 cm</bf:dimensions>
+    <bf:media>
+      <bf:Media rdf:about="http://id.loc.gov/vocabulary/mediaTypes/n">
+	<rdfs:label>unmediated</rdfs:label>
+	<bf:code>n</bf:code>
+      </bf:Media>
+    </bf:media>
+    <bf:carrier>
+      <bf:Carrier rdf:about="http://id.loc.gov/vocabulary/carriers/nb">
+	<rdfs:label>sheet</rdfs:label>
+	<bf:code>nb</bf:code>
+      </bf:Carrier>
+    </bf:carrier>
+    <bf:note>
+      <bf:Note>
+	<rdfs:label>Shows radial distances from Willimantic.</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <bf:note>
+      <bf:Note>
+	<rdfs:label>Covers Tolland and Windham counties.</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <bf:note>
+      <bf:Note>
+	<rdfs:label>Originally printed on 2 sheets.</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <bf:note>
+      <bf:Note>
+	<rdfs:label>Has metal socket at upper center for attachment of radial index tape measure.</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <bf:note>
+      <bf:Note>
+	<rdfs:label>Accompanied by: A Champion Map index book of northeast Connecticut. 32 p. ; 28 cm.</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <bf:note>
+      <bf:Note>
+	<rdfs:label>Includes note.</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <bf:note>
+      <bf:Note>
+	<rdfs:label>"CTM59 VI-87."</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <dcterms:isPartOf rdf:resource="http://id.loc.gov/resources/instances"/>
+    <bf:instanceOf>
+      <bf:Work rdf:about="http://id.loc.gov/resources/works/5500000">
+	<rdfs:label>Global Graphics Inc. Champion map of northeast Connecticut</rdfs:label>
+	<bf:contribution>
+	  <bf:Contribution>
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/PrimaryContribution"/>
+	    <bf:agent>
+	      <bf:Agent>
+		<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+		<rdfs:label>Global Graphics Inc</rdfs:label>
+		<bflc:marcKey>1102 $aGlobal Graphics Inc.</bflc:marcKey>
+	      </bf:Agent>
+	    </bf:agent>
+	    <bf:role>
+	      <madsrdf:Authority rdf:about="http://id.loc.gov/vocabulary/relators/ctb" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+		<rdfs:label>contributor</rdfs:label>
+		<bf:code>ctb</bf:code>
+	      </madsrdf:Authority>
+	    </bf:role>
+	  </bf:Contribution>
+	</bf:contribution>
+	<bf:contribution>
+	  <bf:Contribution>
+	    <bf:agent>
+	      <bf:Agent>
+		<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+		<rdfs:label>Champion Map Corporation</rdfs:label>
+		<bflc:marcKey>7102 $aChampion Map Corporation.</bflc:marcKey>
+	      </bf:Agent>
+	    </bf:agent>
+	    <bf:role>
+	      <madsrdf:Authority rdf:about="http://id.loc.gov/vocabulary/relators/ctb" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+		<rdfs:label>contributor</rdfs:label>
+		<bf:code>ctb</bf:code>
+	      </madsrdf:Authority>
+	    </bf:role>
+	  </bf:Contribution>
+	</bf:contribution>
+	<bf:classification>
+	  <bf:ClassificationLcc>
+	    <bf:classificationPortion>G3783.T6 1987 </bf:classificationPortion>
+	    <bf:itemPortion>.G5</bf:itemPortion>
+	    <bf:assigner>
+	      <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+		<rdfs:label>United States, Library of Congress</rdfs:label>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	      </bf:Organization>
+	    </bf:assigner>
+	    <bf:status>
+	      <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/uba">
+		<rdfs:label>used by assigner</rdfs:label>
+		<bf:code>uba</bf:code>
+	      </bf:Status>
+	    </bf:status>
+	  </bf:ClassificationLcc>
+	</bf:classification>
+	<bf:title>
+	  <bf:Title>
+	    <bf:mainTitle>Champion map of northeast Connecticut</bf:mainTitle>
+	  </bf:Title>
+	</bf:title>
+	<bf:language rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+	<bf:hasInstance>
+	  <bf:Instance rdf:about="http://id.loc.gov/resources/instances/5500000">
+	    <bf:title>
+	      <bf:Title>
+		<bf:mainTitle>Champion map of northeast Connecticut</bf:mainTitle>
+	      </bf:Title>
+	    </bf:title>
+	    <bf:identifiedBy>
+	      <bf:Lccn>
+		<rdf:value>   88690749 </rdf:value>
+	      </bf:Lccn>
+	    </bf:identifiedBy>
+	    <bf:identifiedBy>
+	      <bf:CopyrightNumber>
+		<rdf:value>VA 280-958</rdf:value>
+		<bf:assigner>
+		  <bf:Organization>
+		    <rdfs:label>U.S. Copyright Office</rdfs:label>
+		  </bf:Organization>
+		</bf:assigner>
+	      </bf:CopyrightNumber>
+	    </bf:identifiedBy>
+	    <bf:publicationStatement xmlns:exsl="http://exslt.org/common">Daytona Beach, Fla: Champion Map Corp</bf:publicationStatement>
+	    <bf:publicationStatement xmlns:exsl="http://exslt.org/common">Marlborough, MA: Champion Map Corp., New England Division [distributor], c1987</bf:publicationStatement>
+	    <bf:extent>
+	      <bf:Extent>
+		<rdfs:label>1 map</rdfs:label>
+		<bf:note>
+		  <bf:Note>
+		    <rdf:type rdf:resource="http://id.loc.gov/vocabulary/mnotetype/physical"/>
+		    <rdfs:label>col., plastic-treated</rdfs:label>
+		  </bf:Note>
+		</bf:note>
+	      </bf:Extent>
+	    </bf:extent>
+	  </bf:Instance>
+	</bf:hasInstance>
+      </bf:Work>
+    </bf:instanceOf>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/n">
+	    <rdfs:label>new</rdfs:label>
+	    <bf:code>n</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">1988-02-04</bf:date>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>United States, Library of Congress</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	  </bf:Agent>
+	</bf:agent>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/c">
+	    <rdfs:label>changed</rdfs:label>
+	    <bf:code>c</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">1995-02-27T10:38:41</bf:date>
+	<bf:descriptionModifier>
+	  <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+	    <rdfs:label>United States, Library of Congress</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	  </bf:Organization>
+	</bf:descriptionModifier>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/c">
+	    <rdfs:label>changed</rdfs:label>
+	    <bf:code>c</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/vocabulary/organizations/dlcmrc">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>United States, Library of Congress, Network Development and MARC Standards Office</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC-MRC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlcmrc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlcmrc</bf:code>
+	  </bf:Agent>
+	</bf:agent>
+	<bf:generationProcess rdf:resource="https://github.com/lcnetdev/marc2bibframe2/releases/tag/v3.0.0"/>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-02-27T11:58:56.471769-05:00</bf:date>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:descriptionLevel rdf:resource="http://id.loc.gov/ontologies/bibframe-2-6-0/"/>
+	<bflc:encodingLevel>
+	  <bflc:EncodingLevel rdf:about="http://id.loc.gov/vocabulary/menclvl/f">
+	    <rdfs:label>full</rdfs:label>
+	    <bf:code>f</bf:code>
+	  </bflc:EncodingLevel>
+	</bflc:encodingLevel>
+	<bf:descriptionConventions>
+	  <bf:DescriptionConventions rdf:about="http://id.loc.gov/vocabulary/descriptionConventions/aacr">
+	    <rdfs:label>Anglo-American cataloguing rules</rdfs:label>
+	    <bf:code>aacr</bf:code>
+	  </bf:DescriptionConventions>
+	</bf:descriptionConventions>
+	<bf:identifiedBy>
+	  <bf:Local>
+	    <rdf:value>5500000</rdf:value>
+	    <bf:assigner>
+	      <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+		<rdfs:label>United States, Library of Congress</rdfs:label>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	      </bf:Organization>
+	    </bf:assigner>
+	  </bf:Local>
+	</bf:identifiedBy>
+	<bflc:marcKey>906  $a7$bcbc$corignew$du$encip$f19$gy-geogmaps</bflc:marcKey>
+	<lclocal:d906 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=906     $a 7 $b cbc $c orignew $d u $e ncip $f 19 $g y-geogmaps</lclocal:d906>
+	<bflc:marcKey>955  $aga05;ga15</bflc:marcKey>
+	<lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $a ga05;ga15</lclocal:d955>
+	<bflc:marcKey>955  $aLCAP batch update 2025-06-02-04:00: LCAPM-779</bflc:marcKey>
+	<lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $a LCAP batch update 2025-06-02-04:00: LCAPM-779</lclocal:d955>
+	<bf:note>
+	  <bf:Note>
+	    <rdf:type rdf:resource="http://id.loc.gov/vocabulary/mnotetype/internal"/>
+	    <rdfs:label>040  $aDLC$cDLC$dDLC</rdfs:label>
+	  </bf:Note>
+	</bf:note>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+  </bf:Instance>
+</rdf:RDF>

@@ -44,8 +44,14 @@ const (
 	pIdentifiedBy = bfNS + "identifiedBy"
 	pLocator      = bfNS + "electronicLocator"
 
-	primaryContribution = bflcNS + "PrimaryContribution"
+	primaryContribution   = bflcNS + "PrimaryContribution"
+	bfPrimaryContribution = bfNS + "PrimaryContribution"
 )
+
+// agentClasses are the bf agent subclasses, in MARC-tag preference order, used to
+// pick the specific class when an agent node also carries the generic bf:Agent
+// type (as LoC's marc2bibframe2 output does).
+var agentClasses = []string{"Organization", "Meeting", "Person", "Family", "Jurisdiction"}
 
 // Decode parses a BIBFRAME document — RDF/XML or JSON-LD, autodetected — and
 // reverse-crosswalks every bf:Work (with its linked bf:Instance) to a MARC 21
@@ -172,8 +178,8 @@ func contributions(g *rdf.Graph, work rdf.Term) ([]codex.Field, bool) {
 		if label == "" {
 			continue
 		}
-		isPrimary := g.HasType(c, primaryContribution)
-		tag := contribTag(typeExcept(g, agent, ""), isPrimary)
+		isPrimary := g.HasType(c, primaryContribution) || g.HasType(c, bfPrimaryContribution)
+		tag := contribTag(agentClass(g, agent), isPrimary)
 		subs := []codex.Subfield{codex.NewSubfield('a', label)}
 		if r := literal(g, roleNode(g, c), pLabel); r != "" {
 			subs = append(subs, codex.NewSubfield('e', r))
@@ -190,11 +196,25 @@ func roleNode(g *rdf.Graph, contribution rdf.Term) rdf.Term {
 	return r
 }
 
+// agentClass returns the agent's specific bf class (Person, Organization, …),
+// preferring it over the generic bf:Agent type that LoC attaches alongside it.
+func agentClass(g *rdf.Graph, agent rdf.Term) string {
+	types := g.Objects(agent, pType)
+	for _, want := range agentClasses {
+		for _, o := range types {
+			if o.IsIRI() && rdf.LocalName(o.Value) == want {
+				return want
+			}
+		}
+	}
+	return ""
+}
+
 // contribTag picks the MARC tag for an agent class and primary/added entry.
 func contribTag(class string, primary bool) string {
-	base := map[string]string{"Organization": "10", "Meeting": "11"}[class]
+	base := map[string]string{"Organization": "10", "Jurisdiction": "10", "Meeting": "11"}[class]
 	if base == "" {
-		base = "00" // Person and unknown agents
+		base = "00" // Person, Family and unknown agents use the X00 personal-name tag
 	}
 	if primary {
 		return "1" + base

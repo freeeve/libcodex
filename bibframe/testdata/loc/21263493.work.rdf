@@ -1,0 +1,328 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:bf="http://id.loc.gov/ontologies/bibframe/" xmlns:bflc="http://id.loc.gov/ontologies/bflc/" xmlns:owl="http://www.w3.org/2002/07/owl#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:cc="http://creativecommons.org/ns#" xmlns:foaf="http://xmlns.com/foaf/0.1/">
+  <bf:Work rdf:about="http://id.loc.gov/resources/works/21263493">
+    <bflc:aap>Horydczak, Theodor, approximately 1890-1971. Statues and sculpture. Andrew Jackson statue</bflc:aap>
+    <bflc:aap-normalized>horydczaktheodorapproximately18901971statuesandsculptureandrewjacksonstatue</bflc:aap-normalized>
+    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/StillImage"/>
+    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Collection"/>
+    <bf:language>
+      <bf:Language rdf:about="http://id.loc.gov/vocabulary/languages/eng">
+	<rdfs:label xml:lang="en">English</rdfs:label>
+	<bf:code rdf:datatype="http://www.w3.org/2001/XMLSchema#string">eng</bf:code>
+      </bf:Language>
+    </bf:language>
+    <bf:genreForm>
+      <bf:GenreForm rdf:about="http://id.loc.gov/vocabulary/marcgt/gra">
+	<rdfs:label>graphic</rdfs:label>
+	<bf:code>gra</bf:code>
+      </bf:GenreForm>
+    </bf:genreForm>
+    <bf:classification>
+      <bf:ClassificationLcc>
+	<bf:classificationPortion>LC-H822-</bf:classificationPortion>
+	<bf:itemPortion>S07-032</bf:itemPortion>
+	<bf:assigner>
+	  <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+	    <rdfs:label>United States, Library of Congress</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	  </bf:Organization>
+	</bf:assigner>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/uba">
+	    <rdfs:label>used by assigner</rdfs:label>
+	    <bf:code>uba</bf:code>
+	  </bf:Status>
+	</bf:status>
+      </bf:ClassificationLcc>
+    </bf:classification>
+    <bf:contribution>
+      <bf:Contribution>
+	<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/PrimaryContribution"/>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/rwo/agents/n88646995">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Person"/>
+	    <rdfs:label>Horydczak, Theodor, approximately 1890-1971</rdfs:label>
+	    <bflc:marcKey>1001 $aHorydczak, Theodor,$dapproximately 1890-1971</bflc:marcKey>
+	  </bf:Agent>
+	</bf:agent>
+	<bf:role>
+	  <bf:Role rdf:about="http://id.loc.gov/vocabulary/relators/pht">
+	    <rdfs:label>photographer</rdfs:label>
+	    <bf:code>pht</bf:code>
+	  </bf:Role>
+	</bf:role>
+      </bf:Contribution>
+    </bf:contribution>
+    <bf:title>
+      <bf:Title>
+	<bf:mainTitle>Statues and sculpture</bf:mainTitle>
+	<bf:partName>Andrew Jackson statue</bf:partName>
+      </bf:Title>
+    </bf:title>
+    <bf:content>
+      <bf:Content rdf:about="http://id.loc.gov/vocabulary/contentTypes/sti">
+	<rdfs:label>still image</rdfs:label>
+	<bf:code>sti</bf:code>
+      </bf:Content>
+    </bf:content>
+    <bf:note>
+      <bf:Note>
+	<rdf:type rdf:resource="http://id.loc.gov/vocabulary/mnotetype/relnote"/>
+	<rdfs:label>Forms part of: Horydczak photograph collection (Library of Congress)</rdfs:label>
+      </bf:Note>
+    </bf:note>
+    <bf:subject>
+      <bf:Topic rdf:about="http://id.loc.gov/vocabulary/graphicMaterials/tgm006749">
+	<rdfs:label xml:lang="en">Monuments &amp; memorials</rdfs:label>
+      </bf:Topic>
+    </bf:subject>
+    <bf:subject>
+      <bf:Topic rdf:about="http://id.loc.gov/vocabulary/graphicMaterials/tgm008189">
+	<rdfs:label xml:lang="en">Presidents</rdfs:label>
+      </bf:Topic>
+    </bf:subject>
+    <bf:subject>
+      <bf:Topic rdf:about="http://id.loc.gov/vocabulary/graphicMaterials/tgm009291">
+	<rdfs:label xml:lang="en">Sculpture</rdfs:label>
+      </bf:Topic>
+    </bf:subject>
+    <bf:genreForm>
+      <bf:GenreForm>
+	<rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#GenreForm"/>
+	<madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Nitrate negatives</madsrdf:authoritativeLabel>
+	<bf:source>
+	  <madsrdf:Authority rdf:about="http://id.loc.gov/vocabulary/genreFormSchemes/gmgpc" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	    <rdfs:label>Thesaurus for graphic materials: TGM II, Genre and physical characteristic terms</rdfs:label>
+	    <bf:code>gmgpc</bf:code>
+	  </madsrdf:Authority>
+	</bf:source>
+	<rdfs:label>Nitrate negatives</rdfs:label>
+      </bf:GenreForm>
+    </bf:genreForm>
+    <bf:place>
+      <bf:Place>
+	<rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#HierarchicalGeographic"/>
+	<rdfs:label>United States--District of Columbia--Washington (D.C.)</rdfs:label>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Country>
+	    <rdfs:label>United States</rdfs:label>
+	  </madsrdf:Country>
+	  <madsrdf:State>
+	    <rdfs:label>District of Columbia</rdfs:label>
+	  </madsrdf:State>
+	  <madsrdf:City>
+	    <rdfs:label>Washington (D.C.)</rdfs:label>
+	  </madsrdf:City>
+	</madsrdf:componentList>
+      </bf:Place>
+    </bf:place>
+    <bf:relation>
+      <bf:Relation>
+	<bf:relationship>
+	  <bf:Relationship rdf:about="http://id.loc.gov/vocabulary/relationship/partof">
+	    <rdfs:label>part of</rdfs:label>
+	    <bf:code>partof</bf:code>
+	  </bf:Relationship>
+	</bf:relationship>
+	<bf:associatedResource>
+	  <bf:Work rdf:about="http://id.loc.gov/resources/works/11628607">
+	    <rdfs:label>Horydczak, Theodor, approximately 1890-1971. Horydczak photograph collection (Library of Congress)</rdfs:label>
+	    <bf:contribution>
+	      <bf:Contribution>
+		<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/PrimaryContribution"/>
+		<bf:agent>
+		  <bf:Agent>
+		    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Person"/>
+		    <rdfs:label>Horydczak, Theodor, approximately 1890-1971</rdfs:label>
+		    <bflc:marcKey>1001 $aHorydczak, Theodor,$dapproximately 1890-1971,$ephotographer.</bflc:marcKey>
+		  </bf:Agent>
+		</bf:agent>
+		<bf:role>
+		  <bf:Role>
+		    <rdfs:label>photographer</rdfs:label>
+		  </bf:Role>
+		</bf:role>
+	      </bf:Contribution>
+	    </bf:contribution>
+	    <bf:classification>
+	      <bf:ClassificationLcc>
+		<bf:classificationPortion>Guide Record</bf:classificationPortion>
+		<bf:assigner>
+		  <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+		    <rdfs:label>United States, Library of Congress</rdfs:label>
+		    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+		    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+		    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+		  </bf:Organization>
+		</bf:assigner>
+		<bf:status>
+		  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/uba">
+		    <rdfs:label>used by assigner</rdfs:label>
+		    <bf:code>uba</bf:code>
+		  </bf:Status>
+		</bf:status>
+	      </bf:ClassificationLcc>
+	    </bf:classification>
+	    <bf:title>
+	      <bf:Title>
+		<bf:mainTitle>Horydczak photograph collection (Library of Congress)</bf:mainTitle>
+	      </bf:Title>
+	    </bf:title>
+	    <bf:title>
+	      <bf:VariantTitle>
+		<bf:mainTitle>Theodor Horydczak photograph collection</bf:mainTitle>
+	      </bf:VariantTitle>
+	    </bf:title>
+	    <bf:language rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+	    <bf:hasInstance>
+	      <bf:Instance rdf:about="http://id.loc.gov/resources/instances/11628607">
+		<bf:title>
+		  <bf:Title>
+		    <bf:mainTitle>Horydczak photograph collection (Library of Congress)</bf:mainTitle>
+		  </bf:Title>
+		</bf:title>
+		<bf:identifiedBy>
+		  <bf:Lccn>
+		    <rdf:value>   93845486 </rdf:value>
+		  </bf:Lccn>
+		</bf:identifiedBy>
+		<bf:publicationStatement xmlns:exsl="http://exslt.org/common">1915-1955, bulk ca. 1920-ca. 1950.</bf:publicationStatement>
+		<bf:extent>
+		  <bf:Extent>
+		    <rdfs:label>ca. 9,200 negatives</rdfs:label>
+		    <bf:note>
+		      <bf:Note>
+			<rdf:type rdf:resource="http://id.loc.gov/vocabulary/mnotetype/physical"/>
+			<rdfs:label>safety film</rdfs:label>
+		      </bf:Note>
+		    </bf:note>
+		  </bf:Extent>
+		</bf:extent>
+	      </bf:Instance>
+	    </bf:hasInstance>
+	  </bf:Work>
+	</bf:associatedResource>
+      </bf:Relation>
+    </bf:relation>
+    <dcterms:isPartOf rdf:resource="http://id.loc.gov/resources/works"/>
+    <bf:hasInstance>
+      <bf:Instance rdf:about="http://id.loc.gov/resources/instances/21263493">
+	<bf:title>
+	  <bf:Title>
+	    <bf:mainTitle>Statues and sculpture</bf:mainTitle>
+	    <bf:partName>Andrew Jackson statue</bf:partName>
+	  </bf:Title>
+	</bf:title>
+	<bf:publicationStatement xmlns:exsl="http://exslt.org/common">ca. 1920-ca. 1950.</bf:publicationStatement>
+      </bf:Instance>
+    </bf:hasInstance>
+    <bf:hasInstance>
+      <bf:Instance rdf:about="http://id.loc.gov/resources/instances/21263493-85X-1">
+	<bf:title>
+	  <bf:Title>
+	    <bf:mainTitle>intermediary roll film</bf:mainTitle>
+	  </bf:Title>
+	</bf:title>
+      </bf:Instance>
+    </bf:hasInstance>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/n">
+	    <rdfs:label>new</rdfs:label>
+	    <bf:code>n</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">1993-07-12</bf:date>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>United States, Library of Congress</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	  </bf:Agent>
+	</bf:agent>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status>
+	  <bf:Status rdf:about="http://id.loc.gov/vocabulary/mstatus/c">
+	    <rdfs:label>changed</rdfs:label>
+	    <bf:code>c</bf:code>
+	  </bf:Status>
+	</bf:status>
+	<bf:agent>
+	  <bf:Agent rdf:about="http://id.loc.gov/vocabulary/organizations/dlcmrc">
+	    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Organization"/>
+	    <rdfs:label>United States, Library of Congress, Network Development and MARC Standards Office</rdfs:label>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC-MRC</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlcmrc</bf:code>
+	    <bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlcmrc</bf:code>
+	  </bf:Agent>
+	</bf:agent>
+	<bf:generationProcess rdf:resource="https://github.com/lcnetdev/marc2bibframe2/releases/tag/v3.0.0"/>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-02-26T19:51:50.242008-05:00</bf:date>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:descriptionLevel rdf:resource="http://id.loc.gov/ontologies/bibframe-2-6-0/"/>
+	<bflc:encodingLevel>
+	  <bflc:EncodingLevel rdf:about="http://id.loc.gov/vocabulary/menclvl/5">
+	    <rdfs:label>preliminary</rdfs:label>
+	    <bf:code>5</bf:code>
+	  </bflc:EncodingLevel>
+	</bflc:encodingLevel>
+	<bf:descriptionConventions>
+	  <bf:DescriptionConventions rdf:about="http://id.loc.gov/vocabulary/descriptionConventions/aacr">
+	    <rdfs:label>Anglo-American cataloguing rules</rdfs:label>
+	    <bf:code>aacr</bf:code>
+	  </bf:DescriptionConventions>
+	</bf:descriptionConventions>
+	<bf:identifiedBy>
+	  <bf:Local>
+	    <rdf:value>21263493</rdf:value>
+	    <bf:assigner>
+	      <bf:Organization rdf:about="http://id.loc.gov/vocabulary/organizations/dlc">
+		<rdfs:label>United States, Library of Congress</rdfs:label>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/code">DLC</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/normalized">dlc</bf:code>
+		<bf:code rdf:datatype="http://id.loc.gov/datatypes/orgs/iso15511">US-dlc</bf:code>
+	      </bf:Organization>
+	    </bf:assigner>
+	  </bf:Local>
+	</bf:identifiedBy>
+	<bf:descriptionLanguage>
+	  <bf:Language rdf:about="http://id.loc.gov/vocabulary/languages/eng">
+	    <rdfs:label xml:lang="en">English</rdfs:label>
+	    <bf:code rdf:datatype="http://www.w3.org/2001/XMLSchema#string">eng</bf:code>
+	  </bf:Language>
+	</bf:descriptionLanguage>
+	<bf:descriptionConventions>
+	  <bf:DescriptionConventions rdf:about="http://id.loc.gov/vocabulary/descriptionConventions/gihc">
+	    <rdfs:label>Graphic materials</rdfs:label>
+	    <bf:code>gihc</bf:code>
+	  </bf:DescriptionConventions>
+	</bf:descriptionConventions>
+	<bf:note>
+	  <bf:Note>
+	    <rdf:type rdf:resource="http://id.loc.gov/vocabulary/mnotetype/internal"/>
+	    <rdfs:label>040  $aDLC$beng$cDLC$dDLC$egihc</rdfs:label>
+	  </bf:Note>
+	</bf:note>
+	<bflc:marcKey>906  $a0$bcbc$corignew$du$encip$f20$gy-printpho</bflc:marcKey>
+	<lclocal:d906 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=906     $a 0 $b cbc $c orignew $d u $e ncip $f 20 $g y-printpho</lclocal:d906>
+	<bflc:marcKey>955  $aqw26 2019-10r</bflc:marcKey>
+	<lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $a qw26 2019-10r</lclocal:d955>
+	<bflc:marcKey>955  $aLCAP batch update 2025-06-02-04:00: LCAPM-859</bflc:marcKey>
+	<lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $a LCAP batch update 2025-06-02-04:00: LCAPM-859</lclocal:d955>
+	<lclocal:d985 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=985     $a pp/thc $e ammem</lclocal:d985>
+	<lclocal:d985 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=985     $e pp/minload</lclocal:d985>
+	<lclocal:d985 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=985     $a pp/diof</lclocal:d985>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+  </bf:Work>
+</rdf:RDF>
