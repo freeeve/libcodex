@@ -21,7 +21,12 @@ const (
 // string (including triple-quoted), language-tagged, datatyped, numeric and
 // boolean literals. Local names are read as the common identifier subset.
 func ParseTurtle(data []byte) (*Graph, error) {
-	p := &turtleParser{s: string(data), g: &Graph{}, prefixes: map[string]string{}}
+	p := &turtleParser{
+		s:        string(data),
+		g:        &Graph{Triples: make([]Triple, 0, len(data)/32)},
+		prefixes: map[string]string{},
+		iriCache: map[string]map[string]string{},
+	}
 	for {
 		p.ws()
 		if p.pos >= len(p.s) {
@@ -49,6 +54,7 @@ type turtleParser struct {
 	pos      int
 	g        *Graph
 	prefixes map[string]string
+	iriCache map[string]map[string]string // prefix -> local -> interned full IRI
 	base     string
 	blanks   int
 }
@@ -273,7 +279,24 @@ func (p *turtleParser) iriOrPName() (Term, bool) {
 	if !ok {
 		return Term{}, false
 	}
-	return NewIRI(base + local), true
+	return NewIRI(p.expandPName(label, base, local)), true
+}
+
+// expandPName returns base+local, interning the result per (prefix, local) so a
+// repeated prefixed name — predicates and types recur heavily — allocates the
+// full IRI only on its first occurrence.
+func (p *turtleParser) expandPName(label, base, local string) string {
+	m := p.iriCache[label]
+	if m == nil {
+		m = make(map[string]string)
+		p.iriCache[label] = m
+	}
+	if full, ok := m[local]; ok {
+		return full
+	}
+	full := base + local
+	m[local] = full
+	return full
 }
 
 // iriRef reads `<IRI>` and resolves it against @base when relative.
@@ -404,25 +427,28 @@ func (p *turtleParser) quotedString() (string, bool) {
 	if q != '"' && q != '\'' {
 		return "", false
 	}
-	long := strings.HasPrefix(p.s[p.pos:], string([]byte{q, q, q}))
-	delim := string(q)
-	if long {
-		delim = string([]byte{q, q, q})
+	delimLen := 1
+	if p.pos+2 < len(p.s) && p.s[p.pos+1] == q && p.s[p.pos+2] == q {
+		delimLen = 3 // a """ or ''' long string
 	}
-	p.pos += len(delim)
-	var b strings.Builder
+	p.pos += delimLen
+	start := p.pos
+	hasEsc := false
 	for p.pos < len(p.s) {
-		if strings.HasPrefix(p.s[p.pos:], delim) {
-			p.pos += len(delim)
-			return b.String(), true
-		}
-		if p.s[p.pos] == '\\' && p.pos+1 < len(p.s) {
-			r, n := unescapeRune(p.s[p.pos:])
-			b.WriteRune(r)
-			p.pos += n
+		c := p.s[p.pos]
+		if c == '\\' {
+			hasEsc = true
+			p.pos += 2 // skip the escaped character
 			continue
 		}
-		b.WriteByte(p.s[p.pos])
+		if c == q && (delimLen == 1 || (p.pos+2 < len(p.s) && p.s[p.pos+1] == q && p.s[p.pos+2] == q)) {
+			content := p.s[start:p.pos] // zero-copy when unescaped
+			p.pos += delimLen
+			if hasEsc {
+				return unescapeRDF(content), true
+			}
+			return content, true
+		}
 		p.pos++
 	}
 	return "", false
@@ -544,50 +570,78 @@ func TurtleHeader(prefixes map[string]string) []byte {
 }
 
 // TurtleBody serializes the triples grouped by subject, without a prefix header.
+// It groups without a per-subject map: subjects are ranked by first appearance,
+// then a stable sort of triple indices by that rank makes each subject's triples
+// contiguous in document order — turning thousands of small allocations into a
+// handful.
 func (g *Graph) TurtleBody(prefixes map[string]string) []byte {
-	var b []byte
-	var order []Term
-	seen := map[Term]bool{}
-	bySubj := map[Term][]Triple{}
-	for _, t := range g.Triples {
-		if !seen[t.S] {
-			seen[t.S] = true
-			order = append(order, t.S)
-		}
-		bySubj[t.S] = append(bySubj[t.S], t)
+	n := len(g.Triples)
+	if n == 0 {
+		return nil
 	}
-	for _, s := range order {
-		b = appendTurtleSubject(b, s, bySubj[s], prefixes)
+	rank := make(map[Term]int, n)
+	rankOf := make([]int, n)
+	next := 0
+	for i, t := range g.Triples {
+		r, ok := rank[t.S]
+		if !ok {
+			r, next = next, next+1
+			rank[t.S] = r
+		}
+		rankOf[i] = r
+	}
+	idx := make([]int, n)
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool { return rankOf[idx[a]] < rankOf[idx[b]] })
+
+	var b []byte
+	var done []bool // reused across subjects
+	for i := 0; i < n; {
+		j := i + 1
+		for j < n && g.Triples[idx[j]].S == g.Triples[idx[i]].S {
+			j++
+		}
+		b = appendTurtleSubject(b, g.Triples, idx[i:j], prefixes, &done)
+		i = j
 	}
 	return b
 }
 
-func appendTurtleSubject(b []byte, s Term, triples []Triple, prefixes map[string]string) []byte {
-	b = appendTurtleTerm(b, s, prefixes, false)
+// appendTurtleSubject writes one subject's predicate-object list, grouping objects
+// by predicate with a linear scan over the subject's (contiguous) triples and a
+// caller-reused scratch buffer.
+func appendTurtleSubject(b []byte, triples []Triple, idxs []int, prefixes map[string]string, scratch *[]bool) []byte {
+	b = appendTurtleTerm(b, triples[idxs[0]].S, prefixes, false)
 
-	// Group objects by predicate in first-seen order with a linear scan: a subject
-	// has only a handful of predicates, so this beats allocating maps per subject.
-	done := make([]bool, len(triples))
+	done := (*scratch)[:0]
+	for range idxs {
+		done = append(done, false)
+	}
+	*scratch = done
+
 	first := true
-	for i := range triples {
-		if done[i] {
+	for a := range idxs {
+		if done[a] {
 			continue
 		}
+		ta := triples[idxs[a]]
 		if first {
 			b = append(b, ' ')
 			first = false
 		} else {
 			b = append(b, " ;\n    "...)
 		}
-		b = appendTurtleTerm(b, triples[i].P, prefixes, true)
+		b = appendTurtleTerm(b, ta.P, prefixes, true)
 		b = append(b, ' ')
-		b = appendTurtleTerm(b, triples[i].O, prefixes, false)
-		done[i] = true
-		for j := i + 1; j < len(triples); j++ {
-			if !done[j] && triples[j].P == triples[i].P {
+		b = appendTurtleTerm(b, ta.O, prefixes, false)
+		done[a] = true
+		for c := a + 1; c < len(idxs); c++ {
+			if !done[c] && triples[idxs[c]].P == ta.P {
 				b = append(b, ", "...)
-				b = appendTurtleTerm(b, triples[j].O, prefixes, false)
-				done[j] = true
+				b = appendTurtleTerm(b, triples[idxs[c]].O, prefixes, false)
+				done[c] = true
 			}
 		}
 	}

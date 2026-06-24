@@ -17,7 +17,7 @@ func ParseJSONLD(data []byte) (*Graph, error) {
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, err
 	}
-	p := &jsonldParser{g: &Graph{}, ctx: map[string]string{}, coerce: map[string]string{}}
+	p := &jsonldParser{g: &Graph{}, ctx: map[string]string{}, coerce: map[string]string{}, expanded: map[string]string{}}
 
 	// A document is a node, an array of nodes, or an object wrapping @graph.
 	switch d := doc.(type) {
@@ -37,10 +37,11 @@ func ParseJSONLD(data []byte) (*Graph, error) {
 }
 
 type jsonldParser struct {
-	g      *Graph
-	ctx    map[string]string // prefix or term -> IRI
-	coerce map[string]string // term -> "@id" (value is an IRI reference, not a literal)
-	blanks int
+	g        *Graph
+	ctx      map[string]string // prefix or term -> IRI
+	coerce   map[string]string // term -> "@id" (value is an IRI reference, not a literal)
+	expanded map[string]string // compact IRI/term -> interned full IRI
+	blanks   int
 }
 
 func (p *jsonldParser) fresh() Term {
@@ -78,9 +79,21 @@ func (p *jsonldParser) loadContext(c any) {
 
 // expand resolves a compact IRI or term to a full IRI.
 func (p *jsonldParser) expand(s string) string {
-	if s == "" || strings.HasPrefix(s, "@") {
+	if s == "" || s[0] == '@' {
 		return s
 	}
+	// Compact IRIs and terms recur heavily (every property, every type); intern the
+	// expansion so it is built only once. The cache key is the existing JSON string,
+	// so the lookup itself allocates nothing.
+	if full, ok := p.expanded[s]; ok {
+		return full
+	}
+	full := p.expandUncached(s)
+	p.expanded[s] = full
+	return full
+}
+
+func (p *jsonldParser) expandUncached(s string) string {
 	if prefix, suffix, ok := strings.Cut(s, ":"); ok {
 		if !strings.HasPrefix(suffix, "//") {
 			if base, ok := p.ctx[prefix]; ok {

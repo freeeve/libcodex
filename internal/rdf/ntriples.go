@@ -1,6 +1,7 @@
 package rdf
 
 import (
+	"bytes"
 	"strings"
 	"unicode/utf8"
 )
@@ -10,10 +11,12 @@ import (
 // (graph) term. Blank, comment and malformed lines are skipped, so it is robust to
 // the trailing noise real-world dumps carry.
 func ParseNTriples(data []byte) (*Graph, error) {
-	g := &Graph{}
+	// One copy of the input backs every term (zero-copy substrings); preallocate
+	// the triple slice from the line count so it never grows.
+	g := &Graph{Triples: make([]Triple, 0, bytes.Count(data, []byte{'\n'})+1)}
 	for line := range strings.SplitSeq(string(data), "\n") {
 		if tr, ok := parseNTLine(line); ok {
-			g.Add(tr.S, tr.P, tr.O)
+			g.Triples = append(g.Triples, tr)
 		}
 	}
 	return g, nil
@@ -63,41 +66,47 @@ func readNTTerm(s string) (Term, string, bool) {
 	return Term{}, s, false
 }
 
-// readNTLiteral reads a quoted literal and any ^^<datatype> or @lang suffix.
+// readNTLiteral reads a quoted literal and any ^^<datatype> or @lang suffix. The
+// lexical form is a zero-copy slice of the input when it has no escapes, and is
+// unescaped only when needed.
 func readNTLiteral(s string) (Term, string, bool) {
-	var b strings.Builder
+	hasEsc := false
 	i := 1
 	for i < len(s) {
-		c := s[i]
-		if c == '\\' && i+1 < len(s) {
-			r, n := unescapeRune(s[i:])
-			b.WriteRune(r)
-			i += n
-			continue
-		}
-		if c == '"' {
+		switch s[i] {
+		case '\\':
+			hasEsc = true
+			i += 2 // skip the escaped character so an escaped quote is not the close
+		case '"':
+			value := s[1:i]
+			if hasEsc {
+				value = unescapeRDF(value)
+			}
+			return ntLiteralSuffix(value, s[i+1:])
+		default:
 			i++
-			break
 		}
-		b.WriteByte(c)
-		i++
 	}
-	rest := s[i:]
+	return Term{}, s, false // unterminated
+}
+
+// ntLiteralSuffix attaches a ^^<datatype> or @lang suffix to a literal value.
+func ntLiteralSuffix(value, rest string) (Term, string, bool) {
 	switch {
 	case strings.HasPrefix(rest, "^^<"):
 		j := strings.IndexByte(rest, '>')
 		if j < 0 {
-			return Term{}, s, false
+			return Term{}, rest, false
 		}
-		return NewLiteral(b.String(), "", unescapeRDF(rest[3:j])), rest[j+1:], true
+		return NewLiteral(value, "", unescapeRDF(rest[3:j])), rest[j+1:], true
 	case strings.HasPrefix(rest, "@"):
 		j := strings.IndexAny(rest, " \t")
 		if j < 0 {
 			j = len(rest)
 		}
-		return NewLiteral(b.String(), rest[1:j], ""), rest[j:], true
+		return NewLiteral(value, rest[1:j], ""), rest[j:], true
 	}
-	return NewLiteral(b.String(), "", ""), rest, true
+	return NewLiteral(value, "", ""), rest, true
 }
 
 // NTriples serializes the graph as N-Triples.
@@ -226,6 +235,7 @@ func unescapeRDF(s string) string {
 		return s
 	}
 	var b strings.Builder
+	b.Grow(len(s)) // the unescaped form is never longer, so one allocation suffices
 	for i := 0; i < len(s); {
 		if s[i] == '\\' && i+1 < len(s) {
 			r, n := unescapeRune(s[i:])
