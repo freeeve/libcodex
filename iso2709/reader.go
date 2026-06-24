@@ -2,10 +2,12 @@ package iso2709
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"iter"
 	"os"
+	"unsafe"
 
 	"github.com/freeeve/libcodex"
 )
@@ -122,23 +124,38 @@ func (rd *Reader) readBody() ([]byte, error) {
 
 // ReadFile reads every record from the named file. On the first malformed record
 // it returns the records parsed so far together with the error.
+//
+// The whole file is read into one buffer and each record's leader, tags and
+// plain-ASCII values are taken as zero-copy views of it (the returned records keep
+// the buffer alive), so a large file is decoded without a per-record copy.
 func ReadFile(path string) ([]*codex.Record, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
-	r := NewReader(f)
 	var out []*codex.Record
 	for {
-		rec, err := r.Read()
-		if err == io.EOF {
+		for len(data) > 0 && (data[0] == '\n' || data[0] == '\r' || data[0] == RecordTerminator) {
+			data = data[1:] // skip inter-record separators
+		}
+		if len(data) < leaderLen {
 			return out, nil
 		}
+		n, ok := atoiBytes(data[0:5])
+		if !ok || n < leaderLen || n > len(data) {
+			// Declared length absent or invalid: take through the next record
+			// terminator, or the rest of the stream.
+			n = len(data)
+			if t := bytes.IndexByte(data, RecordTerminator); t >= 0 {
+				n = t + 1
+			}
+		}
+		rb := data[:n]
+		rec, _, err := decode(rb, unsafe.String(&rb[0], len(rb)))
 		if err != nil {
 			return out, err
 		}
 		out = append(out, rec)
+		data = data[n:]
 	}
 }

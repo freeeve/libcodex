@@ -191,11 +191,20 @@ func NewDecoder() *Decoder {
 // avoid silently emitting corrupted data labeled as clean Unicode.
 func (d *Decoder) Lossy() bool { return d.lossy }
 
+// Reset restores the default working sets (Basic Latin in G0, ANSEL in G1) so the
+// decoder can be reused for an independent field, without clearing the accumulated
+// Lossy state.
+func (d *Decoder) Reset() {
+	d.g0 = csASCII
+	d.g1 = csANSEL
+}
+
 // Decode decodes a MARC-8 byte sequence to a UTF-8 string for the supported
 // Western subset, passing unsupported sets through best-effort and carrying the
 // G1 designation state forward for the next call.
 func (d *Decoder) Decode(data []byte) string {
 	var b strings.Builder
+	b.Grow(len(data)) // Latin output is ~one byte per input byte; size up front
 	var pending []rune
 
 	flush := func(base rune) {

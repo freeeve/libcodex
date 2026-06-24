@@ -68,6 +68,19 @@ func Decode(b []byte) (*codex.Record, bool, error) {
 	if len(b) < leaderLen {
 		return nil, false, fmt.Errorf("iso2709: record too short: %d bytes", len(b))
 	}
+	// bs is a private copy, so the returned record's substrings are safe even if the
+	// caller reuses b. ReadFile instead shares one buffer across all records.
+	return decode(b, string(b))
+}
+
+// decode parses a record from b using bs as its string form. bs must equal
+// string(b); callers pass either a private copy (Decode) or a zero-copy view of a
+// retained buffer (ReadFile). The leader, UTF-8 tags and plain-ASCII values are
+// taken as zero-copy substrings of bs.
+func decode(b []byte, bs string) (*codex.Record, bool, error) {
+	if len(b) < leaderLen {
+		return nil, false, fmt.Errorf("iso2709: record too short: %d bytes", len(b))
+	}
 
 	base, ok := atoiBytes(b[12:17])
 	if !ok {
@@ -99,15 +112,13 @@ func Decode(b []byte) (*codex.Record, bool, error) {
 	body := b[base:]
 	unicode := b[9] == 'a'
 
-	// bs is a single string copy of the record; the leader, UTF-8 tags and UTF-8
-	// values are all taken as zero-copy substrings of it, replacing one allocation
-	// per field, per subfield value and for the leader with one per record. The
-	// MARC-8 path still decodes from the byte slice b.
-	bs := string(b)
 	rec := codex.NewRecordCap(prealloc(len(dir) / entryLen)).SetLeader(codex.Leader(bs[:leaderLen]))
 	subs := make([]codex.Subfield, 0, prealloc(countByte(body, SubfieldDelimiter)))
 
-	var lossy bool
+	// One MARC-8 decoder is reused across the record's transcoded fields, reset to
+	// the default working sets at the start of each (designations persist across a
+	// field's subfields, not across fields); its Lossy state accumulates.
+	var dec *marc8.Decoder
 	for i := 0; i+entryLen <= len(dir); i += entryLen {
 		tagOff := leaderLen + i
 		tag := bs[tagOff : tagOff+3]
@@ -121,17 +132,27 @@ func Decode(b []byte) (*codex.Record, bool, error) {
 			hi--
 		}
 
-		var dec *marc8.Decoder // one decoder per field: designations persist across its subfields
+		// A field whose bytes are all plain ASCII (no byte >= 0x80, no MARC-8 escape)
+		// decodes identically in MARC-8 and UTF-8, so it is taken zero-copy from bs
+		// rather than transcoded — the common case for control numbers and English
+		// headings.
+		plain := unicode || !needsTranscode(b[lo:hi])
+		if !plain {
+			if dec == nil {
+				dec = marc8.NewDecoder()
+			} else {
+				dec.Reset()
+			}
+		}
+
 		if tag < "010" {
 			var v string
-			if unicode {
+			if plain {
 				v = bs[lo:hi]
 			} else {
-				dec = marc8.NewDecoder()
 				v = dec.Decode(b[lo:hi])
 			}
 			rec.AddField(codex.Field{Tag: tag, Value: v})
-			lossy = lossy || (dec != nil && dec.Lossy())
 			continue
 		}
 
@@ -159,12 +180,9 @@ func Decode(b []byte) (*codex.Record, bool, error) {
 			if q-(p+1) >= codeLen {
 				vlo := p + 1 + codeLen
 				var v string
-				if unicode {
+				if plain {
 					v = bs[vlo:q]
 				} else {
-					if dec == nil {
-						dec = marc8.NewDecoder()
-					}
 					v = dec.Decode(b[vlo:q])
 				}
 				subs = append(subs, codex.Subfield{Code: b[p+1], Value: v})
@@ -175,9 +193,9 @@ func Decode(b []byte) (*codex.Record, bool, error) {
 			f.Subfields = subs[first:len(subs):len(subs)]
 		}
 		rec.AddField(f)
-		lossy = lossy || (dec != nil && dec.Lossy())
 	}
-	return rec, lossy, nil
+	// The decoder accumulated lossiness across every transcoded field.
+	return rec, dec != nil && dec.Lossy(), nil
 }
 
 // leaderDigit returns the decimal digit at leader byte position pos, or def when
@@ -206,6 +224,19 @@ func atoiBytes(b []byte) (int, bool) {
 		n = n*10 + int(c-'0')
 	}
 	return n, true
+}
+
+// needsTranscode reports whether a field's bytes contain anything outside plain
+// ASCII — a byte >= 0x80, or the MARC-8 escape (0x1b) that designates an alternate
+// character set. A field with neither decodes identically under MARC-8 and UTF-8,
+// so it can be taken as a zero-copy substring instead of transcoded.
+func needsTranscode(b []byte) bool {
+	for _, c := range b {
+		if c >= 0x80 || c == 0x1b {
+			return true
+		}
+	}
+	return false
 }
 
 // countByte counts occurrences of c in b without allocating.
