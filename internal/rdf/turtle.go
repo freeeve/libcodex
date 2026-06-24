@@ -55,7 +55,7 @@ type turtleParser struct {
 	g        *Graph
 	prefixes map[string]string
 	iriCache map[string]map[string]string // prefix -> local -> interned full IRI
-	strs     arena                         // backs expanded IRIs, so distinct ones share chunks
+	strs     arena                        // backs expanded IRIs, so distinct ones share chunks
 	base     string
 	blanks   int
 }
