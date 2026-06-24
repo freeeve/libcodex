@@ -81,7 +81,11 @@ func readNTLiteral(s string, a *arena) (Term, string, bool) {
 		case '"':
 			value := s[1:i]
 			if hasEsc {
-				value = a.unescape(value)
+				if a != nil {
+					value = a.unescape(value) // arena-backed (whole-document parse)
+				} else {
+					value = unescapeRDF(value) // streaming: each triple owns its strings
+				}
 			}
 			return ntLiteralSuffix(value, s[i+1:])
 		default:

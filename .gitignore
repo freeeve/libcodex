@@ -14,3 +14,6 @@ go.work.sum
 
 # Editor / OS cruft
 .DS_Store
+
+# Performance benchmark module (third-party deps; not part of the library)
+/bench/

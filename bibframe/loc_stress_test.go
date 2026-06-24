@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/freeeve/libcodex"
-	"github.com/freeeve/libcodex/internal/rdf"
+	"github.com/freeeve/libcodex/rdf"
 )
 
 // TestLoCStress runs the parser and reverse crosswalk over real Library of

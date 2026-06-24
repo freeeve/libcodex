@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/freeeve/libcodex"
-	"github.com/freeeve/libcodex/internal/rdf"
+	"github.com/freeeve/libcodex/rdf"
 )
 
 // normalize sorts every slice in a BIBFRAME so two graphs that carry the same

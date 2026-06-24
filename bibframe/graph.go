@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/freeeve/libcodex"
-	"github.com/freeeve/libcodex/internal/rdf"
+	"github.com/freeeve/libcodex/rdf"
 )
 
 // graphFromRecord builds the RDF graph of a record's BIBFRAME, the basis for the

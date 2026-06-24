@@ -1,7 +1,21 @@
-// Package rdf is a small, dependency-free RDF toolkit: a triple model and parsers
-// for the two RDF serializations BIBFRAME uses, RDF/XML and JSON-LD. It targets
-// the constructs real bibliographic RDF uses rather than the whole of RDF — see
-// the parser docs for what is and isn't handled.
+// Package rdf is a small, fast, dependency-free RDF toolkit. It provides the RDF
+// triple model (Term, Triple, Graph), parsers and serializers for the four common
+// serializations — RDF/XML, JSON-LD, Turtle and N-Triples — and a streaming
+// decoder for the line-based formats.
+//
+// Two reading modes:
+//
+//   - Whole document: ParseRDFXML, ParseJSONLD, ParseTurtle and ParseNTriples take
+//     a []byte and return a *Graph. Fast and convenient for inputs that fit in
+//     memory.
+//   - Streaming: NewDecoder reads N-Triples or N-Quads from an io.Reader one triple
+//     at a time in constant memory, for inputs too large to materialize (e.g. the
+//     multi-gigabyte Library of Congress authority dumps).
+//
+// The parsers target the constructs real-world RDF uses rather than the whole of
+// each specification; see each parser's documentation for what is and isn't
+// handled (notably, relative-IRI resolution against a document base is not
+// performed). There are no third-party dependencies.
 package rdf
 
 import "strings"

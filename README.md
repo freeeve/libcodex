@@ -188,6 +188,32 @@ an equivalent graph. The other four converters (`mods`, `dublincore`, `citation`
 `schemaorg`) are export-only and carry only the common fields; each package
 documents its crosswalk.
 
+## RDF toolkit (`rdf`)
+
+The RDF machinery behind BIBFRAME is a standalone, dependency-free package you can
+use directly: the triple model (`Term`, `Triple`, `Graph`) and parsers and
+serializers for RDF/XML, JSON-LD, Turtle and N-Triples. In benchmarks it parses
+several times faster than the common third-party Go RDF libraries.
+
+```go
+g, _ := rdf.ParseNTriples(data)          // also ParseTurtle / ParseRDFXML / ParseJSONLD
+out := g.Turtle(map[string]string{...})  // serialize: NTriples() / Turtle(prefixes)
+```
+
+For inputs too large to hold in memory — multi-gigabyte dumps like the Library of
+Congress authority files — a streaming `Decoder` reads N-Triples (and N-Quads) from
+an `io.Reader` one triple at a time in **constant memory**:
+
+```go
+d := rdf.NewDecoder(file, rdf.NTriples)
+for tr := range d.All() { // or d.Decode() (rdf.Triple, error)
+    // process tr; the whole graph is never materialized
+}
+```
+
+It streams the 3.3 GB LCSH file (23M triples) at ~800 MB/s with a live heap of a
+few megabytes. The line-based formats stream; the others parse whole documents.
+
 ## Reading UNIMARC
 
 [UNIMARC](https://www.ifla.org/g/unimarc-rg/) (IFLA, used widely in Europe) shares

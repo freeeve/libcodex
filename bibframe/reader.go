@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/freeeve/libcodex"
-	"github.com/freeeve/libcodex/internal/rdf"
+	"github.com/freeeve/libcodex/rdf"
 )
 
 // BIBFRAME vocabulary IRIs used by the reverse crosswalk.

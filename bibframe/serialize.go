@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/freeeve/libcodex"
-	"github.com/freeeve/libcodex/internal/rdf"
+	"github.com/freeeve/libcodex/rdf"
 )
 
 // bibframePrefixes are the namespace prefixes declared in Turtle output.
