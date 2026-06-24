@@ -55,6 +55,7 @@ type turtleParser struct {
 	g        *Graph
 	prefixes map[string]string
 	iriCache map[string]map[string]string // prefix -> local -> interned full IRI
+	strs     arena                         // backs expanded IRIs, so distinct ones share chunks
 	base     string
 	blanks   int
 }
@@ -294,10 +295,19 @@ func (p *turtleParser) expandPName(label, base, local string) string {
 	if full, ok := m[local]; ok {
 		return full
 	}
-	full := base + local
-	m[local] = full
+	full := p.strs.concat(base, local)
+	// Cache to dedup repeated names (predicates, types, common subjects), but cap
+	// the size: a file with millions of distinct subjects would otherwise grow an
+	// unbounded map of entries that never see a second lookup. The vocabulary that
+	// actually repeats is small and appears early, so a bound costs nothing real.
+	if len(m) < maxIRICacheEntries {
+		m[local] = full
+	}
 	return full
 }
+
+// maxIRICacheEntries bounds each prefix's expansion cache.
+const maxIRICacheEntries = 1 << 16
 
 // iriRef reads `<IRI>` and resolves it against @base when relative.
 func (p *turtleParser) iriRef() (string, bool) {
@@ -445,7 +455,7 @@ func (p *turtleParser) quotedString() (string, bool) {
 			content := p.s[start:p.pos] // zero-copy when unescaped
 			p.pos += delimLen
 			if hasEsc {
-				return unescapeRDF(content), true
+				return p.strs.unescape(content), true
 			}
 			return content, true
 		}

@@ -14,8 +14,9 @@ func ParseNTriples(data []byte) (*Graph, error) {
 	// One copy of the input backs every term (zero-copy substrings); preallocate
 	// the triple slice from the line count so it never grows.
 	g := &Graph{Triples: make([]Triple, 0, bytes.Count(data, []byte{'\n'})+1)}
+	var a arena
 	for line := range strings.SplitSeq(string(data), "\n") {
-		if tr, ok := parseNTLine(line); ok {
+		if tr, ok := parseNTLine(line, &a); ok {
 			g.Triples = append(g.Triples, tr)
 		}
 	}
@@ -24,20 +25,20 @@ func ParseNTriples(data []byte) (*Graph, error) {
 
 // parseNTLine parses one N-Triples/N-Quads line, returning false for blank,
 // comment or malformed lines.
-func parseNTLine(line string) (Triple, bool) {
+func parseNTLine(line string, a *arena) (Triple, bool) {
 	s := strings.TrimSpace(line)
 	if s == "" || s[0] == '#' {
 		return Triple{}, false
 	}
-	subj, s, ok := readNTTerm(s)
+	subj, s, ok := readNTTerm(s, a)
 	if !ok {
 		return Triple{}, false
 	}
-	pred, s, ok := readNTTerm(strings.TrimLeft(s, " \t"))
+	pred, s, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
 	if !ok || !pred.IsIRI() {
 		return Triple{}, false
 	}
-	obj, _, ok := readNTTerm(strings.TrimLeft(s, " \t"))
+	obj, _, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
 	if !ok {
 		return Triple{}, false
 	}
@@ -46,7 +47,7 @@ func parseNTLine(line string) (Triple, bool) {
 
 // readNTTerm reads one term from the front of s, returning the term and the
 // remaining string.
-func readNTTerm(s string) (Term, string, bool) {
+func readNTTerm(s string, a *arena) (Term, string, bool) {
 	switch {
 	case strings.HasPrefix(s, "<"):
 		i := strings.IndexByte(s, '>')
@@ -61,7 +62,7 @@ func readNTTerm(s string) (Term, string, bool) {
 		}
 		return NewBlank(s[2:i]), s[i:], true
 	case strings.HasPrefix(s, `"`):
-		return readNTLiteral(s)
+		return readNTLiteral(s, a)
 	}
 	return Term{}, s, false
 }
@@ -69,7 +70,7 @@ func readNTTerm(s string) (Term, string, bool) {
 // readNTLiteral reads a quoted literal and any ^^<datatype> or @lang suffix. The
 // lexical form is a zero-copy slice of the input when it has no escapes, and is
 // unescaped only when needed.
-func readNTLiteral(s string) (Term, string, bool) {
+func readNTLiteral(s string, a *arena) (Term, string, bool) {
 	hasEsc := false
 	i := 1
 	for i < len(s) {
@@ -80,7 +81,7 @@ func readNTLiteral(s string) (Term, string, bool) {
 		case '"':
 			value := s[1:i]
 			if hasEsc {
-				value = unescapeRDF(value)
+				value = a.unescape(value)
 			}
 			return ntLiteralSuffix(value, s[i+1:])
 		default:
