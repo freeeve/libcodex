@@ -8,9 +8,10 @@
 //   - Whole document: ParseRDFXML, ParseJSONLD, ParseTurtle and ParseNTriples take
 //     a []byte and return a *Graph. Fast and convenient for inputs that fit in
 //     memory.
-//   - Streaming: NewDecoder reads N-Triples or N-Quads from an io.Reader one triple
-//     at a time in constant memory, for inputs too large to materialize (e.g. the
-//     multi-gigabyte Library of Congress authority dumps).
+//   - Streaming: NewDecoder reads N-Triples, N-Quads, RDF/XML or Turtle from an
+//     io.Reader one triple at a time in constant memory, for inputs too large to
+//     materialize (e.g. the multi-gigabyte Library of Congress authority dumps).
+//     JSON-LD is whole-document only.
 //
 // The parsers target the constructs real-world RDF uses rather than the whole of
 // each specification; see each parser's documentation for what is and isn't

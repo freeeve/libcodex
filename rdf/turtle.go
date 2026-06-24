@@ -21,27 +21,38 @@ const (
 // string (including triple-quoted), language-tagged, datatyped, numeric and
 // boolean literals. Local names are read as the common identifier subset.
 func ParseTurtle(data []byte) (*Graph, error) {
+	g := &Graph{Triples: make([]Triple, 0, len(data)/32)}
 	p := &turtleParser{
 		s:        string(data),
-		g:        &Graph{Triples: make([]Triple, 0, len(data)/32)},
+		emit:     g.Add,
 		prefixes: map[string]string{},
 		iriCache: map[string]map[string]string{},
+		strs:     &arena{},
 	}
 	for {
-		p.ws()
-		if p.pos >= len(p.s) {
-			return p.g, nil
+		ok, done := p.stmt()
+		if done {
+			return g, nil
 		}
-		if p.s[p.pos] == '@' || p.peekKeyword("prefix") || p.peekKeyword("base") {
-			if !p.directive() {
-				return p.g, errTurtle(p)
-			}
-			continue
-		}
-		if !p.triples() {
-			return p.g, errTurtle(p)
+		if !ok {
+			return g, errTurtle(p)
 		}
 	}
+}
+
+// stmt parses one directive or triple statement from the current buffer, emitting
+// its triples. done is true at end of input; ok is false on a malformed statement.
+// It is shared by the whole-document parser and the streaming decoder (which feeds
+// one statement at a time).
+func (p *turtleParser) stmt() (ok, done bool) {
+	p.ws()
+	if p.pos >= len(p.s) {
+		return true, true
+	}
+	if p.s[p.pos] == '@' || p.peekKeyword("prefix") || p.peekKeyword("base") {
+		return p.directive(), false
+	}
+	return p.triples(), false
 }
 
 type turtleError struct{ pos int }
@@ -52,10 +63,10 @@ func errTurtle(p *turtleParser) error { return &turtleError{p.pos} }
 type turtleParser struct {
 	s        string
 	pos      int
-	g        *Graph
+	emit     func(s, pr, o Term) // sink: Graph.Add (whole document) or channel (streaming)
 	prefixes map[string]string
 	iriCache map[string]map[string]string // prefix -> local -> interned full IRI
-	strs     arena                        // backs expanded IRIs, so distinct ones share chunks
+	strs     *arena                       // backs expanded IRIs when whole-document; nil when streaming
 	base     string
 	blanks   int
 }
@@ -188,7 +199,7 @@ func (p *turtleParser) objectList(subj, verb Term) bool {
 		if !ok {
 			return false
 		}
-		p.g.Add(subj, verb, obj)
+		p.emit(subj, verb, obj)
 		p.ws()
 		if p.peek() != ',' {
 			return true
@@ -295,7 +306,12 @@ func (p *turtleParser) expandPName(label, base, local string) string {
 	if full, ok := m[local]; ok {
 		return full
 	}
-	full := p.strs.concat(base, local)
+	var full string
+	if p.strs != nil {
+		full = p.strs.concat(base, local) // arena-backed (whole document)
+	} else {
+		full = base + local // streaming: a plain string the triple owns
+	}
 	// Cache to dedup repeated names (predicates, types, common subjects), but cap
 	// the size: a file with millions of distinct subjects would otherwise grow an
 	// unbounded map of entries that never see a second lookup. The vocabulary that
@@ -393,12 +409,12 @@ func (p *turtleParser) collection() (Term, bool) {
 	head := p.fresh()
 	node := head
 	for i, it := range items {
-		p.g.Add(node, NewIRI(FirstIRI), it)
+		p.emit(node, NewIRI(FirstIRI), it)
 		if i == len(items)-1 {
-			p.g.Add(node, NewIRI(RestIRI), NewIRI(NilIRI))
+			p.emit(node, NewIRI(RestIRI), NewIRI(NilIRI))
 		} else {
 			next := p.fresh()
-			p.g.Add(node, NewIRI(RestIRI), next)
+			p.emit(node, NewIRI(RestIRI), next)
 			node = next
 		}
 	}
@@ -455,7 +471,10 @@ func (p *turtleParser) quotedString() (string, bool) {
 			content := p.s[start:p.pos] // zero-copy when unescaped
 			p.pos += delimLen
 			if hasEsc {
-				return p.strs.unescape(content), true
+				if p.strs != nil {
+					return p.strs.unescape(content), true
+				}
+				return unescapeRDF(content), true
 			}
 			return content, true
 		}

@@ -2,11 +2,14 @@ package rdf
 
 import (
 	"bufio"
+	"encoding/xml"
+	"errors"
 	"io"
 	"iter"
+	"strings"
 )
 
-// Format identifies a streaming RDF serialization.
+// Format identifies a serialization the streaming Decoder reads.
 type Format int
 
 const (
@@ -15,6 +18,11 @@ const (
 	// NQuads is N-Quads; the optional graph label on each line is ignored, so each
 	// statement still yields a triple.
 	NQuads
+	// RDFXML is RDF/XML; triples stream as each node element is parsed.
+	RDFXML
+	// Turtle streams '.'-terminated statements; @prefix/@base carry forward.
+	// SPARQL-style PREFIX/BASE directives (no '.') are not supported when streaming.
+	Turtle
 )
 
 // Decoder streams RDF statements from an io.Reader one triple at a time, in
@@ -22,47 +30,70 @@ const (
 // (multi-gigabyte dumps such as the LC authority files). Each returned triple owns
 // its strings, so it is safe to retain after the next call.
 //
-// Only the line-based serializations (N-Triples, N-Quads) stream; for the others,
-// parse the whole document with ParseRDFXML, ParseJSONLD or ParseTurtle.
+// JSON-LD is not streamable here (its document must be materialized); use
+// ParseJSONLD for that.
 type Decoder struct {
-	br *bufio.Reader
+	next func() (Triple, error)
+	stop func() // signals the producer goroutine to stop early (nil for the line path)
 }
 
-// NewDecoder returns a streaming Decoder reading the given format from r. The
-// format selects the grammar; both line-based formats are parsed identically (the
-// N-Quads graph term is ignored).
+// NewDecoder returns a streaming Decoder reading the given format from r.
 func NewDecoder(r io.Reader, format Format) *Decoder {
-	_ = format // NTriples and NQuads share the line parser
-	return &Decoder{br: bufio.NewReader(r)}
-}
-
-// Decode returns the next triple, or io.EOF when the stream is exhausted. Blank,
-// comment and malformed lines are skipped, matching ParseNTriples, so a stray line
-// never aborts a large stream.
-func (d *Decoder) Decode() (Triple, error) {
-	for {
-		line, err := d.br.ReadString('\n')
-		if len(line) > 0 {
-			if tr, ok := parseNTLine(line, nil); ok {
-				return tr, nil
+	switch format {
+	case RDFXML:
+		return pipe(func(emit func(s, pr, o Term)) error {
+			return (&xmlParser{dec: xml.NewDecoder(r), emit: emit}).run()
+		})
+	case Turtle:
+		return pipe(func(emit func(s, pr, o Term)) error {
+			return streamTurtle(r, emit)
+		})
+	default: // NTriples, NQuads
+		br := bufio.NewReader(r)
+		return &Decoder{next: func() (Triple, error) {
+			for {
+				line, err := br.ReadString('\n')
+				if len(line) > 0 {
+					if tr, ok := parseNTLine(line, nil); ok {
+						return tr, nil
+					}
+				}
+				if err != nil {
+					return Triple{}, err // io.EOF at a clean end
+				}
 			}
-		}
-		if err != nil {
-			return Triple{}, err // io.EOF at a clean end of stream
-		}
+		}}
 	}
 }
 
+// Decode returns the next triple, or io.EOF when the input is exhausted. Blank,
+// comment and malformed lines/statements are skipped, so a stray line never aborts
+// a large stream.
+func (d *Decoder) Decode() (Triple, error) { return d.next() }
+
+// Close stops a streaming decoder early, releasing its producer goroutine. It is a
+// no-op for the line-based formats and after the stream is exhausted.
+func (d *Decoder) Close() error {
+	if d.stop != nil {
+		d.stop()
+	}
+	return nil
+}
+
 // All returns an iterator over the remaining triples, ending at the first error
-// (io.EOF, the normal end, is not surfaced):
+// (io.EOF, the normal end, is not surfaced). Breaking out of the loop stops the
+// producer:
 //
 //	for tr := range dec.All() { ... }
 //
 // Use Decode directly when a non-EOF read error must be observed.
 func (d *Decoder) All() iter.Seq[Triple] {
 	return func(yield func(Triple) bool) {
+		if d.stop != nil {
+			defer d.stop()
+		}
 		for {
-			tr, err := d.Decode()
+			tr, err := d.next()
 			if err != nil {
 				return
 			}
@@ -71,4 +102,183 @@ func (d *Decoder) All() iter.Seq[Triple] {
 			}
 		}
 	}
+}
+
+// errStop unwinds a producer when the consumer stops early.
+var errStop = errors.New("rdf: decode stopped")
+
+// pipe runs producer in a goroutine, emitting each triple to an unbuffered channel
+// that Decode drains; the emit blocks until the consumer reads (so memory stays
+// bounded by the producer's per-statement state), and stop aborts it.
+func pipe(producer func(emit func(s, pr, o Term)) error) *Decoder {
+	ch := make(chan Triple)
+	done := make(chan struct{})
+	errc := make(chan error, 1)
+
+	emit := func(s, pr, o Term) {
+		select {
+		case ch <- Triple{s, pr, o}:
+		case <-done:
+			panic(errStop)
+		}
+	}
+	go func() {
+		defer close(ch)
+		defer func() {
+			if r := recover(); r != nil && r != errStop {
+				panic(r)
+			}
+		}()
+		errc <- producer(emit)
+	}()
+
+	var termErr error
+	finished := false
+	return &Decoder{
+		next: func() (Triple, error) {
+			if finished {
+				return Triple{}, termErr
+			}
+			if tr, ok := <-ch; ok {
+				return tr, nil
+			}
+			finished, termErr = true, io.EOF
+			select {
+			case err := <-errc:
+				if err != nil {
+					termErr = err
+				}
+			default:
+			}
+			return Triple{}, termErr
+		},
+		stop: func() {
+			select {
+			case <-done:
+			default:
+				close(done)
+			}
+		},
+	}
+}
+
+// streamTurtle parses a Turtle stream statement by statement, emitting each
+// statement's triples and carrying @prefix/@base state forward, in constant
+// memory.
+func streamTurtle(r io.Reader, emit func(s, pr, o Term)) error {
+	p := &turtleParser{
+		emit:     emit,
+		prefixes: map[string]string{},
+		iriCache: map[string]map[string]string{},
+		// strs left nil: streaming copies each triple's strings (no arena)
+	}
+	sc := &turtleSplitter{br: bufio.NewReader(r)}
+	for {
+		stmt, err := sc.next()
+		if stmt != "" {
+			p.s, p.pos = stmt, 0
+			if ok, done := p.stmt(); !ok && !done {
+				return errTurtle(p)
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+// turtleSplitter yields one complete '.'-terminated Turtle statement at a time
+// from a reader, buffering only the current statement plus a read chunk.
+type turtleSplitter struct {
+	br  *bufio.Reader
+	buf []byte
+}
+
+func (s *turtleSplitter) next() (string, error) {
+	for {
+		if end := statementEnd(s.buf); end >= 0 {
+			stmt := string(s.buf[:end])
+			s.buf = s.buf[end:]
+			return stmt, nil
+		}
+		chunk := make([]byte, 64*1024)
+		n, err := s.br.Read(chunk)
+		s.buf = append(s.buf, chunk[:n]...)
+		if err != nil {
+			if err == io.EOF {
+				if strings.TrimSpace(string(s.buf)) != "" {
+					stmt := string(s.buf)
+					s.buf = nil
+					return stmt, nil
+				}
+				return "", io.EOF
+			}
+			return "", err
+		}
+	}
+}
+
+// statementEnd returns the index just past the terminating '.' of the first
+// complete statement in b, or -1 if b holds no complete statement. It skips IRIs,
+// strings and comments, and treats a '.' as a terminator only when followed by
+// whitespace (so a decimal like 1.5 is not split).
+func statementEnd(b []byte) int {
+	for i := 0; i < len(b); {
+		switch c := b[i]; {
+		case c == '#':
+			for i < len(b) && b[i] != '\n' {
+				i++
+			}
+		case c == '<':
+			i++
+			for i < len(b) && b[i] != '>' {
+				if b[i] == '\\' {
+					i++
+				}
+				i++
+			}
+			i++
+		case c == '"' || c == '\'':
+			i = skipQuoted(b, i)
+		case c == '.':
+			if i+1 >= len(b) {
+				return -1 // ambiguous at buffer end; read more (EOF handled by caller)
+			}
+			if isWS(b[i+1]) {
+				return i + 1
+			}
+			i++
+		default:
+			i++
+		}
+	}
+	return -1
+}
+
+// skipQuoted returns the index just past a Turtle string literal beginning at i,
+// or len(b) if it is unterminated within b.
+func skipQuoted(b []byte, i int) int {
+	q := b[i]
+	long := i+2 < len(b) && b[i+1] == q && b[i+2] == q
+	if long {
+		i += 3
+	} else {
+		i++
+	}
+	for i < len(b) {
+		switch {
+		case b[i] == '\\':
+			i += 2
+		case b[i] == q && !long:
+			return i + 1
+		case b[i] == q && long && i+2 < len(b) && b[i+1] == q && b[i+2] == q:
+			return i + 3
+		default:
+			i++
+		}
+	}
+	return len(b)
 }

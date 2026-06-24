@@ -66,3 +66,56 @@ func TestStreamingAll(t *testing.T) {
 		t.Errorf("streamed %d triples, want %d", count, n)
 	}
 }
+
+// streamAll collects every triple from a streaming decode into a Graph.
+func streamAll(r string, f Format) *Graph {
+	g := &Graph{}
+	for tr := range NewDecoder(strings.NewReader(r), f).All() {
+		g.Add(tr.S, tr.P, tr.O)
+	}
+	return g
+}
+
+// TestStreamingMatchesParse confirms the streaming RDF/XML and Turtle decoders
+// produce the same graph (up to blank-node isomorphism) as the whole-document
+// parsers, which the W3C suite already validates.
+func TestStreamingMatchesParse(t *testing.T) {
+	gx, _ := ParseRDFXML([]byte(sampleXML))
+	if sx := streamAll(sampleXML, RDFXML); !canonEqual(gx, sx) {
+		t.Errorf("RDF/XML stream != parse:\n parse:  %v\n stream: %v", canonicalTriples(gx), canonicalTriples(sx))
+	}
+	gt, _ := ParseTurtle([]byte(turtleSample))
+	if st := streamAll(turtleSample, Turtle); !canonEqual(gt, st) {
+		t.Errorf("Turtle stream != parse:\n parse:  %v\n stream: %v", canonicalTriples(gt), canonicalTriples(st))
+	}
+}
+
+// TestStreamingEarlyStop checks that breaking out of All (or calling Close) aborts
+// the producer goroutine instead of leaking or deadlocking.
+func TestStreamingEarlyStop(t *testing.T) {
+	cases := []struct {
+		doc string
+		f   Format
+	}{
+		{turtleSample, Turtle},
+		{sampleXML, RDFXML},
+		{"<http://a> <http://b> <http://c> .\n<http://a> <http://b> <http://d> .\n", NTriples},
+	}
+	for _, tc := range cases {
+		got := 0
+		for range NewDecoder(strings.NewReader(tc.doc), tc.f).All() {
+			got++
+			break
+		}
+		if got != 1 {
+			t.Errorf("format %d: expected 1 triple before break, got %d", tc.f, got)
+		}
+	}
+	d := NewDecoder(strings.NewReader(turtleSample), Turtle)
+	if _, err := d.Decode(); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Close(); err != nil {
+		t.Error(err)
+	}
+}

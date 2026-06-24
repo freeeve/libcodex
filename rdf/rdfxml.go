@@ -17,14 +17,24 @@ const xmlNS = "http://www.w3.org/XML/1998/namespace"
 // xml:lang, property attributes, and rdf:parseType="Resource". It does not handle
 // RDF containers, reification, or rdf:parseType="Literal"/"Collection".
 func ParseRDFXML(data []byte) (*Graph, error) {
-	p := &xmlParser{dec: xml.NewDecoder(bytes.NewReader(data)), g: &Graph{}}
+	g := &Graph{}
+	p := &xmlParser{dec: xml.NewDecoder(bytes.NewReader(data)), emit: g.Add}
+	if err := p.run(); err != nil {
+		return g, err
+	}
+	return g, nil
+}
+
+// run drives the token loop, parsing each top-level node element. It is shared by
+// the whole-document parser and the streaming decoder.
+func (p *xmlParser) run() error {
 	for {
 		tok, err := p.dec.Token()
 		if err == io.EOF {
-			return p.g, nil
+			return nil
 		}
 		if err != nil {
-			return p.g, err
+			return err
 		}
 		se, ok := tok.(xml.StartElement)
 		if !ok {
@@ -34,19 +44,19 @@ func ParseRDFXML(data []byte) (*Graph, error) {
 		// single node is the root, the node element itself.
 		if se.Name.Space == NS && se.Name.Local == "RDF" {
 			if err := p.parseNodeChildren(se); err != nil {
-				return p.g, err
+				return err
 			}
 			continue
 		}
 		if _, err := p.parseNode(se); err != nil {
-			return p.g, err
+			return err
 		}
 	}
 }
 
 type xmlParser struct {
 	dec    *xml.Decoder
-	g      *Graph
+	emit   func(s, pr, o Term) // sink: Graph.Add for ParseRDFXML, channel for streaming
 	blanks int
 }
 
@@ -72,7 +82,7 @@ func attr(se xml.StartElement, space, local string) (string, bool) {
 func (p *xmlParser) parseNode(se xml.StartElement) (Term, error) {
 	subject := p.subjectOf(se)
 	if !(se.Name.Space == NS && se.Name.Local == "Description") {
-		p.g.Add(subject, NewIRI(TypeIRI), NewIRI(iriOf(se.Name)))
+		p.emit(subject, NewIRI(TypeIRI), NewIRI(iriOf(se.Name)))
 	}
 	// Property attributes: rdf attributes other than the identity ones become
 	// literal-valued statements (rdf:type becomes a type IRI).
@@ -81,10 +91,10 @@ func (p *xmlParser) parseNode(se xml.StartElement) (Term, error) {
 			continue
 		}
 		if a.Name.Space == NS && a.Name.Local == "type" {
-			p.g.Add(subject, NewIRI(TypeIRI), NewIRI(a.Value))
+			p.emit(subject, NewIRI(TypeIRI), NewIRI(a.Value))
 			continue
 		}
-		p.g.Add(subject, NewIRI(iriOf(a.Name)), NewLiteral(a.Value, "", ""))
+		p.emit(subject, NewIRI(iriOf(a.Name)), NewLiteral(a.Value, "", ""))
 	}
 	if err := p.parseProperties(se, subject); err != nil {
 		return subject, err
@@ -140,16 +150,16 @@ func (p *xmlParser) parseProperty(subject Term, se xml.StartElement) error {
 	pred := NewIRI(iriOf(se.Name))
 
 	if res, ok := attr(se, NS, "resource"); ok {
-		p.g.Add(subject, pred, NewIRI(res))
+		p.emit(subject, pred, NewIRI(res))
 		return p.skipTo(se.Name)
 	}
 	if nid, ok := attr(se, NS, "nodeID"); ok {
-		p.g.Add(subject, pred, NewBlank(nid))
+		p.emit(subject, pred, NewBlank(nid))
 		return p.skipTo(se.Name)
 	}
 	if pt, ok := attr(se, NS, "parseType"); ok && pt == "Resource" {
 		obj := p.fresh()
-		p.g.Add(subject, pred, obj)
+		p.emit(subject, pred, obj)
 		return p.parseProperties(se, obj)
 	}
 	datatype, _ := attr(se, NS, "datatype")
@@ -168,13 +178,13 @@ func (p *xmlParser) parseProperty(subject Term, se xml.StartElement) error {
 			if err != nil {
 				return err
 			}
-			p.g.Add(subject, pred, child)
+			p.emit(subject, pred, child)
 			return p.skipTo(se.Name) // consume any trailing whitespace + EndElement
 		case xml.CharData:
 			text.Write(t)
 		case xml.EndElement:
 			if t.Name == se.Name {
-				p.g.Add(subject, pred, NewLiteral(text.String(), lang, datatype))
+				p.emit(subject, pred, NewLiteral(text.String(), lang, datatype))
 				return nil
 			}
 		}

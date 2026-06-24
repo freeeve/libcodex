@@ -201,18 +201,20 @@ out := g.Turtle(map[string]string{...})  // serialize: NTriples() / Turtle(prefi
 ```
 
 For inputs too large to hold in memory — multi-gigabyte dumps like the Library of
-Congress authority files — a streaming `Decoder` reads N-Triples (and N-Quads) from
-an `io.Reader` one triple at a time in **constant memory**:
+Congress authority files — a streaming `Decoder` reads **N-Triples, N-Quads,
+RDF/XML or Turtle** from an `io.Reader` one triple at a time in **constant
+memory**:
 
 ```go
-d := rdf.NewDecoder(file, rdf.NTriples)
-for tr := range d.All() { // or d.Decode() (rdf.Triple, error)
+d := rdf.NewDecoder(file, rdf.NTriples) // or rdf.RDFXML / rdf.Turtle / rdf.NQuads
+for tr := range d.All() {               // or d.Decode() (rdf.Triple, error)
     // process tr; the whole graph is never materialized
 }
 ```
 
-It streams the 3.3 GB LCSH file (23M triples) at ~800 MB/s with a live heap of a
-few megabytes. The line-based formats stream; the others parse whole documents.
+It streams the 3.3 GB LCSH N-Triples file (23M triples) at ~800 MB/s with a live
+heap of a few megabytes, and holds RDF/XML and Turtle to a few MB regardless of
+file size. (JSON-LD is whole-document only — its tree must be materialized.)
 
 ## Reading UNIMARC
 
