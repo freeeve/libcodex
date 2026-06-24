@@ -12,9 +12,9 @@ import (
 	"github.com/freeeve/libcodex"
 	"github.com/freeeve/libcodex/bibframe"
 	"github.com/freeeve/libcodex/citation"
-	"github.com/freeeve/libcodex/rdf"
 	"github.com/freeeve/libcodex/iso2709"
 	"github.com/freeeve/libcodex/marcjson"
+	"github.com/freeeve/libcodex/rdf"
 	"github.com/freeeve/libcodex/schemaorg"
 )
 
