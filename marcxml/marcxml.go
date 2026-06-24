@@ -328,9 +328,11 @@ func (rd *Reader) readDataField(start xml.StartElement) (codex.Field, error) {
 
 // text reads the character data of the current leaf element up to its end tag.
 // CharData tokens are valid only until the next Token call, so the bytes are
-// copied as they are read.
+// copied as they are read. A value is almost always a single CharData token, so
+// the first is converted directly to a string (one copy); only the rare split
+// value (entities, buffer boundaries) is concatenated.
 func (rd *Reader) text() (string, error) {
-	var b []byte
+	var s string
 	for {
 		tok, err := rd.dec.Token()
 		if err != nil {
@@ -338,9 +340,13 @@ func (rd *Reader) text() (string, error) {
 		}
 		switch t := tok.(type) {
 		case xml.CharData:
-			b = append(b, t...)
+			if s == "" {
+				s = string(t)
+			} else {
+				s += string(t)
+			}
 		case xml.EndElement:
-			return string(b), nil
+			return s, nil
 		case xml.StartElement:
 			if err := rd.dec.Skip(); err != nil { // unexpected child element
 				return "", wrap(err)
