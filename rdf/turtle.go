@@ -430,11 +430,10 @@ func (p *turtleParser) literal() (Term, bool) {
 	switch {
 	case p.peek() == '@':
 		p.pos++
-		start := p.pos
-		for p.pos < len(p.s) && (isAlpha(p.s[p.pos]) || p.s[p.pos] == '-') {
-			p.pos++
-		}
-		return NewLiteral(value, p.s[start:p.pos], ""), true
+		n := langTagLen(p.s[p.pos:])
+		lang := p.s[p.pos : p.pos+n]
+		p.pos += n
+		return NewLiteral(value, lang, ""), true
 	case strings.HasPrefix(p.s[p.pos:], "^^"):
 		p.pos += 2
 		dt, ok := p.iriOrPName()
@@ -627,12 +626,13 @@ func (g *Graph) TurtleBody(prefixes map[string]string) []byte {
 
 	var b []byte
 	var done []bool // reused across subjects
+	bn := &blankNamer{}
 	for i := 0; i < n; {
 		j := i + 1
 		for j < n && g.Triples[idx[j]].S == g.Triples[idx[i]].S {
 			j++
 		}
-		b = appendTurtleSubject(b, g.Triples, idx[i:j], prefixes, &done)
+		b = appendTurtleSubject(b, g.Triples, idx[i:j], prefixes, &done, bn)
 		i = j
 	}
 	return b
@@ -641,8 +641,8 @@ func (g *Graph) TurtleBody(prefixes map[string]string) []byte {
 // appendTurtleSubject writes one subject's predicate-object list, grouping objects
 // by predicate with a linear scan over the subject's (contiguous) triples and a
 // caller-reused scratch buffer.
-func appendTurtleSubject(b []byte, triples []Triple, idxs []int, prefixes map[string]string, scratch *[]bool) []byte {
-	b = appendTurtleTerm(b, triples[idxs[0]].S, prefixes, false)
+func appendTurtleSubject(b []byte, triples []Triple, idxs []int, prefixes map[string]string, scratch *[]bool, bn *blankNamer) []byte {
+	b = appendTurtleTerm(b, triples[idxs[0]].S, prefixes, false, bn)
 
 	done := (*scratch)[:0]
 	for range idxs {
@@ -662,14 +662,14 @@ func appendTurtleSubject(b []byte, triples []Triple, idxs []int, prefixes map[st
 		} else {
 			b = append(b, " ;\n    "...)
 		}
-		b = appendTurtleTerm(b, ta.P, prefixes, true)
+		b = appendTurtleTerm(b, ta.P, prefixes, true, bn)
 		b = append(b, ' ')
-		b = appendTurtleTerm(b, ta.O, prefixes, false)
+		b = appendTurtleTerm(b, ta.O, prefixes, false, bn)
 		done[a] = true
 		for c := a + 1; c < len(idxs); c++ {
 			if !done[c] && triples[idxs[c]].P == ta.P {
 				b = append(b, ", "...)
-				b = appendTurtleTerm(b, triples[idxs[c]].O, prefixes, false)
+				b = appendTurtleTerm(b, triples[idxs[c]].O, prefixes, false, bn)
 				done[c] = true
 			}
 		}
@@ -679,7 +679,7 @@ func appendTurtleSubject(b []byte, triples []Triple, idxs []int, prefixes map[st
 
 // appendTurtleTerm writes a term in Turtle syntax. In predicate position rdf:type
 // is written as `a`.
-func appendTurtleTerm(b []byte, t Term, prefixes map[string]string, predicate bool) []byte {
+func appendTurtleTerm(b []byte, t Term, prefixes map[string]string, predicate bool, bn *blankNamer) []byte {
 	switch t.Kind {
 	case IRI:
 		if predicate && t.Value == TypeIRI {
@@ -693,7 +693,7 @@ func appendTurtleTerm(b []byte, t Term, prefixes map[string]string, predicate bo
 		return append(b, '>')
 	case Blank:
 		b = append(b, '_', ':')
-		return appendBlankLabel(b, t.Value)
+		return append(b, bn.name(t.Value)...)
 	default:
 		b = append(b, '"')
 		b = appendEscapedLiteral(b, t.Value)

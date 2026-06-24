@@ -2,6 +2,7 @@ package rdf
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -31,7 +32,7 @@ func parseNTLine(line string, a *arena) (Triple, bool) {
 		return Triple{}, false
 	}
 	subj, s, ok := readNTTerm(s, a)
-	if !ok {
+	if !ok || subj.IsLiteral() { // a literal subject is not valid RDF
 		return Triple{}, false
 	}
 	pred, s, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
@@ -105,31 +106,54 @@ func ntLiteralSuffix(value, rest string) (Term, string, bool) {
 		}
 		return NewLiteral(value, "", unescapeRDF(rest[3:j])), rest[j+1:], true
 	case strings.HasPrefix(rest, "@"):
-		j := strings.IndexAny(rest, " \t")
-		if j < 0 {
-			j = len(rest)
-		}
-		return NewLiteral(value, rest[1:j], ""), rest[j:], true
+		n := langTagLen(rest[1:])
+		return NewLiteral(value, rest[1:1+n], ""), rest[1+n:], true
 	}
 	return NewLiteral(value, "", ""), rest, true
+}
+
+// langTagLen returns the length of a well-formed language tag at the start of s
+// (the text after the '@'): [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*. It returns 0 when s does
+// not begin with a letter, so an invalid tag like "0" yields no language rather
+// than a value the Turtle grammar would reject on a round trip.
+func langTagLen(s string) int {
+	i := 0
+	for i < len(s) && isAlpha(s[i]) {
+		i++
+	}
+	if i == 0 {
+		return 0
+	}
+	for i < len(s) && s[i] == '-' {
+		j := i + 1
+		for j < len(s) && (isAlpha(s[j]) || (s[j] >= '0' && s[j] <= '9')) {
+			j++
+		}
+		if j == i+1 { // a '-' must be followed by at least one alphanumeric
+			break
+		}
+		i = j
+	}
+	return i
 }
 
 // NTriples serializes the graph as N-Triples.
 func (g *Graph) NTriples() []byte {
 	var b []byte
+	bn := &blankNamer{}
 	for _, t := range g.Triples {
-		b = appendNTTerm(b, t.S)
+		b = appendNTTerm(b, t.S, bn)
 		b = append(b, ' ')
-		b = appendNTTerm(b, t.P)
+		b = appendNTTerm(b, t.P, bn)
 		b = append(b, ' ')
-		b = appendNTTerm(b, t.O)
+		b = appendNTTerm(b, t.O, bn)
 		b = append(b, ' ', '.', '\n')
 	}
 	return b
 }
 
 // appendNTTerm writes a term in N-Triples syntax.
-func appendNTTerm(b []byte, t Term) []byte {
+func appendNTTerm(b []byte, t Term, bn *blankNamer) []byte {
 	switch t.Kind {
 	case IRI:
 		b = append(b, '<')
@@ -137,7 +161,7 @@ func appendNTTerm(b []byte, t Term) []byte {
 		return append(b, '>')
 	case Blank:
 		b = append(b, '_', ':')
-		return appendBlankLabel(b, t.Value)
+		return append(b, bn.name(t.Value)...)
 	default:
 		b = append(b, '"')
 		b = appendEscapedLiteral(b, t.Value)
@@ -208,24 +232,26 @@ func appendEscapedLiteral(b []byte, s string) []byte {
 	return b
 }
 
-// appendBlankLabel writes a blank-node label, keeping only the characters valid
-// in an N-Triples/Turtle blank-node identifier (others become '_'); an empty label
-// becomes "b".
-func appendBlankLabel(b []byte, label string) []byte {
-	start := len(b)
-	for i := 0; i < len(label); i++ {
-		c := label[i]
-		switch {
-		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '_':
-			b = append(b, c)
-		default:
-			b = append(b, '_')
-		}
+// blankNamer maps blank-node labels to fresh, always-valid identifiers (b1, b2, …)
+// during one serialization. The mapping is injective, so two distinct blank nodes
+// never collapse to the same output label — which a character-sanitizing scheme
+// could (e.g. "!x" and "?x" both becoming "_x"), silently merging nodes.
+type blankNamer struct {
+	m map[string]string
+	n int
+}
+
+func (bn *blankNamer) name(label string) string {
+	if v, ok := bn.m[label]; ok {
+		return v
 	}
-	if len(b) == start {
-		b = append(b, 'b')
+	if bn.m == nil {
+		bn.m = make(map[string]string)
 	}
-	return b
+	bn.n++
+	v := "b" + strconv.Itoa(bn.n)
+	bn.m[label] = v
+	return v
 }
 
 func appendUnicodeEscape(b []byte, r rune) []byte {
