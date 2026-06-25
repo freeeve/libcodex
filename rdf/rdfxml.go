@@ -3,12 +3,17 @@ package rdf
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"io"
 	"strconv"
 	"strings"
 )
 
 const xmlNS = "http://www.w3.org/XML/1998/namespace"
+
+// errTooDeep aborts an RDF/XML parse whose element nesting would otherwise
+// recurse deep enough to overflow the goroutine stack.
+var errTooDeep = errors.New("rdf: RDF/XML nesting too deep")
 
 // ParseRDFXML parses an RDF/XML document into a Graph. It supports the striped
 // syntax real bibliographic RDF uses: typed node elements and rdf:Description,
@@ -58,6 +63,7 @@ type xmlParser struct {
 	dec    *xml.Decoder
 	emit   func(s, pr, o Term) // sink: Graph.Add for ParseRDFXML, channel for streaming
 	blanks int
+	depth  int // current node-element nesting, bounded by maxParseDepth
 }
 
 func (p *xmlParser) fresh() Term {
@@ -80,6 +86,11 @@ func attr(se xml.StartElement, space, local string) (string, bool) {
 // type and property-attribute triples, recurses into property children, and
 // returns the node's subject term. It consumes the matching EndElement.
 func (p *xmlParser) parseNode(se xml.StartElement) (Term, error) {
+	if p.depth >= maxParseDepth {
+		return Term{}, errTooDeep
+	}
+	p.depth++
+	defer func() { p.depth-- }()
 	subject := p.subjectOf(se)
 	if !(se.Name.Space == NS && se.Name.Local == "Description") {
 		p.emit(subject, NewIRI(TypeIRI), NewIRI(iriOf(se.Name)))

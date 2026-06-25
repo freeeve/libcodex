@@ -14,6 +14,13 @@ const (
 	xsdDouble  = "http://www.w3.org/2001/XMLSchema#double"
 )
 
+// maxParseDepth bounds nesting in the recursive-descent parsers — Turtle
+// blank-node property lists (`[ … ]`) and collections (`( … )`), and RDF/XML
+// node elements — so adversarial deeply nested input fails with an error
+// instead of overflowing the goroutine stack, which is a fatal, unrecoverable
+// runtime crash (recover cannot catch it). No real document nests this deep.
+const maxParseDepth = 1 << 13
+
 // ParseTurtle parses a Turtle document into a Graph. It supports the constructs
 // real RDF uses: @prefix/@base and SPARQL-style PREFIX/BASE, prefixed names and
 // IRIs, the `a` keyword, predicate-object lists (`;`) and object lists (`,`),
@@ -69,6 +76,7 @@ type turtleParser struct {
 	strs     *arena                       // backs expanded IRIs when whole-document; nil when streaming
 	base     string
 	blanks   int
+	depth    int // current `[`/`(` nesting, bounded by maxParseDepth
 }
 
 func (p *turtleParser) fresh() Term {
@@ -366,6 +374,11 @@ func (p *turtleParser) blankPropertyList() (Term, bool) {
 	if p.peek() != '[' {
 		return Term{}, false
 	}
+	if p.depth >= maxParseDepth {
+		return Term{}, false
+	}
+	p.depth++
+	defer func() { p.depth-- }()
 	p.pos++
 	node := p.fresh()
 	p.ws()
@@ -389,6 +402,11 @@ func (p *turtleParser) collection() (Term, bool) {
 	if p.peek() != '(' {
 		return Term{}, false
 	}
+	if p.depth >= maxParseDepth {
+		return Term{}, false
+	}
+	p.depth++
+	defer func() { p.depth-- }()
 	p.pos++
 	var items []Term
 	for {

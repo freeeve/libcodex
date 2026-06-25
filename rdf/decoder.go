@@ -190,6 +190,18 @@ func streamTurtle(r io.Reader, emit func(s, pr, o Term)) error {
 	}
 }
 
+// maxStatementBytes caps a single buffered Turtle statement. Without it, input
+// that never yields a statement terminator (e.g. one enormous predicate-object
+// list, or an unterminated string) would buffer without bound — defeating the
+// constant-memory guarantee — while statementEnd re-scans the whole buffer on
+// every read, which is quadratic in the statement length. No real statement is
+// anywhere near this large.
+const maxStatementBytes = 1 << 24 // 16 MiB
+
+// errStatementTooLarge aborts a stream whose current statement exceeds
+// maxStatementBytes without terminating.
+var errStatementTooLarge = errors.New("rdf: Turtle statement too large")
+
 // turtleSplitter yields one complete '.'-terminated Turtle statement at a time
 // from a reader, buffering only the current statement plus a read chunk.
 type turtleSplitter struct {
@@ -203,6 +215,9 @@ func (s *turtleSplitter) next() (string, error) {
 			stmt := string(s.buf[:end])
 			s.buf = s.buf[end:]
 			return stmt, nil
+		}
+		if len(s.buf) > maxStatementBytes {
+			return "", errStatementTooLarge
 		}
 		chunk := make([]byte, 64*1024)
 		n, err := s.br.Read(chunk)
