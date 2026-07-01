@@ -131,26 +131,51 @@ func Encode(r *codex.Record) ([]byte, error) {
 	return appendRecord(nil, r), nil
 }
 
-// validate reports an error if any value is not valid UTF-8; JSON strings must be
-// valid UTF-8, so such a record cannot be represented.
+// validate reports an error if the record cannot be represented: a value or tag
+// that is not valid UTF-8 (JSON strings must be UTF-8), or an indicator or
+// subfield code that is not printable ASCII. A high indicator/code byte would be
+// emitted by string(b) as multibyte UTF-8 and read back as its first byte,
+// silently corrupting the record, so it is rejected as marcxml does.
 func validate(r *codex.Record) error {
 	if !utf8.ValidString(r.Leader().String()) {
 		return fmt.Errorf("marcjson: leader is not valid UTF-8")
 	}
 	for _, f := range r.Fields() {
+		if !utf8.ValidString(f.Tag) {
+			return fmt.Errorf("marcjson: tag %q is not valid UTF-8", f.Tag)
+		}
 		if f.IsControl() {
 			if !utf8.ValidString(f.Value) {
 				return fmt.Errorf("marcjson: control field %s value is not valid UTF-8", f.Tag)
 			}
 			continue
 		}
+		if (f.Ind1 != 0 && !asciiChar(f.Ind1)) || (f.Ind2 != 0 && !asciiChar(f.Ind2)) {
+			return fmt.Errorf("marcjson: field %s indicator is not printable ASCII", f.Tag)
+		}
 		for _, s := range f.Subfields {
+			if !asciiChar(s.Code) {
+				return fmt.Errorf("marcjson: field %s subfield code is not printable ASCII", f.Tag)
+			}
 			if !utf8.ValidString(s.Value) {
 				return fmt.Errorf("marcjson: field %s subfield value is not valid UTF-8", f.Tag)
 			}
 		}
 	}
 	return nil
+}
+
+// asciiChar reports whether a single indicator or subfield-code byte is printable
+// ASCII (never multibyte, so it round-trips through string(b) and s[0]).
+func asciiChar(b byte) bool {
+	return b >= 0x20 && b < 0x7f
+}
+
+// controlTag reports whether tag is in the control-field range (below "010"),
+// matching codex.Field.IsControl so the decoder can reject a wire type that
+// contradicts the tag.
+func controlTag(tag string) bool {
+	return tag < "010"
 }
 
 // ---- decoding ----
@@ -270,10 +295,18 @@ func (rd *Reader) readField() (codex.Field, error) {
 	var f codex.Field
 	switch v := tok.(type) {
 	case string:
+		// A string value denotes a control field; a data-range tag would make the
+		// value vanish on re-encode, so reject the contradiction.
+		if !controlTag(tag) {
+			return codex.Field{}, fmt.Errorf("marcjson: field %s has a control-field (string) value but a data-field tag", tag)
+		}
 		f = codex.NewControlField(tag, v)
 	case json.Delim:
 		if v != '{' {
 			return codex.Field{}, fmt.Errorf("marcjson: bad value for field %s", tag)
+		}
+		if controlTag(tag) {
+			return codex.Field{}, fmt.Errorf("marcjson: field %s has a data-field (object) value but a control-field tag", tag)
 		}
 		if f, err = rd.readDataField(tag); err != nil {
 			return codex.Field{}, err

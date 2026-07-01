@@ -261,6 +261,14 @@ func TestDecodeErrors(t *testing.T) {
 	if _, err := Decode([]byte(`<record><leader>x</leader`)); err == nil {
 		t.Error("expected error for malformed XML")
 	}
+	// A wire element type that contradicts the tag range would lose data on
+	// re-encode, so it is rejected on decode.
+	if _, err := Decode([]byte(`<record><controlfield tag="245">x</controlfield></record>`)); err == nil {
+		t.Error("expected error for <controlfield> with a data-range tag")
+	}
+	if _, err := Decode([]byte(`<record><datafield tag="001" ind1="1" ind2="0"><subfield code="a">x</subfield></datafield></record>`)); err == nil {
+		t.Error("expected error for <datafield> with a control-range tag")
+	}
 }
 
 func TestReadWriteFile(t *testing.T) {
@@ -431,10 +439,9 @@ func FuzzDecode(f *testing.F) {
 		if err != nil || rec == nil {
 			return
 		}
-		// Always exercise encode/decode (no panic). Assert byte-for-byte stability
-		// only for self-consistent records: a <datafield> with a control-range or
-		// empty tag is misclassified as control by the tag-based model and is not
-		// expected to round-trip (malformed input).
+		// The decoder rejects an element type that contradicts the tag range and
+		// defaults missing indicators to a blank space, so any record that encodes
+		// must round-trip exactly.
 		b1, err := Encode(rec)
 		if err != nil {
 			return // contains a character XML cannot represent
@@ -443,19 +450,12 @@ func FuzzDecode(f *testing.F) {
 		if err != nil {
 			t.Fatalf("re-decode of encoded record failed: %v", err)
 		}
-		if selfConsistent(rec) && !reflect.DeepEqual(rec, rec2) {
+		if !reflect.DeepEqual(rec, rec2) {
 			t.Errorf("round-trip not stable:\n a = %#v\n b = %#v", rec, rec2)
 		}
 	})
 }
 
-// selfConsistent reports whether every field's tag-based classification agrees
-// with the attributes it carries, so the record round-trips. The model derives
-// control-vs-data from the tag, but XML/JSON carry an explicit element type, so a
-// control field with a data-range tag (or vice versa) is malformed and not
-// expected to be stable: a control field must have zero indicators and no
-// subfields, and a data field must have non-zero (set) indicators, since an
-// unset indicator serializes as a blank space.
 // TestValidateIndicatorError covers the indicator-validation branch in validate.
 // A non-zero indicator byte that is not printable ASCII (xmlChar returns false)
 // must cause Encode to return an error.
@@ -580,19 +580,6 @@ func TestWriteFileWriteError(t *testing.T) {
 	if err := WriteFile(path, []*codex.Record{badRec}); err == nil {
 		t.Error("expected error from WriteFile when Write fails on invalid record")
 	}
-}
-
-func selfConsistent(rec *codex.Record) bool {
-	for _, f := range rec.Fields() {
-		if f.IsControl() {
-			if f.Ind1 != 0 || f.Ind2 != 0 || len(f.Subfields) > 0 {
-				return false
-			}
-		} else if f.Ind1 == 0 || f.Ind2 == 0 {
-			return false
-		}
-	}
-	return true
 }
 
 func TestGoldenCollection(t *testing.T) {

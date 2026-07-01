@@ -188,6 +188,13 @@ func xmlChar(b byte) bool {
 	return b >= 0x20 && b < 0x7f
 }
 
+// controlTag reports whether tag is in the control-field range (below "010"),
+// matching codex.Field.IsControl so the decoder can reject an element type that
+// contradicts the tag.
+func controlTag(tag string) bool {
+	return tag < "010"
+}
+
 // validTag reports whether tag can be written into an XML attribute. It is
 // emitted unescaped, so it must be printable ASCII with no attribute-significant
 // characters (a real MARC tag is three digits or letters).
@@ -273,8 +280,16 @@ func (rd *Reader) readRecord() (*codex.Record, error) {
 				if err != nil {
 					return nil, err
 				}
+				// A <controlfield> with a data-range tag would lose its value on
+				// re-encode (it becomes a data field), so reject the contradiction.
+				if !controlTag(tag) {
+					return nil, fmt.Errorf("marcxml: <controlfield> tag %q is not in the control-field range", tag)
+				}
 				rec.AddField(codex.NewControlField(tag, s))
 			case "datafield":
+				if tag := attrValue(t, "tag"); controlTag(tag) {
+					return nil, fmt.Errorf("marcxml: <datafield> tag %q is in the control-field range", tag)
+				}
 				f, err := rd.readDataField(t)
 				if err != nil {
 					return nil, err

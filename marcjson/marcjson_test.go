@@ -222,10 +222,30 @@ func TestDecodeErrors(t *testing.T) {
 		"trunc after key":     `{"leader":`,
 		"trunc after field":   `{"fields":[{`,
 		"trunc in datafield":  `{"fields":[{"245":{"ind1":`,
+		"data tag as control": `{"fields":[{"245":"x"}]}`,
+		"control tag as data": `{"fields":[{"001":{"ind1":" ","ind2":" ","subfields":[{"a":"x"}]}}]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := Decode([]byte(in)); err == nil {
 				t.Error("expected error, got nil")
+			}
+		})
+	}
+}
+
+// TestEncodeRejectsNonRepresentable checks Encode errors on records whose tag,
+// indicator, or subfield code cannot round-trip through JSON, so they are
+// rejected rather than silently corrupted.
+func TestEncodeRejectsNonRepresentable(t *testing.T) {
+	cases := map[string]*codex.Record{
+		"non-ascii ind1": codex.NewRecord().AddField(codex.NewDataField("245", 0xE9, '0', codex.NewSubfield('a', "x"))),
+		"non-ascii code": codex.NewRecord().AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield(0xE9, "x"))),
+		"invalid tag":    codex.NewRecord().AddField(codex.NewControlField("2\xff5", "x")),
+	}
+	for name, rec := range cases {
+		t.Run(name, func(t *testing.T) {
+			if _, err := Encode(rec); err == nil {
+				t.Error("expected Encode error, got nil")
 			}
 		})
 	}
@@ -269,45 +289,19 @@ func FuzzDecode(f *testing.F) {
 		}
 		out, err := Encode(rec)
 		if err != nil {
-			t.Fatalf("re-encode failed: %v", err)
+			return // the decoded record is not representable (e.g. a multi-byte code)
 		}
 		rec2, err := Decode(out)
 		if err != nil {
 			t.Fatalf("re-decode of encoded record failed: %v", err)
 		}
-		// JSON represents every character, so round-trips are stable for records
-		// whose tag-based classification matches their attributes (see comment).
-		if selfConsistent(rec) && !reflect.DeepEqual(rec, rec2) {
+		// The decoder enforces that a field's wire type matches its tag range and
+		// the encoder rejects non-ASCII indicators/codes, so any record that
+		// encodes must round-trip exactly.
+		if !reflect.DeepEqual(rec, rec2) {
 			t.Errorf("round-trip not stable:\n a = %#v\n b = %#v", rec, rec2)
 		}
 	})
-}
-
-// selfConsistent reports whether every field's tag-based control/data
-// classification matches the attributes it carries, so the record round-trips. A
-// control field must have zero indicators and no subfields; a data field must
-// have non-zero (set) indicators (an unset one serializes as a blank space). A
-// data field's indicators and subfield codes must also be ASCII: MARC requires it,
-// and a byte >= 0x80 re-serializes as a multi-byte rune whose first byte differs,
-// so it does not survive a JSON round trip.
-func selfConsistent(rec *codex.Record) bool {
-	for _, f := range rec.Fields() {
-		if f.IsControl() {
-			if f.Ind1 != 0 || f.Ind2 != 0 || len(f.Subfields) > 0 {
-				return false
-			}
-			continue
-		}
-		if f.Ind1 == 0 || f.Ind2 == 0 || f.Ind1 >= 0x80 || f.Ind2 >= 0x80 {
-			return false
-		}
-		for _, s := range f.Subfields {
-			if s.Code >= 0x80 {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 func TestReadWriteFile(t *testing.T) {
