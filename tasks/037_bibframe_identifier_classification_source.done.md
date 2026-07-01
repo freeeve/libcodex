@@ -30,9 +30,19 @@ identifier/classification node, in every serialization:
 
 ## Acceptance
 
-- [ ] `Identifier.Source` and `Classification.Source` fields added.
-- [ ] `bf:source` emitted when set, omitted when empty (no empty nodes).
-- [ ] All serializers updated; `TestEncodersIsomorphic` stays green.
-- [ ] Round-trip/golden tests cover a sourced identifier and classification.
+- [x] `Identifier.Source` and `Classification.Source` fields added.
+- [x] `bf:source` emitted when set, omitted when empty (no empty nodes).
+- [x] All serializers updated; `TestEncodersIsomorphic` stays green.
+- [x] Round-trip/golden tests cover a sourced identifier and classification.
 
 Consumer: libcatalog `tasks/008`.
+
+## Status
+
+Complete. `Source` added to `Identifier` and `Classification`; the graph,
+RDF/XML and JSON-LD encoders all emit `bf:source [a bf:Source; rdfs:label …]`
+when set and nothing when empty. `FromRecord` fills it from MARC `024 $2`
+(identifiers) and `072 $2` (BISAC-style classifications). Covered by
+`TestSourceEmitted` (all four serializations, isomorphic, labels intact) and
+`TestSourceOmittedWhenEmpty`; the existing isomorphism, golden and crosswalk
+round-trip tests stay green.

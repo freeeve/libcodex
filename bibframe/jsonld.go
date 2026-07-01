@@ -76,6 +76,10 @@ func appendWorkJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 			b = append(b, c.Class...)
 			b = append(b, `","bf:classificationPortion":`...)
 			b = appendJSONString(b, c.Value)
+			if c.Source != "" {
+				b = append(b, `,"bf:source":`...)
+				b = appendLabeledJSON(b, "bf:Source", c.Source)
+			}
 			b = append(b, '}')
 		}
 		b = append(b, ']')
@@ -137,6 +141,10 @@ func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 			b = append(b, id.Class...)
 			b = append(b, `","rdf:value":`...)
 			b = appendJSONString(b, id.Value)
+			if id.Source != "" {
+				b = append(b, `,"bf:source":`...)
+				b = appendLabeledJSON(b, "bf:Source", id.Source)
+			}
 			b = append(b, '}')
 		}
 		b = append(b, ']')

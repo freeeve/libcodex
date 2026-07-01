@@ -92,6 +92,9 @@ func (gb *graphBuilder) work(work, inst rdf.Term, bib *BIBFRAME) {
 		gb.g.Add(work, rdf.NewIRI(pClassif), node)
 		gb.typ(node, bfNS+c.Class)
 		gb.lit(node, pClassPortion, c.Value)
+		if c.Source != "" {
+			gb.labeled(node, pSource, classSource, c.Source)
+		}
 	}
 	for _, s := range bib.Work.Summary {
 		gb.labeled(work, pSummary, bfNS+"Summary", s)
@@ -127,6 +130,9 @@ func (gb *graphBuilder) instance(work, inst rdf.Term, bib *BIBFRAME) {
 		gb.g.Add(inst, rdf.NewIRI(pIdentifiedBy), node)
 		gb.typ(node, bfNS+id.Class)
 		gb.lit(node, pValue, id.Value)
+		if id.Source != "" {
+			gb.labeled(node, pSource, classSource, id.Source)
+		}
 	}
 	for _, u := range bib.Instance.ElectronicLocator {
 		gb.g.Add(inst, rdf.NewIRI(pLocator), rdf.NewIRI(u))

@@ -157,7 +157,11 @@ func appendClassificationXML(b []byte, c Classification) []byte {
 	b = append(b, c.Class...)
 	b = append(b, ">\n        <bf:classificationPortion>"...)
 	b = appendXMLText(b, c.Value)
-	b = append(b, "</bf:classificationPortion>\n      </bf:"...)
+	b = append(b, "</bf:classificationPortion>\n"...)
+	if c.Source != "" {
+		b = labeledXMLAt(b, "        ", "bf:source", "bf:Source", c.Source)
+	}
+	b = append(b, "      </bf:"...)
 	b = append(b, c.Class...)
 	return append(b, ">\n    </bf:classification>\n"...)
 }
@@ -181,7 +185,11 @@ func appendIdentifierXML(b []byte, id Identifier) []byte {
 	b = append(b, id.Class...)
 	b = append(b, ">\n        <rdf:value>"...)
 	b = appendXMLText(b, id.Value)
-	b = append(b, "</rdf:value>\n      </bf:"...)
+	b = append(b, "</rdf:value>\n"...)
+	if id.Source != "" {
+		b = labeledXMLAt(b, "        ", "bf:source", "bf:Source", id.Source)
+	}
+	b = append(b, "      </bf:"...)
 	b = append(b, id.Class...)
 	return append(b, ">\n    </bf:identifiedBy>\n"...)
 }

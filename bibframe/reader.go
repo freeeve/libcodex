@@ -55,6 +55,10 @@ const (
 	classGenerationProcess  = bfNS + "GenerationProcess"
 	classLocal              = bfNS + "Local"
 
+	// A source/scheme node on an identifier or classification.
+	pSource     = bfNS + "source"
+	classSource = bfNS + "Source"
+
 	// LoC's marc2bibframe2 carries the transcribed publication statement in these
 	// bflc properties, alongside the controlled bf:place / bf:date.
 	pSimplePlace = bflcNS + "simplePlace"

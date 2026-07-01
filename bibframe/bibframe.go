@@ -104,14 +104,16 @@ type Subject struct {
 
 // Classification is a call number with its BIBFRAME class.
 type Classification struct {
-	Class string // "ClassificationLcc" or "ClassificationDdc"
-	Value string
+	Class  string // "ClassificationLcc", "ClassificationDdc" or "Classification"
+	Value  string
+	Source string // classification scheme (bf:source), e.g. "bisacsh"; optional
 }
 
 // Identifier is a typed identifier carried by the Instance.
 type Identifier struct {
-	Class string // "Isbn", "Issn" or "Identifier"
-	Value string
+	Class  string // "Isbn", "Issn" or "Identifier"
+	Value  string
+	Source string // identifier scheme (bf:source), e.g. a provider code; optional
 }
 
 // Provision is a bf:Publication (place / publisher / date).
@@ -190,9 +192,12 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 		case "611":
 			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Meeting")
 		case "050":
-			g.appendClassification(joinSub(f, "ab", " "), "ClassificationLcc")
+			g.appendClassification(joinSub(f, "ab", " "), "ClassificationLcc", "")
 		case "082":
-			g.appendClassification(trimISBD(f.SubfieldValue('a')), "ClassificationDdc")
+			g.appendClassification(trimISBD(f.SubfieldValue('a')), "ClassificationDdc", "")
+		case "072":
+			// Subject category code (e.g. BISAC): a source-qualified classification.
+			g.appendClassification(trimISBD(f.SubfieldValue('a')), "Classification", trimISBD(f.SubfieldValue('2')))
 		case "020":
 			g.appendIdentifiers(f, 'a', "Isbn")
 		case "022":
@@ -275,17 +280,18 @@ func (g *BIBFRAME) appendSubject(label, class string) {
 	}
 }
 
-func (g *BIBFRAME) appendClassification(value, class string) {
+func (g *BIBFRAME) appendClassification(value, class, source string) {
 	if value != "" {
-		g.Work.Classifications = append(g.Work.Classifications, Classification{Class: class, Value: value})
+		g.Work.Classifications = append(g.Work.Classifications, Classification{Class: class, Value: value, Source: source})
 	}
 }
 
 func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class string) {
+	source := trimISBD(f.SubfieldValue('2')) // $2 names the identifier scheme (bf:source)
 	for _, sf := range f.Subfields {
 		if sf.Code == code {
 			if v := trimISBD(sf.Value); v != "" {
-				g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{Class: class, Value: v})
+				g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{Class: class, Value: v, Source: source})
 			}
 		}
 	}
