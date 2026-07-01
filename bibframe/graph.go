@@ -23,6 +23,16 @@ func graphFromBIBFRAME(bib *BIBFRAME, base string) *rdf.Graph {
 	return gb.g
 }
 
+// Graph builds the RDF graph of a BIBFRAME Work/Instance pair, using base as the
+// local-identifier stem for the node IRIs (#<base>Work and #<base>Instance). It
+// is the entry point for callers that assemble a BIBFRAME directly from a
+// non-MARC source and want the same graph shape FromRecord produces; serialize
+// the result with rdf's NQuads, NTriples or Turtle encoders. FromRecord(r).Graph(
+// base) is equivalent to the graph the record writers emit.
+func (bib *BIBFRAME) Graph(base string) *rdf.Graph {
+	return graphFromBIBFRAME(bib, base)
+}
+
 type graphBuilder struct {
 	g      *rdf.Graph
 	blanks int
