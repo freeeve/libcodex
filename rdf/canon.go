@@ -17,9 +17,16 @@ import (
 var ErrCanonComplexity = errors.New("rdf: canonicalization exceeded complexity budget")
 
 // maxCanonWork bounds the total permutations examined across the n-degree hashing
-// recursion. Real datasets (blank nodes with distinct neighbourhoods) finish in
-// near-linear work; only graphs crafted to be maximally symmetric approach it.
-const maxCanonWork = 1 << 20
+// recursion, and maxCanonDepth bounds that recursion's depth. Real datasets finish
+// in near-linear work at shallow depth (the whole W3C rdf-canon suite peaks at
+// ~2880 permutations and depth 6); only graphs crafted to be maximally symmetric —
+// or a long chain of indistinguishable blank nodes, which would otherwise recurse
+// one frame per link and overflow the goroutine stack — approach these limits, and
+// are rejected quickly with ErrCanonComplexity rather than hanging or crashing.
+const (
+	maxCanonWork  = 1 << 18
+	maxCanonDepth = 1 << 10
+)
 
 // Canonical returns the dataset serialized as canonical N-Quads per the W3C RDF
 // Dataset Canonicalization algorithm RDFC-1.0 (URDNA2015): blank nodes are
@@ -152,7 +159,7 @@ func canonicalize(quads []Quad) (result []Quad, out []byte, err error) {
 			}
 			tmp := newIssuer("b")
 			tmp.issue(bn)
-			hash, iss := c.hashNDegree(bn, tmp)
+			hash, iss := c.hashNDegree(bn, tmp, 0)
 			results = append(results, ndegreeResult{hash: hash, issuer: iss})
 		}
 		sort.Slice(results, func(i, j int) bool { return results[i].hash < results[j].hash })
@@ -259,7 +266,10 @@ type ndegreeResult struct {
 // hashNDegree computes the n-degree hash of a blank node, distinguishing it from
 // others that share a first-degree hash by exploring its blank-node neighbourhood
 // (with permutations) — RDFC-1.0's Hash N-Degree Quads.
-func (c *canonicalizer) hashNDegree(bn string, iss *identifierIssuer) (string, *identifierIssuer) {
+func (c *canonicalizer) hashNDegree(bn string, iss *identifierIssuer, depth int) (string, *identifierIssuer) {
+	if depth > maxCanonDepth {
+		panic(ErrCanonComplexity)
+	}
 	related := map[string][]string{}
 	for _, qi := range c.blankQuads[bn] {
 		q := c.quads[qi]
@@ -307,7 +317,7 @@ func (c *canonicalizer) hashNDegree(bn string, iss *identifierIssuer) (string, *
 			}
 			if !skip {
 				for _, r := range recursion {
-					rh, ri := c.hashNDegree(r, issuerCopy)
+					rh, ri := c.hashNDegree(r, issuerCopy, depth+1)
 					path = append(path, "_:"...)
 					path = append(path, issuerCopy.issue(r)...)
 					path = append(path, '<')

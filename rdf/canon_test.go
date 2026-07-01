@@ -138,6 +138,20 @@ func TestRDFCanonConformance(t *testing.T) {
 	t.Logf("rdf-canon: %d vectors checked", passed)
 }
 
+// TestCanonDeepChainGuard checks that a long chain of indistinguishable blank
+// nodes — which drives the n-degree hashing recursion arbitrarily deep — is
+// rejected with ErrCanonComplexity rather than overflowing the goroutine stack.
+func TestCanonDeepChainGuard(t *testing.T) {
+	var b strings.Builder
+	for i := range 50000 {
+		b.WriteString("_:b" + strconv.Itoa(i) + " <http://p> _:b" + strconv.Itoa(i+1) + " .\n")
+	}
+	ds, _ := ParseNQuads([]byte(b.String()))
+	if _, err := ds.Canonical(); err != ErrCanonComplexity {
+		t.Fatalf("deep blank chain: got %v, want ErrCanonComplexity", err)
+	}
+}
+
 // FuzzCanonInvariance asserts canonicalization is isomorphism-invariant on
 // arbitrary input: an input and its relabeled, reordered variant canonicalize to
 // identical bytes, and canonicalization never panics.
