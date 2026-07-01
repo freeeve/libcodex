@@ -26,6 +26,7 @@
 package iso2709
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/freeeve/libcodex"
@@ -113,7 +114,7 @@ func decode(b []byte, bs string) (*codex.Record, bool, error) {
 	unicode := b[9] == 'a'
 
 	rec := codex.NewRecordCap(prealloc(len(dir) / entryLen)).SetLeader(codex.Leader(bs[:leaderLen]))
-	subs := make([]codex.Subfield, 0, prealloc(countByte(body, SubfieldDelimiter)))
+	subs := make([]codex.Subfield, 0, prealloc(bytes.Count(body, subfieldNeedle)))
 
 	// One MARC-8 decoder is reused across the record's transcoded fields, reset to
 	// the default working sets at the start of each (designations persist across a
@@ -242,16 +243,10 @@ func needsTranscode(b []byte) bool {
 	return false
 }
 
-// countByte counts occurrences of c in b without allocating.
-func countByte(b []byte, c byte) int {
-	n := 0
-	for _, x := range b {
-		if x == c {
-			n++
-		}
-	}
-	return n
-}
+// subfieldNeedle is the single-byte needle for counting subfield delimiters via
+// bytes.Count (which dispatches to the SIMD bytealg.Count), hoisted to package
+// scope so the count does not allocate a one-byte slice per record.
+var subfieldNeedle = []byte{SubfieldDelimiter}
 
 // prealloc bounds a preallocation hint so a malformed record declaring a huge
 // directory cannot trigger an oversized allocation; beyond the cap the slices

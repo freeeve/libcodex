@@ -24,8 +24,8 @@ type charSet struct {
 	name   string
 	final  byte // ISO 2022 final byte identifying the set in an escape sequence
 	kind   charKind
-	homeG1 bool          // working set the LoC table codes belong to (false = G0/GL)
-	dec    map[byte]rune // kindSingle: MARC byte (in home range) -> rune
+	homeG1 bool       // working set the LoC table codes belong to (false = G0/GL)
+	dec    *[256]rune // kindSingle: MARC byte (in home range) -> rune; 0 = unmapped
 
 	encOnce sync.Once
 	enc     map[rune]byte // kindSingle: rune -> MARC byte (home range), built lazily
@@ -53,7 +53,18 @@ var (
 )
 
 func single(name string, final byte, homeG1 bool, dec map[byte]rune) *charSet {
-	return &charSet{name: name, final: final, kind: kindSingle, homeG1: homeG1, dec: dec}
+	return &charSet{name: name, final: final, kind: kindSingle, homeG1: homeG1, dec: densify(dec)}
+}
+
+// densify turns a sparse byte->rune decode map into a dense array indexed by the
+// MARC byte in its home range, so the hot decode path does one indexed load
+// instead of a hash probe. No mapped code point is U+0000, so 0 marks unmapped.
+func densify(m map[byte]rune) *[256]rune {
+	var a [256]rune
+	for b, r := range m {
+		a[b] = r
+	}
+	return &a
 }
 
 // setByFinal returns the character set an escape sequence designates, given its
@@ -135,8 +146,8 @@ func (cs *charSet) lookup(b byte) (rune, bool) {
 	} else {
 		b &^= 0x80
 	}
-	r, ok := cs.dec[b]
-	return r, ok
+	r := cs.dec[b]
+	return r, r != 0
 }
 
 // encByte returns the MARC byte for rune r in a single-byte set, building the
@@ -144,16 +155,14 @@ func (cs *charSet) lookup(b byte) (rune, bool) {
 // wins, so encoding is deterministic.
 func (cs *charSet) encByte(r rune) (byte, bool) {
 	cs.encOnce.Do(func() {
-		cs.enc = make(map[rune]byte, len(cs.dec))
-		keys := make([]int, 0, len(cs.dec))
-		for b := range cs.dec {
-			keys = append(keys, int(b))
-		}
-		sort.Ints(keys)
-		for _, k := range keys {
-			rr := cs.dec[byte(k)]
-			if _, ok := cs.enc[rr]; !ok {
-				cs.enc[rr] = byte(k)
+		cs.enc = make(map[rune]byte, 128)
+		// Scan bytes in ascending order so the lowest MARC byte wins for a rune
+		// reachable from several, keeping encoding deterministic.
+		for b := range 256 {
+			if rr := cs.dec[byte(b)]; rr != 0 {
+				if _, ok := cs.enc[rr]; !ok {
+					cs.enc[rr] = byte(b)
+				}
 			}
 		}
 	})

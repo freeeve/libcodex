@@ -152,19 +152,25 @@ func EncodeInto(dst []byte, r *codex.Record) ([]byte, error) {
 	writeLeader(leader[:], r.Leader(), total, base)
 	dst = append(dst, leader[:]...)
 
-	start := 0
+	// Reserve the directory region in place, then fill each entry while appending
+	// its field data after the region: appendField's byte delta is the field
+	// length, so the pre-pass computation is not repeated. The reslice stays within
+	// the capacity slices.Grow reserved, so this adds no allocation.
+	dirAt := len(dst)
+	dst = dst[:dirAt+len(fields)*dirEntryLen+1]
+
+	start, di := 0, dirAt
 	for _, f := range fields {
-		flen := fieldLen(f)
-		dst = append(dst, f.Tag...)
-		dst = appendFixed(dst, flen, 4)
-		dst = appendFixed(dst, start, 5)
+		before := len(dst)
+		dst = appendField(dst, f)
+		flen := len(dst) - before
+		copy(dst[di:di+3], f.Tag)          // 3-byte tag
+		writeFixed(dst[di+3:di+7], flen)   // 4-digit length
+		writeFixed(dst[di+7:di+12], start) // 5-digit start position
+		di += dirEntryLen
 		start += flen
 	}
-	dst = append(dst, FieldTerminator) // directory terminator
-
-	for _, f := range fields {
-		dst = appendField(dst, f)
-	}
+	dst[di] = FieldTerminator // directory terminator, at dirAt + N*dirEntryLen
 	dst = append(dst, RecordTerminator)
 	return dst, nil
 }
@@ -235,16 +241,6 @@ func fieldLen(f codex.Field) int {
 		n += 2 + len(s.Value) // subfield delimiter + code + value
 	}
 	return n
-}
-
-// appendFixed appends n as a width-digit, zero-padded decimal to dst.
-func appendFixed(dst []byte, n, width int) []byte {
-	var tmp [20]byte
-	for i := width - 1; i >= 0; i-- {
-		tmp[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return append(dst, tmp[:width]...)
 }
 
 // appendField appends the serialized form of one field (including its trailing

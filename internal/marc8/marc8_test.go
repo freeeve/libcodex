@@ -195,13 +195,14 @@ func TestEverySetDecodes(t *testing.T) {
 		csBasicHebrew, csBasicCyrillic, csExtCyrillic, csBasicArabic,
 		csExtArabic, csBasicGreek, csGreekSymbols, csSubscripts, csSuperscripts,
 	} {
-		var b byte = 0xFF // lowest code in the set, for a deterministic pick
-		for k := range set.dec {
-			if k < b {
-				b = k
+		var b byte    // lowest mapped code in the set, for a deterministic pick
+		var want rune // its rune
+		for i := range 256 {
+			if r := set.dec[byte(i)]; r != 0 {
+				b, want = byte(i), r
+				break
 			}
 		}
-		want := set.dec[b]
 		inter := byte('(') // G0 sets use ESC ( final; G1 sets use ESC ) final
 		if set.homeG1 {
 			inter = ')'
@@ -301,5 +302,18 @@ func BenchmarkDecode(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = Decode(in)
+	}
+}
+
+// BenchmarkEncode covers the encode hot path; its alloc count is the guard that
+// Encode no longer materializes a []rune(s) copy of the input per call.
+func BenchmarkEncode(b *testing.B) {
+	in := "Beyoncé naïve café ōo Æ Ç cocktail recipes for the modern bar"
+	b.SetBytes(int64(len(in)))
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := Encode(in); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

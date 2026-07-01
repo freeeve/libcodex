@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // escape (0x1b) introduces a MARC-8 character-set designation sequence.
@@ -33,20 +34,40 @@ const escape = 0x1b
 // isCombining reports whether r is a Unicode combining mark. MARC-8 stores such
 // marks before their base character (the reverse of Unicode), so the decoder
 // buffers them and the encoder emits them ahead of the base, for every set.
+//
+// The decoder calls this on every output rune, so the common ASCII/Latin case is
+// short-circuited: no combining mark (category Mn/Mc/Me) exists below U+0300, the
+// start of the Combining Diacritical Marks block, so a cheap range test avoids the
+// costly unicode.In table scan for the overwhelming majority of characters.
 func isCombining(r rune) bool {
+	if r < 0x0300 {
+		return false
+	}
 	return unicode.In(r, unicode.Mn, unicode.Mc, unicode.Me)
+}
+
+// anselTable is the dense decode array for ANSEL, merging the spacing-graphic and
+// combining maps (their byte ranges do not overlap) so the hot decode path does a
+// single indexed load instead of two hash probes. A zero entry is an unmapped
+// byte -- no ANSEL byte maps to U+0000.
+var anselTable = buildAnselTable()
+
+func buildAnselTable() *[256]rune {
+	var a [256]rune
+	for b, r := range anselGraphic {
+		a[b] = r
+	}
+	for b, r := range anselCombining {
+		a[b] = r
+	}
+	return &a
 }
 
 // anselRune returns the rune for an ANSEL (Extended Latin) byte in its home (G1)
 // range, whether the byte denotes a spacing graphic or a combining mark.
 func anselRune(b byte) (rune, bool) {
-	if r, ok := anselGraphic[b]; ok {
-		return r, true
-	}
-	if r, ok := anselCombining[b]; ok {
-		return r, true
-	}
-	return 0, false
+	r := anselTable[b]
+	return r, r != 0
 }
 
 // anselGraphic maps ANSEL (Extended Latin, G1) spacing graphic bytes to their
@@ -175,8 +196,9 @@ func buildCompose() map[[2]rune]rune {
 // subfield, so a field is decoded with a single Decoder (create a new one per
 // field) and its subfields share the designation state.
 type Decoder struct {
-	g0, g1 *charSet
-	lossy  bool
+	g0, g1  *charSet
+	lossy   bool
+	pending []rune // reused combining-mark buffer, reset at the start of each Decode
 }
 
 // NewDecoder returns a Decoder initialized to the MARC-8 default working sets
@@ -205,26 +227,18 @@ func (d *Decoder) Reset() {
 func (d *Decoder) Decode(data []byte) string {
 	var b strings.Builder
 	b.Grow(len(data)) // Latin output is ~one byte per input byte; size up front
-	var pending []rune
-
-	flush := func(base rune) {
-		if len(pending) == 0 {
-			b.WriteRune(base)
-			return
-		}
-		composed, rest := base, pending
-		if c, ok := marc8Compose[[2]rune{base, pending[0]}]; ok {
-			composed, rest = c, pending[1:]
-		}
-		b.WriteRune(composed)
-		for _, m := range rest {
-			b.WriteRune(m)
-		}
-		pending = pending[:0]
-	}
+	d.pending = d.pending[:0]
 
 	for i := 0; i < len(data); {
 		c := data[i]
+		// Fast path for the overwhelmingly common case: a plain ASCII byte in the
+		// default G0 set with no combining mark buffered decodes to itself, so skip
+		// the per-byte decodeChar/isCombining/flush calls entirely.
+		if c < 0x80 && c != escape && d.g0 == csASCII && len(d.pending) == 0 {
+			b.WriteByte(c)
+			i++
+			continue
+		}
 		if c == escape {
 			i += d.interpretEscape(data[i:])
 			continue
@@ -238,16 +252,38 @@ func (d *Decoder) Decode(data []byte) string {
 			d.lossy = true
 		}
 		if isCombining(r) {
-			pending = append(pending, r)
+			d.pending = append(d.pending, r)
 		} else {
-			flush(r)
+			d.flush(&b, r)
 		}
 		i += n
 	}
-	for _, m := range pending {
+	for _, m := range d.pending {
 		b.WriteRune(m)
 	}
 	return b.String()
+}
+
+// flush writes base and any buffered combining marks, composing base with the
+// first mark to a precomposed code point when one exists, then clears the buffer.
+func (d *Decoder) flush(b *strings.Builder, base rune) {
+	if len(d.pending) == 0 {
+		if base < 0x80 { // ASCII is the common case; skip the UTF-8 encode path
+			b.WriteByte(byte(base))
+		} else {
+			b.WriteRune(base)
+		}
+		return
+	}
+	composed, rest := base, d.pending
+	if c, ok := marc8Compose[[2]rune{base, d.pending[0]}]; ok {
+		composed, rest = c, d.pending[1:]
+	}
+	b.WriteRune(composed)
+	for _, m := range rest {
+		b.WriteRune(m)
+	}
+	d.pending = d.pending[:0]
 }
 
 // decodeEACC decodes one EACC character (three bytes) from the front of data,
@@ -401,9 +437,10 @@ func (e *encoder) reset() {
 // so callers learn the value is not representable rather than producing mojibake.
 func Encode(s string) ([]byte, error) {
 	e := &encoder{out: make([]byte, 0, len(s)), g0: csASCII, g1: csANSEL}
-	runes := []rune(s)
-	for i := 0; i < len(runes); i++ {
-		if err := e.encodeRune(runes, &i, runes[i]); err != nil {
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		i += size // i now points just past the base rune, where any marks begin
+		if err := e.encodeRune(s, &i, r); err != nil {
 			return nil, err
 		}
 	}
@@ -414,8 +451,9 @@ func Encode(s string) ([]byte, error) {
 // encodeRune encodes one rune (and any combining marks that follow it, which
 // MARC-8 places before the base). It tries ASCII, then ANSEL spacing and
 // precomposed Latin, then a standalone ANSEL mark, then the single-byte non-Latin
-// sets, then the multibyte CJK set.
-func (e *encoder) encodeRune(runes []rune, i *int, r rune) error {
+// sets, then the multibyte CJK set. *i is the byte offset in s just past r, where
+// any following combining marks begin; emitMarks advances it past them.
+func (e *encoder) encodeRune(s string, i *int, r rune) error {
 	// A combining mark reached here has no preceding base (it is leading, or it
 	// follows another mark), so emit it standalone in its own set. It must NOT
 	// gather following marks: reordering marks among themselves would not round
@@ -436,14 +474,14 @@ func (e *encoder) encodeRune(runes []rune, i *int, r rune) error {
 		if r == escape || r == 0x1d || r == 0x1e || r == 0x1f {
 			return fmt.Errorf("marc8: cannot encode reserved control byte 0x%02X", r)
 		}
-		e.emitMarks(runes, i)
+		e.emitMarks(s, i)
 		e.designate(csASCII, false)
 		e.out = append(e.out, byte(r))
 		return nil
 	}
 
 	if b, ok := encGraphic[r]; ok { // ANSEL spacing graphic
-		e.emitMarks(runes, i)
+		e.emitMarks(s, i)
 		e.designate(csANSEL, true)
 		e.out = append(e.out, b)
 		return nil
@@ -451,19 +489,19 @@ func (e *encoder) encodeRune(runes []rune, i *int, r rune) error {
 	if pair, ok := encCompose[r]; ok { // precomposed Latin -> ANSEL mark + ASCII base
 		e.designate(csANSEL, true)
 		e.out = append(e.out, encCombining[pair[1]])
-		e.emitMarks(runes, i)
+		e.emitMarks(s, i)
 		e.designate(csASCII, false)
 		e.out = append(e.out, byte(pair[0]))
 		return nil
 	}
 	if set, b, ok := encodeSingle(r); ok { // Cyrillic, Greek, Arabic, Hebrew, sub/superscripts
-		e.emitMarks(runes, i)
+		e.emitMarks(s, i)
 		e.designate(set, set.homeG1)
 		e.out = append(e.out, b)
 		return nil
 	}
 	if code, ok := eaccEncode(r); ok { // multibyte CJK
-		e.emitMarks(runes, i)
+		e.emitMarks(s, i)
 		e.designate(csEACC, false)
 		e.out = append(e.out, byte(code>>16), byte(code>>8), byte(code))
 		return nil
@@ -471,18 +509,22 @@ func (e *encoder) encodeRune(runes []rune, i *int, r rune) error {
 	return fmt.Errorf("marc8: cannot encode %q (U+%04X)", r, r)
 }
 
-// emitMarks emits the run of combining marks following runes[*i], each in its own
-// character set, advancing *i past them. MARC-8 stores marks before the base, so
-// callers emit the base afterwards. A mark no set can encode is left in place.
-func (e *encoder) emitMarks(runes []rune, i *int) {
-	for *i+1 < len(runes) && isCombining(runes[*i+1]) {
-		set, b, ok := combiningByte(runes[*i+1])
+// emitMarks emits the run of combining marks at s[*i:], each in its own character
+// set, advancing *i past them. MARC-8 stores marks before the base, so callers
+// emit the base afterwards. A mark no set can encode is left in place.
+func (e *encoder) emitMarks(s string, i *int) {
+	for *i < len(s) {
+		r, size := utf8.DecodeRuneInString(s[*i:])
+		if !isCombining(r) {
+			return
+		}
+		set, b, ok := combiningByte(r)
 		if !ok {
 			return
 		}
 		e.designate(set, set.homeG1)
 		e.out = append(e.out, b)
-		*i++
+		*i += size
 	}
 }
 

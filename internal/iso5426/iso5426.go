@@ -15,9 +15,11 @@ package iso5426
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 // iso5426Graphic maps an ISO 5426 single graphic byte to its rune: the symbol
@@ -204,9 +206,7 @@ func buildEncode() {
 	})
 	encCompose = make(map[rune][2]byte, len(iso5426Compose))
 	encNFC = make(map[[2]rune]rune, len(decNFC))
-	for k, v := range decNFC {
-		encNFC[k] = v
-	}
+	maps.Copy(encNFC, decNFC)
 	for _, k := range keys {
 		composed := iso5426Compose[k]
 		if _, ok := encCompose[composed]; !ok {
@@ -241,21 +241,22 @@ func buildEncode() {
 func Encode(s string) ([]byte, error) {
 	encOnce.Do(buildEncode)
 	out := make([]byte, 0, len(s))
-	runes := []rune(s)
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		i += size // i now points just past r, where any following runes begin
 		// A combining mark with no preceding base. In ISO 5426 a mark applies to the
 		// FOLLOWING character, so if the next rune is a base they compose; otherwise
 		// the mark is emitted standalone (it must not gather, which would reorder
 		// marks among themselves and not round-trip).
 		if b, ok := encCombining[r]; ok {
-			if i+1 < len(runes) {
-				if c, ok := encNFC[[2]rune{runes[i+1], r}]; ok {
+			if i < len(s) {
+				next, nsize := utf8.DecodeRuneInString(s[i:])
+				if c, ok := encNFC[[2]rune{next, r}]; ok {
 					var err error
 					if out, err = encodeBase(out, c, nil); err != nil {
 						return nil, err
 					}
-					i++
+					i += nsize
 					continue
 				}
 			}
@@ -267,13 +268,14 @@ func Encode(s string) ([]byte, error) {
 		// decomposition mark (when it is a precomposed graphic) ahead of these
 		// gathered outer marks so the sequence decodes back in Unicode order.
 		var marks []byte
-		for i+1 < len(runes) {
-			b, ok := encCombining[runes[i+1]]
+		for i < len(s) {
+			next, nsize := utf8.DecodeRuneInString(s[i:])
+			b, ok := encCombining[next]
 			if !ok {
 				break
 			}
 			marks = append(marks, b)
-			i++
+			i += nsize
 		}
 		var err error
 		if out, err = encodeBase(out, r, marks); err != nil {
