@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"strconv"
 )
 
 // RecordReader reads MARC records one at a time from an underlying stream. Each
@@ -231,13 +230,21 @@ func (l Leader) byteAt(i int) byte {
 	return l[i]
 }
 
+// numAt parses leader bytes [start:end] as an unsigned decimal number, returning
+// 0 if the range is out of bounds or any byte is not an ASCII digit. It rejects
+// signs and whitespace (unlike strconv.Atoi) so a malformed leader can never
+// yield a negative length, and allocates nothing.
 func (l Leader) numAt(start, end int) int {
-	if end > len(l) {
+	if start < 0 || end > len(l) || start >= end {
 		return 0
 	}
-	n, err := strconv.Atoi(string(l[start:end]))
-	if err != nil {
-		return 0
+	n := 0
+	for i := start; i < end; i++ {
+		c := l[i]
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + int(c-'0')
 	}
 	return n
 }
@@ -277,7 +284,11 @@ func (r *Record) Encoding() byte {
 	return r.leader.Encoding()
 }
 
-// Fields returns all fields in record order.
+// Fields returns all fields in record order. The result is a live view of the
+// record's internal slice: it is valid to read until the next mutating call
+// (AddField, RemoveFields, ReplaceField, InsertField), which may reorder,
+// overwrite, or reallocate the backing array. Retain it across a mutation only
+// after copying.
 func (r *Record) Fields() []Field {
 	return r.fields
 }
@@ -289,6 +300,8 @@ func (r *Record) AddField(f Field) *Record {
 }
 
 // RemoveFields removes every field with the given tag and returns the record.
+// It compacts the field slice in place; the dropped tail is cleared so removed
+// fields are not retained for the lifetime of the backing array.
 func (r *Record) RemoveFields(tag string) *Record {
 	kept := r.fields[:0]
 	for _, f := range r.fields {
@@ -296,6 +309,7 @@ func (r *Record) RemoveFields(tag string) *Record {
 			kept = append(kept, f)
 		}
 	}
+	clear(r.fields[len(kept):])
 	r.fields = kept
 	return r
 }
@@ -387,9 +401,12 @@ func (r *Record) SubfieldValues(tag string, code byte) []string {
 }
 
 // Validate reports the first structural problem with the record: a leader that
-// is not 24 bytes, a field tag that is not 3 bytes, or a data field with no
-// subfields. It returns nil when the record is structurally well-formed. It does
-// not check tag semantics, indicator values, or character encoding.
+// is not 24 bytes, a field tag that is not 3 bytes, a data field with no
+// subfields, a control field carrying subfields, or a data field carrying a raw
+// Value. The last two would be silently dropped by every codec on write, so a
+// record that fails them round-trips lossily. Validate returns nil when the
+// record is structurally well-formed. It does not check tag semantics, indicator
+// values, or character encoding.
 func (r *Record) Validate() error {
 	if len(r.leader) != leaderLen {
 		return fmt.Errorf("codex: leader is %d bytes, want %d", len(r.leader), leaderLen)
@@ -398,7 +415,16 @@ func (r *Record) Validate() error {
 		if len(f.Tag) != 3 {
 			return fmt.Errorf("codex: field tag %q is not 3 bytes", f.Tag)
 		}
-		if !f.IsControl() && len(f.Subfields) == 0 {
+		if f.IsControl() {
+			if len(f.Subfields) > 0 {
+				return fmt.Errorf("codex: control field %s has subfields", f.Tag)
+			}
+			continue
+		}
+		if f.Value != "" {
+			return fmt.Errorf("codex: data field %s has a raw value", f.Tag)
+		}
+		if len(f.Subfields) == 0 {
 			return fmt.Errorf("codex: data field %s has no subfields", f.Tag)
 		}
 	}

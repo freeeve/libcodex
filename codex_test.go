@@ -145,9 +145,11 @@ func TestValidate(t *testing.T) {
 		t.Errorf("valid record: %v", err)
 	}
 	cases := map[string]*Record{
-		"short leader":     NewRecord().SetLeader(Leader("short")).AddField(NewControlField("001", "a")),
-		"bad tag":          NewRecord().AddField(Field{Tag: "12", Value: "x"}),
-		"empty data field": NewRecord().AddField(Field{Tag: "245", Ind1: '1', Ind2: '0'}),
+		"short leader":           NewRecord().SetLeader(Leader("short")).AddField(NewControlField("001", "a")),
+		"bad tag":                NewRecord().AddField(Field{Tag: "12", Value: "x"}),
+		"empty data field":       NewRecord().AddField(Field{Tag: "245", Ind1: '1', Ind2: '0'}),
+		"control with subfields": NewRecord().AddField(Field{Tag: "001", Subfields: []Subfield{NewSubfield('a', "x")}}),
+		"data with raw value":    NewRecord().AddField(Field{Tag: "245", Value: "x"}),
 	}
 	for name, rec := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -156,6 +158,56 @@ func TestValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestFieldsSnapshotSurvivesRemove documents the safe pattern for retaining a
+// Fields view across a mutation: copy it first. The live view itself may change.
+func TestFieldsSnapshotSurvivesRemove(t *testing.T) {
+	rec := NewRecord().
+		AddField(NewDataField("245", '1', '0', NewSubfield('a', "Title"))).
+		AddField(NewDataField("650", ' ', '0', NewSubfield('a', "Subject")))
+	snapshot := append([]Field(nil), rec.Fields()...)
+
+	rec.RemoveFields("245")
+
+	if snapshot[0].Tag != "245" || snapshot[0].SubfieldValue('a') != "Title" {
+		t.Errorf("copied snapshot corrupted by RemoveFields: %+v", snapshot[0])
+	}
+	if got := len(rec.Fields()); got != 1 || rec.Fields()[0].Tag != "650" {
+		t.Errorf("record after remove = %d fields, want just 650", got)
+	}
+}
+
+// TestLeaderRejectsSignedNumbers ensures a leader with a sign in a numeric field
+// yields 0 rather than a negative (or magnitude) length, which strconv.Atoi would
+// have accepted.
+func TestLeaderRejectsSignedNumbers(t *testing.T) {
+	for _, prefix := range []string{"-1234", "+1234", "12 34", "abcde"} {
+		l := Leader(prefix + "nam a2200000   4500")
+		if got := l.RecordLength(); got != 0 {
+			t.Errorf("RecordLength(%q) = %d, want 0", prefix, got)
+		}
+	}
+	if got := Leader("12345nam a2200000   4500").RecordLength(); got != 12345 {
+		t.Errorf("RecordLength of valid leader = %d, want 12345", got)
+	}
+}
+
+// FuzzLeaderNumeric checks the leader numeric accessors never panic and never
+// return a negative value for arbitrary bytes.
+func FuzzLeaderNumeric(f *testing.F) {
+	f.Add("00000nam a2200000   4500")
+	f.Add("-1234nam a2200000   4500")
+	f.Add("short")
+	f.Fuzz(func(t *testing.T, s string) {
+		l := Leader(s)
+		if n := l.RecordLength(); n < 0 {
+			t.Errorf("RecordLength(%q) = %d, want >= 0", s, n)
+		}
+		if n := l.BaseAddress(); n < 0 {
+			t.Errorf("BaseAddress(%q) = %d, want >= 0", s, n)
+		}
+	})
 }
 
 // fakeReader yields recs in order; if failAt >= 0 it returns err at that index.

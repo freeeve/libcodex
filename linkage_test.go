@@ -53,6 +53,42 @@ func TestLinkParse(t *testing.T) {
 	}
 }
 
+// TestLinkStrictOccurrence rejects references whose occurrence is the wrong
+// length or non-numeric, which the old len < 6 check silently accepted (and
+// truncated).
+func TestLinkStrictOccurrence(t *testing.T) {
+	for _, bad := range []string{"880-012", "880-xy", "880-0", "88-01", "8800-01", "880/01"} {
+		if _, ok := NewDataField("245", '1', '0', NewSubfield('6', bad)).Link(); ok {
+			t.Errorf("Link(%q) = ok, want rejected", bad)
+		}
+	}
+	// A valid reference with trailing script/orientation segments still parses.
+	l, ok := NewDataField("245", '1', '0', NewSubfield('6', "880-01/(N/r")).Link()
+	if !ok || l.Occurrence != "01" || l.Script != "(N" || !l.RightToLeft {
+		t.Errorf("Link of valid reference = %+v (ok=%v)", l, ok)
+	}
+}
+
+// FuzzLink checks $6 parsing never panics and only accepts well-formed
+// references.
+func FuzzLink(f *testing.F) {
+	for _, s := range []string{"880-01", "880-01/(N/r", "bad", "880-012", "245-99/$1"} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		l, ok := NewDataField("245", '1', '0', NewSubfield('6', s)).Link()
+		if !ok {
+			return
+		}
+		if len(l.Tag) != 3 || len(l.Occurrence) != 2 {
+			t.Errorf("Link(%q) accepted with tag=%q occ=%q", s, l.Tag, l.Occurrence)
+		}
+		if !isDigit(l.Occurrence[0]) || !isDigit(l.Occurrence[1]) {
+			t.Errorf("Link(%q) accepted non-digit occurrence %q", s, l.Occurrence)
+		}
+	})
+}
+
 func TestScriptNames(t *testing.T) {
 	for code, want := range map[string]string{
 		"(3": "Arabic", "(B": "Latin", "$1": "CJK",
