@@ -15,6 +15,16 @@ const xmlNS = "http://www.w3.org/XML/1998/namespace"
 // recurse deep enough to overflow the goroutine stack.
 var errTooDeep = errors.New("rdf: RDF/XML nesting too deep")
 
+// maxLiteralBytes caps the character data accumulated into a single RDF/XML
+// literal. Without it, a streamed dump carrying one multi-gigabyte literal would
+// buffer wholly in memory, contradicting the streaming decoder's constant-memory
+// guarantee. It matches the Turtle streaming statement cap; no real literal is
+// anywhere near this large.
+const maxLiteralBytes = 1 << 24 // 16 MiB
+
+// errLiteralTooLarge aborts a parse whose single literal exceeds maxLiteralBytes.
+var errLiteralTooLarge = errors.New("rdf: RDF/XML literal too large")
+
 // ParseRDFXML parses an RDF/XML document into a Graph. It supports the striped
 // syntax real bibliographic RDF uses: typed node elements and rdf:Description,
 // rdf:about / rdf:nodeID / rdf:ID subjects, rdf:resource and rdf:nodeID object
@@ -199,6 +209,9 @@ func (p *xmlParser) parseProperty(subject Term, se xml.StartElement) error {
 			p.emit(subject, pred, child)
 			return p.skipTo(se.Name) // consume any trailing whitespace + EndElement
 		case xml.CharData:
+			if text.Len()+len(t) > maxLiteralBytes {
+				return errLiteralTooLarge
+			}
 			text.Write(t)
 		case xml.EndElement:
 			if t.Name == se.Name {

@@ -46,12 +46,36 @@ hot-path and diagnosability issues remain.
 
 ## Acceptance
 
-- [ ] The gadget-graph adversarial input either canonicalizes quickly
+- [x] The gadget-graph adversarial input either canonicalizes quickly
       (memoized) or fails fast with `ErrCanonComplexity`; W3C rdf-canon
-      suite still passes byte-for-byte.
-- [ ] Oversized RDF/XML literal in streaming mode returns an error at a
+      suite still passes byte-for-byte. (4.4 MB gadget graph: 112 ms.)
+- [x] Oversized RDF/XML literal in streaming mode returns an error at a
       documented cap; adversary tests added for both new cases.
-- [ ] Turtle parse errors report position.
-- [ ] Splitter allocation drop visible in `-benchmem` on the streaming
-      benchmarks.
-- [ ] turtle.go under 500 lines after split; one shared literal escaper.
+- [x] Turtle parse errors report position.
+- [x] Splitter allocation drop visible in `-benchmem` on the streaming
+      benchmark (1134 KB/op -> 831 KB/op).
+- [x] turtle.go under 500 lines after split; one shared literal escaper.
+
+## Resolution
+
+1. **Canon cost accounting + memoization.** `hashFirstDegree` is memoized on the
+   canonicalizer (a pure function of the immutable quad set), collapsing the
+   gadget-graph's repeated re-serializations; a `spend` helper charges the work
+   budget proportionally to issuer entries cloned per permutation, so a graph that
+   is cheap in permutations but expensive per permutation still fails fast. W3C
+   rdf-canon still passes byte-for-byte.
+2. **RDF/XML literal cap.** `parseProperty` caps accumulated CharData at
+   `maxLiteralBytes` (16 MiB, matching the Turtle statement cap) and returns
+   `errLiteralTooLarge`.
+3. **Adversary tests.** `TestCanonGadgetGraphMemoized` (200 symmetric 2-node
+   gadgets, 500 quads/node) and `TestStreamingRDFXMLLiteralBounded`.
+4. **Turtle error position.** `turtleError` now carries line/column and byte
+   offset (`lineCol`); the message locates the failure.
+5. **Splitter allocation.** `turtleSplitter.next` reads into `buf`'s spare
+   capacity (`slices.Grow`) instead of allocating a fresh 64 KiB chunk per read;
+   `BenchmarkStreamTurtle` shows 1134 KB/op -> 831 KB/op.
+6. **File split + escaper dedup.** `turtle.go` (846 lines) split into `turtle.go`
+   (grammar, 306), `turtle_lex.go` (term/lexical parsing, 350) and
+   `turtle_write.go` (serialization, 191). `canonAppendLiteral` and
+   `appendEscapedLiteral` now delegate to one `appendLiteralEscaped` parameterized
+   by a `literalEscape` config, so the two profiles cannot drift.

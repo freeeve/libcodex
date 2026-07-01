@@ -65,3 +65,25 @@ func BenchmarkDatasetNQuads(b *testing.B) {
 		_ = d.NQuads()
 	}
 }
+
+// BenchmarkStreamTurtle streams a Turtle document through the decoder, exercising
+// the statement splitter that reads into its buffer's spare capacity rather than
+// allocating a fresh chunk per read.
+func BenchmarkStreamTurtle(b *testing.B) {
+	data := ntDoc(5000) // N-Triples is valid Turtle
+	b.SetBytes(int64(len(data)))
+	b.ReportAllocs()
+	for b.Loop() {
+		d := NewDecoder(strings.NewReader(data), Turtle)
+		n := 0
+		for {
+			if _, err := d.Decode(); err != nil {
+				break
+			}
+			n++
+		}
+		if n != 5000 {
+			b.Fatalf("got %d triples", n)
+		}
+	}
+}

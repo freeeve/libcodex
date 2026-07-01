@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"iter"
+	"slices"
 	"strings"
 )
 
@@ -252,9 +253,14 @@ func (s *turtleSplitter) next() (string, error) {
 		if len(s.buf) > maxStatementBytes {
 			return "", errStatementTooLarge
 		}
-		chunk := make([]byte, 64*1024)
-		n, err := s.br.Read(chunk)
-		s.buf = append(s.buf, chunk[:n]...)
+		// Read directly into buf's spare capacity, growing it once when full, rather
+		// than allocating a fresh 64 KiB chunk and copying it in on every read.
+		const chunkSize = 64 * 1024
+		if cap(s.buf)-len(s.buf) < chunkSize {
+			s.buf = slices.Grow(s.buf, chunkSize)
+		}
+		n, err := s.br.Read(s.buf[len(s.buf):cap(s.buf)])
+		s.buf = s.buf[:len(s.buf)+n]
 		if err != nil {
 			if err == io.EOF {
 				if strings.TrimSpace(string(s.buf)) != "" {

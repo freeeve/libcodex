@@ -7,7 +7,6 @@ import (
 	"maps"
 	"sort"
 	"strconv"
-	"unicode/utf8"
 )
 
 // ErrCanonComplexity is returned by the canonicalization functions when a graph's
@@ -96,19 +95,32 @@ func (is *identifierIssuer) issue(id string) string {
 func (is *identifierIssuer) get(id string) (string, bool) { v, ok := is.issued[id]; return v, ok }
 
 type canonicalizer struct {
-	quads      []Quad
-	blankQuads map[string][]int // blank id -> indices of quads it occurs in (once per occurrence)
-	canonical  *identifierIssuer
-	work       int
+	quads       []Quad
+	blankQuads  map[string][]int // blank id -> indices of quads it occurs in (once per occurrence)
+	canonical   *identifierIssuer
+	firstDegree map[string]string // memoized first-degree hashes (a pure function of the quad set)
+	work        int
+}
+
+// spend charges n units of work against the complexity budget, panicking with
+// ErrCanonComplexity when the budget is exhausted. Charges are proportional to the
+// real cost of a step (quads serialized, issuer entries cloned) so an adversarial
+// graph that is cheap per permutation but expensive per step still fails fast.
+func (c *canonicalizer) spend(n int) {
+	c.work += n
+	if c.work > maxCanonWork {
+		panic(ErrCanonComplexity)
+	}
 }
 
 // canonicalize runs RDFC-1.0 over quads, returning the relabeled+sorted quads and
 // the canonical N-Quads bytes.
 func canonicalize(quads []Quad) (result []Quad, out []byte, err error) {
 	c := &canonicalizer{
-		quads:      quads,
-		blankQuads: map[string][]int{},
-		canonical:  newIssuer("c14n"),
+		quads:       quads,
+		blankQuads:  map[string][]int{},
+		canonical:   newIssuer("c14n"),
+		firstDegree: map[string]string{},
 	}
 	for i, q := range quads {
 		for _, t := range [3]Term{q.S, q.O, q.G} {
@@ -214,6 +226,9 @@ func (c *canonicalizer) serialize() ([]Quad, []byte, error) {
 // of its quads serialized with the node itself as _:a and any other blank as _:z,
 // sorted and hashed.
 func (c *canonicalizer) hashFirstDegree(bn string) string {
+	if h, ok := c.firstDegree[bn]; ok {
+		return h
+	}
 	term := func(b []byte, t Term) []byte {
 		if t.Kind == Blank {
 			if t.Value == bn {
@@ -232,7 +247,9 @@ func (c *canonicalizer) hashFirstDegree(bn string) string {
 	for _, l := range lines {
 		h.Write([]byte(l))
 	}
-	return hex.EncodeToString(h.Sum(nil))
+	sum := hex.EncodeToString(h.Sum(nil))
+	c.firstDegree[bn] = sum
+	return sum
 }
 
 // hashRelated hashes a related blank node's contribution from one quad position,
@@ -291,10 +308,11 @@ func (c *canonicalizer) hashNDegree(bn string, iss *identifierIssuer, depth int)
 		var chosenIssuer *identifierIssuer
 
 		permute(related[h], func(perm []string) {
-			c.work++
-			if c.work > maxCanonWork {
-				panic(ErrCanonComplexity)
-			}
+			// Each visit clones the issuer (O(|issued|)) and may serialize quads, so
+			// charge for that real cost rather than a flat unit per permutation --
+			// otherwise a graph cheap in permutations but expensive per permutation
+			// evades the budget.
+			c.spend(len(iss.issued) + 1)
 			issuerCopy := iss.clone()
 			var path []byte
 			var recursion []string
@@ -424,43 +442,9 @@ func canonAppendTerm(b []byte, t Term) []byte {
 
 // canonAppendLiteral escapes a literal's lexical form for canonical N-Quads: the
 // named escapes \b \t \n \f \r \" \\, and \u00XX (uppercase) for other C0 controls
-// and U+007F; all other bytes pass through as UTF-8.
+// and U+007F; all other bytes pass through as UTF-8. It shares the one literal
+// escaper with the N-Triples serializer (see appendLiteralEscaped), configured for
+// the RDFC-1.0 profile.
 func canonAppendLiteral(b []byte, s string) []byte {
-	for i := 0; i < len(s); {
-		c := s[i]
-		if c < 0x80 {
-			switch c {
-			case '\\':
-				b = append(b, '\\', '\\')
-			case '"':
-				b = append(b, '\\', '"')
-			case '\b':
-				b = append(b, '\\', 'b')
-			case '\t':
-				b = append(b, '\\', 't')
-			case '\n':
-				b = append(b, '\\', 'n')
-			case '\f':
-				b = append(b, '\\', 'f')
-			case '\r':
-				b = append(b, '\\', 'r')
-			default:
-				if c < 0x20 || c == 0x7f {
-					b = appendUnicodeEscape(b, rune(c))
-				} else {
-					b = append(b, c)
-				}
-			}
-			i++
-			continue
-		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == utf8.RuneError && size == 1 {
-			i++
-			continue
-		}
-		b = append(b, s[i:i+size]...)
-		i += size
-	}
-	return b
+	return appendLiteralEscaped(b, s, literalEscape{namedBF: true, escapeDEL: true})
 }

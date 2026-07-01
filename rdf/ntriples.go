@@ -222,28 +222,43 @@ func appendEscapedIRI(b []byte, s string) []byte {
 	return append(b, s[start:]...)
 }
 
-// appendEscapedLiteral escapes a literal's lexical form for Turtle/N-Triples.
-func appendEscapedLiteral(b []byte, s string) []byte {
+// literalEscape parameterizes appendLiteralEscaped for the two output profiles
+// that share its body. The N-Triples/Turtle serializer uses the zero value; the
+// canonical N-Quads form additionally emits \b and \f as named escapes and escapes
+// U+007F, as RDFC-1.0 requires.
+type literalEscape struct {
+	namedBF   bool // emit \b and \f as named escapes (else the \u00XX control rule)
+	escapeDEL bool // escape U+007F (DEL) as \u007F rather than passing it through
+}
+
+// appendLiteralEscaped escapes a literal's lexical form per cfg: always the named
+// escapes \\ \" \n \r \t and \uXXXX for C0 controls, with \b \f and U+007F handled
+// per cfg; valid UTF-8 passes through and a lone invalid byte is dropped. It is the
+// single escaper both the N-Triples serializer and the canonicalizer call, so the
+// two cannot drift.
+func appendLiteralEscaped(b []byte, s string, cfg literalEscape) []byte {
 	for i := 0; i < len(s); {
 		c := s[i]
 		if c < 0x80 {
-			switch c {
-			case '\\':
+			switch {
+			case c == '\\':
 				b = append(b, '\\', '\\')
-			case '"':
+			case c == '"':
 				b = append(b, '\\', '"')
-			case '\n':
+			case c == '\n':
 				b = append(b, '\\', 'n')
-			case '\r':
+			case c == '\r':
 				b = append(b, '\\', 'r')
-			case '\t':
+			case c == '\t':
 				b = append(b, '\\', 't')
+			case c == '\b' && cfg.namedBF:
+				b = append(b, '\\', 'b')
+			case c == '\f' && cfg.namedBF:
+				b = append(b, '\\', 'f')
+			case c < 0x20 || (c == 0x7f && cfg.escapeDEL):
+				b = appendUnicodeEscape(b, rune(c))
 			default:
-				if c < 0x20 {
-					b = appendUnicodeEscape(b, rune(c))
-				} else {
-					b = append(b, c)
-				}
+				b = append(b, c)
 			}
 			i++
 			continue
@@ -257,6 +272,11 @@ func appendEscapedLiteral(b []byte, s string) []byte {
 		i += size
 	}
 	return b
+}
+
+// appendEscapedLiteral escapes a literal's lexical form for Turtle/N-Triples.
+func appendEscapedLiteral(b []byte, s string) []byte {
+	return appendLiteralEscaped(b, s, literalEscape{})
 }
 
 // blankNamer maps blank-node labels to fresh, always-valid identifiers (b1, b2, …)
