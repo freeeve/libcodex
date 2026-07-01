@@ -50,10 +50,8 @@ func TestExportConvertersCanonical(t *testing.T) {
 					t.Fatalf("write: %v", err)
 				}
 			}
-			if c, ok := w.(interface{ Close() error }); ok {
-				if err := c.Close(); err != nil {
-					t.Fatalf("close: %v", err)
-				}
+			if err := codex.Close(w); err != nil {
+				t.Fatalf("close: %v", err)
 			}
 			if out.Len() == 0 {
 				t.Fatal("no output")

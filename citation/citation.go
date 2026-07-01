@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 )
 
 // Entry is the bibliographic information extracted from a record, shared by the
@@ -44,30 +45,30 @@ func FromRecord(r *codex.Record) *Entry {
 	for _, f := range r.Fields() {
 		switch f.Tag {
 		case "245":
-			e.Title = joinSub(f, "ab", " ")
+			e.Title = crosswalk.JoinSub(f, "ab", " ")
 		case "100", "110", "111", "700", "710", "711":
-			if v := trimISBD(f.SubfieldValue('a')); v != "" {
+			if v := crosswalk.TrimISBD(f.SubfieldValue('a')); v != "" {
 				e.Authors = append(e.Authors, v)
 			}
 		case "250":
-			e.Edition = trimISBD(f.SubfieldValue('a'))
+			e.Edition = crosswalk.TrimISBD(f.SubfieldValue('a'))
 		case "260", "264":
 			if e.Place == "" {
-				e.Place = trimISBD(f.SubfieldValue('a'))
+				e.Place = crosswalk.TrimISBD(f.SubfieldValue('a'))
 			}
 			if e.Publisher == "" {
-				e.Publisher = trimISBD(f.SubfieldValue('b'))
+				e.Publisher = crosswalk.TrimISBD(f.SubfieldValue('b'))
 			}
 			if e.Date == "" {
-				e.Date = trimISBD(f.SubfieldValue('c'))
-				e.Year = year(e.Date)
+				e.Date = crosswalk.TrimISBD(f.SubfieldValue('c'))
+				e.Year = crosswalk.Year(e.Date)
 			}
 		case "020":
 			e.ISBN = appendValues(e.ISBN, f, 'a')
 		case "022":
 			e.ISSN = appendValues(e.ISSN, f, 'a')
 		case "600", "610", "611", "630", "650", "651", "653", "655":
-			if v := keyword(f); v != "" {
+			if v := crosswalk.Subject(f); v != "" {
 				e.Keywords = append(e.Keywords, v)
 			}
 		case "520":
@@ -80,7 +81,7 @@ func FromRecord(r *codex.Record) *Entry {
 	}
 	if e.Year == "" {
 		if c := r.ControlField("008"); len(c) >= 11 {
-			e.Year = year(c[7:11])
+			e.Year = crosswalk.Year(c[7:11])
 		}
 	}
 	if c := r.ControlField("008"); len(c) >= 38 {
@@ -121,60 +122,15 @@ func kind(l codex.Leader) (string, string) {
 	}
 }
 
-func joinSub(f codex.Field, codes, sep string) string {
-	var parts []string
-	for _, sf := range f.Subfields {
-		if strings.IndexByte(codes, sf.Code) >= 0 {
-			if v := trimISBD(sf.Value); v != "" {
-				parts = append(parts, v)
-			}
-		}
-	}
-	return strings.Join(parts, sep)
-}
-
-func keyword(f codex.Field) string {
-	var parts []string
-	for _, sf := range f.Subfields {
-		switch sf.Code {
-		case 'a', 'x', 'y', 'z', 'v':
-			if v := strings.TrimRight(sf.Value, " "); v != "" {
-				parts = append(parts, v)
-			}
-		}
-	}
-	return strings.Join(parts, "--")
-}
-
 func appendValues(dst []string, f codex.Field, code byte) []string {
 	for _, sf := range f.Subfields {
 		if sf.Code == code {
-			if v := trimISBD(sf.Value); v != "" {
+			if v := crosswalk.TrimISBD(sf.Value); v != "" {
 				dst = append(dst, v)
 			}
 		}
 	}
 	return dst
-}
-
-// year returns the first run of four digits in s, or "".
-func year(s string) string {
-	for i := 0; i+4 <= len(s); i++ {
-		if isDigit(s[i]) && isDigit(s[i+1]) && isDigit(s[i+2]) && isDigit(s[i+3]) {
-			return s[i : i+4]
-		}
-	}
-	return ""
-}
-
-func isDigit(b byte) bool { return b >= '0' && b <= '9' }
-
-func trimISBD(s string) string {
-	s = strings.TrimRight(s, " ")
-	if n := len(s); n > 0 && strings.IndexByte("/:;,", s[n-1]) >= 0 {
-		s = strings.TrimRight(s[:n-1], " ")
-	}
-	return s
 }
 
 // ---- RIS ----

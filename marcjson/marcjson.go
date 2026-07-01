@@ -477,19 +477,7 @@ func ReadFile(path string) ([]*codex.Record, error) {
 		return nil, err
 	}
 	defer f.Close()
-
-	r := NewReader(f)
-	var out []*codex.Record
-	for {
-		rec, err := r.Read()
-		if err == io.EOF {
-			return out, nil
-		}
-		if err != nil {
-			return out, err
-		}
-		out = append(out, rec)
-	}
+	return codex.ReadAll(NewReader(f))
 }
 
 // ---- writing ----
@@ -578,14 +566,7 @@ func WriteFile(path string, records []*codex.Record) error {
 	if err != nil {
 		return err
 	}
-	w := NewWriter(f)
-	for _, rec := range records {
-		if err := w.Write(rec); err != nil {
-			f.Close()
-			return err
-		}
-	}
-	if err := w.Close(); err != nil {
+	if err := codex.WriteAll(NewWriter(f), records); err != nil {
 		f.Close()
 		return err
 	}

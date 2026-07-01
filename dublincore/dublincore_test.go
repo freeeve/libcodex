@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 	"github.com/freeeve/libcodex/iso2709"
 )
 
@@ -172,7 +173,7 @@ func TestHelpers(t *testing.T) {
 			t.Errorf("dcType(%c) = %q, want %q", in, got, want)
 		}
 	}
-	if got := trimISBD("Title /"); got != "Title" {
+	if got := crosswalk.TrimISBD("Title /"); got != "Title" {
 		t.Errorf("trimISBD = %q", got)
 	}
 }
@@ -534,10 +535,8 @@ func TestGolden(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if c, ok := w.(interface{ Close() error }); ok {
-				if err := c.Close(); err != nil {
-					t.Fatal(err)
-				}
+			if err := codex.Close(w); err != nil {
+				t.Fatal(err)
 			}
 			path := filepath.Join("testdata", g.name)
 			if os.Getenv("UPDATE_GOLDEN") == "1" {

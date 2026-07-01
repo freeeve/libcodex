@@ -60,10 +60,8 @@ func encode(t *testing.T, newW func(io.Writer) codex.RecordWriter, recs []*codex
 			t.Fatalf("write: %v", err)
 		}
 	}
-	if c, ok := w.(interface{ Close() error }); ok {
-		if err := c.Close(); err != nil {
-			t.Fatalf("close: %v", err)
-		}
+	if err := codex.Close(w); err != nil {
+		t.Fatalf("close: %v", err)
 	}
 	return buf.Bytes()
 }
@@ -141,10 +139,8 @@ func TestConversionMatrix(t *testing.T) {
 				if err := codex.Convert(src.newR(bytes.NewReader(srcBytes)), dw); err != nil {
 					t.Fatalf("Convert: %v", err)
 				}
-				if c, ok := dw.(interface{ Close() error }); ok {
-					if err := c.Close(); err != nil {
-						t.Fatalf("close: %v", err)
-					}
+				if err := codex.Close(dw); err != nil {
+					t.Fatalf("close: %v", err)
 				}
 				got := decode(t, dst.newR, out.Bytes())
 				if !reflect.DeepEqual(canonical, got) {

@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 	"github.com/freeeve/libcodex/iso2709"
 )
 
@@ -165,11 +166,11 @@ func TestWriteFiles(t *testing.T) {
 }
 
 func TestHelpers(t *testing.T) {
-	if got := year("c1993, printed 1995"); got != "1993" {
+	if got := crosswalk.Year("c1993, printed 1995"); got != "1993" {
 		t.Errorf("year = %q", got)
 	}
-	if got := year("n.d."); got != "" {
-		t.Errorf("year(n.d.) = %q", got)
+	if got := crosswalk.Year("n.d."); got != "" {
+		t.Errorf("crosswalk.Year(n.d.) = %q", got)
 	}
 	if got := asciiKey("Müller-O'Brien"); got != "mllerobrien" {
 		t.Errorf("asciiKey = %q", got)
@@ -379,8 +380,8 @@ func TestGolden(t *testing.T) {
 // surname split.
 func TestCitationBoundaries(t *testing.T) {
 	// trimISBD strips a trailing '/', which is at index 0 of the separator set.
-	if got := trimISBD("Title /"); got != "Title" {
-		t.Errorf("trimISBD(%q) = %q, want Title", "Title /", got)
+	if got := crosswalk.TrimISBD("Title /"); got != "Title" {
+		t.Errorf("crosswalk.TrimISBD(%q) = %q, want Title", "Title /", got)
 	}
 	// An 008 of exactly length 11 still yields the date-1 year (positions 7-10).
 	r11 := codex.NewRecord().AddField(codex.NewControlField("008", "      s2021"))

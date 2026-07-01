@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 	"github.com/freeeve/libcodex/iso2709"
 )
 
@@ -272,8 +273,8 @@ func TestHelpers(t *testing.T) {
 		"keep.":               "keep.",
 		"plain":               "plain",
 	} {
-		if got := trimISBD(in); got != want {
-			t.Errorf("trimISBD(%q) = %q, want %q", in, got, want)
+		if got := crosswalk.TrimISBD(in); got != want {
+			t.Errorf("crosswalk.TrimISBD(%q) = %q, want %q", in, got, want)
 		}
 	}
 	if got := typeOfResource('e'); got != "cartographic" {

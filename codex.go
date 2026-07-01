@@ -44,8 +44,7 @@ type RecordWriter interface {
 // error encountered (io.EOF is the normal end and is not returned). Because it
 // is written against the interfaces, it converts between any two formats. A
 // writer that buffers a wrapper (e.g. a marcxml <collection> or a marcjson
-// array) still needs the caller to call its Close method afterward to finalize
-// the output.
+// array) still needs finalizing afterward with [Close] to complete the output.
 func Convert(r RecordReader, w RecordWriter) error {
 	for {
 		rec, err := r.Read()
@@ -59,6 +58,46 @@ func Convert(r RecordReader, w RecordWriter) error {
 			return err
 		}
 	}
+}
+
+// Close finalizes w when it needs it: if w has a Close method (a writer that
+// buffers a wrapper, such as a marcxml <collection> or a JSON array), Close calls
+// it and returns its error; otherwise Close is a no-op returning nil. Use it
+// after [Convert] so a wrapper-buffering target completes its output.
+func Close(w RecordWriter) error {
+	if c, ok := w.(interface{ Close() error }); ok {
+		return c.Close()
+	}
+	return nil
+}
+
+// ReadAll reads every record from r until io.EOF and returns them in order, or
+// the records read so far together with the first error. It is the loop each
+// codec's ReadFile shares.
+func ReadAll(r RecordReader) ([]*Record, error) {
+	var out []*Record
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			return out, nil
+		}
+		if err != nil {
+			return out, err
+		}
+		out = append(out, rec)
+	}
+}
+
+// WriteAll writes every record to w and then finalizes it with [Close], so a
+// wrapper-buffering writer completes its output. It is the loop each codec's
+// WriteFile shares.
+func WriteAll(w RecordWriter, records []*Record) error {
+	for _, rec := range records {
+		if err := w.Write(rec); err != nil {
+			return err
+		}
+	}
+	return Close(w)
 }
 
 // All returns an iterator over the records produced by r, for use as

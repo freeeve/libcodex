@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 )
 
 // Namespace is the MODS version 3 namespace.
@@ -145,7 +146,7 @@ func FromRecord(r *codex.Record) *MODS {
 				m.TitleInfo = append(m.TitleInfo, t)
 			}
 		case "130", "240":
-			if v := trimISBD(f.SubfieldValue('a')); v != "" {
+			if v := crosswalk.TrimISBD(f.SubfieldValue('a')); v != "" {
 				m.TitleInfo = append(m.TitleInfo, TitleInfo{Type: "uniform", Title: v})
 			}
 		case "100", "700":
@@ -155,7 +156,7 @@ func FromRecord(r *codex.Record) *MODS {
 		case "111", "711":
 			appendName(&m.Name, f, "conference")
 		case "250":
-			origin.Edition = trimISBD(f.SubfieldValue('a'))
+			origin.Edition = crosswalk.TrimISBD(f.SubfieldValue('a'))
 		case "260", "264":
 			mergeOrigin(&origin, f)
 		case "300":
@@ -177,11 +178,11 @@ func FromRecord(r *codex.Record) *MODS {
 				m.Subject = append(m.Subject, s)
 			}
 		case "651":
-			if v := trimISBD(f.SubfieldValue('a')); v != "" {
+			if v := crosswalk.TrimISBD(f.SubfieldValue('a')); v != "" {
 				m.Subject = append(m.Subject, Subject{Authority: authority(f.Ind2), Geographic: []string{v}})
 			}
 		case "655":
-			if v := trimISBD(f.SubfieldValue('a')); v != "" {
+			if v := crosswalk.TrimISBD(f.SubfieldValue('a')); v != "" {
 				m.Subject = append(m.Subject, Subject{Authority: authority(f.Ind2), Genre: []string{v}})
 			}
 		case "600", "610", "611":
@@ -215,17 +216,17 @@ func FromRecord(r *codex.Record) *MODS {
 
 func titleFrom(f codex.Field) TitleInfo {
 	return TitleInfo{
-		Title:      trimISBD(f.SubfieldValue('a')),
-		SubTitle:   trimISBD(f.SubfieldValue('b')),
-		PartNumber: trimISBD(f.SubfieldValue('n')),
-		PartName:   trimISBD(f.SubfieldValue('p')),
+		Title:      crosswalk.TrimISBD(f.SubfieldValue('a')),
+		SubTitle:   crosswalk.TrimISBD(f.SubfieldValue('b')),
+		PartNumber: crosswalk.TrimISBD(f.SubfieldValue('n')),
+		PartName:   crosswalk.TrimISBD(f.SubfieldValue('p')),
 	}
 }
 
 func extentFrom(f codex.Field) string {
 	parts := make([]string, 0, 4)
 	for _, code := range []byte{'a', 'b', 'c', 'e'} {
-		if v := trimISBD(f.SubfieldValue(code)); v != "" {
+		if v := crosswalk.TrimISBD(f.SubfieldValue(code)); v != "" {
 			parts = append(parts, v)
 		}
 	}
@@ -233,14 +234,14 @@ func extentFrom(f codex.Field) string {
 }
 
 func mergeOrigin(o *OriginInfo, f codex.Field) {
-	if p := trimISBD(f.SubfieldValue('a')); p != "" {
+	if p := crosswalk.TrimISBD(f.SubfieldValue('a')); p != "" {
 		o.Place = append(o.Place, Place{PlaceTerm: PlaceTerm{Type: "text", Value: p}})
 	}
 	if o.Publisher == "" {
-		o.Publisher = trimISBD(f.SubfieldValue('b'))
+		o.Publisher = crosswalk.TrimISBD(f.SubfieldValue('b'))
 	}
 	if o.DateIssued == "" {
-		o.DateIssued = trimISBD(f.SubfieldValue('c'))
+		o.DateIssued = crosswalk.TrimISBD(f.SubfieldValue('c'))
 	}
 }
 
@@ -264,7 +265,7 @@ func topicSubject(f codex.Field) (Subject, bool) {
 func appendIDs(dst *[]Identifier, f codex.Field, code byte, idType string) {
 	for _, sf := range f.Subfields {
 		if sf.Code == code {
-			if v := trimISBD(sf.Value); v != "" {
+			if v := crosswalk.TrimISBD(sf.Value); v != "" {
 				*dst = append(*dst, Identifier{Type: idType, Value: v})
 			}
 		}
@@ -289,7 +290,7 @@ func appendName(dst *[]Name, f codex.Field, nameType string) {
 }
 
 func buildName(f codex.Field, nameType string) (Name, bool) {
-	a := trimISBD(f.SubfieldValue('a'))
+	a := crosswalk.TrimISBD(f.SubfieldValue('a'))
 	if a == "" {
 		return Name{}, false
 	}
@@ -301,7 +302,7 @@ func buildName(f codex.Field, nameType string) (Name, bool) {
 	if role == "" {
 		role = f.SubfieldValue('4')
 	}
-	if role = trimISBD(role); role != "" {
+	if role = crosswalk.TrimISBD(role); role != "" {
 		n.Role = &Role{RoleTerm: RoleTerm{Type: "text", Value: role}}
 	}
 	return n, true
@@ -385,14 +386,6 @@ func date008(r *codex.Record) string {
 }
 
 // trimISBD strips trailing whitespace and a single trailing ISBD separator.
-func trimISBD(s string) string {
-	s = strings.TrimRight(s, " ")
-	if n := len(s); n > 0 && strings.IndexByte("/:;,", s[n-1]) >= 0 {
-		s = strings.TrimRight(s[:n-1], " ")
-	}
-	return s
-}
-
 func appendNonEmpty(dst []string, v string) []string {
 	if v = strings.TrimRight(v, " "); v != "" {
 		return append(dst, v)

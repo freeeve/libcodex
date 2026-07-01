@@ -35,8 +35,8 @@ func TestXMLSchemaConformance(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if c, ok := w.(interface{ Close() error }); ok {
-			c.Close()
+		if err := codex.Close(w); err != nil {
+			t.Fatal(err)
 		}
 		return buf.Bytes()
 	}

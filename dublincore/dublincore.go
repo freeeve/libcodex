@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 )
 
 // Namespaces used by the oai_dc serialization.
@@ -61,20 +62,20 @@ func FromRecord(r *codex.Record) *DC {
 	for _, f := range r.Fields() {
 		switch f.Tag {
 		case "245":
-			dc.Title = appendValue(dc.Title, joinSub(f, "ab", " "))
+			dc.Title = appendValue(dc.Title, crosswalk.JoinSub(f, "ab", " "))
 		case "100", "110", "111":
-			dc.Creator = appendValue(dc.Creator, trimISBD(f.SubfieldValue('a')))
+			dc.Creator = appendValue(dc.Creator, crosswalk.TrimISBD(f.SubfieldValue('a')))
 		case "700", "710", "711":
-			dc.Contributor = appendValue(dc.Contributor, trimISBD(f.SubfieldValue('a')))
+			dc.Contributor = appendValue(dc.Contributor, crosswalk.TrimISBD(f.SubfieldValue('a')))
 		case "600", "610", "611", "630", "650", "651", "653", "655":
-			dc.Subject = appendValue(dc.Subject, subjectValue(f))
+			dc.Subject = appendValue(dc.Subject, crosswalk.Subject(f))
 		case "500", "505", "520", "521", "545", "550":
 			dc.Description = appendValue(dc.Description, f.SubfieldValue('a'))
 		case "260", "264":
-			dc.Publisher = appendValue(dc.Publisher, trimISBD(f.SubfieldValue('b')))
-			dc.Date = appendValue(dc.Date, trimISBD(f.SubfieldValue('c')))
+			dc.Publisher = appendValue(dc.Publisher, crosswalk.TrimISBD(f.SubfieldValue('b')))
+			dc.Date = appendValue(dc.Date, crosswalk.TrimISBD(f.SubfieldValue('c')))
 		case "300":
-			dc.Format = appendValue(dc.Format, joinSub(f, "ac", " "))
+			dc.Format = appendValue(dc.Format, crosswalk.JoinSub(f, "ac", " "))
 		case "020", "022", "024":
 			for _, v := range subfieldValues(f, 'a') {
 				dc.Identifier = appendValue(dc.Identifier, v)
@@ -103,36 +104,11 @@ func FromRecord(r *codex.Record) *DC {
 
 // ---- crosswalk helpers ----
 
-func joinSub(f codex.Field, codes, sep string) string {
-	var parts []string
-	for _, sf := range f.Subfields {
-		if strings.IndexByte(codes, sf.Code) >= 0 {
-			if v := trimISBD(sf.Value); v != "" {
-				parts = append(parts, v)
-			}
-		}
-	}
-	return strings.Join(parts, sep)
-}
-
-func subjectValue(f codex.Field) string {
-	var parts []string
-	for _, sf := range f.Subfields {
-		switch sf.Code {
-		case 'a', 'x', 'y', 'z', 'v':
-			if v := strings.TrimRight(sf.Value, " "); v != "" {
-				parts = append(parts, v)
-			}
-		}
-	}
-	return strings.Join(parts, "--")
-}
-
 func subfieldValues(f codex.Field, code byte) []string {
 	var out []string
 	for _, sf := range f.Subfields {
 		if sf.Code == code {
-			if v := trimISBD(sf.Value); v != "" {
+			if v := crosswalk.TrimISBD(sf.Value); v != "" {
 				out = append(out, v)
 			}
 		}
@@ -158,14 +134,6 @@ func dcType(recordType byte) string {
 	default:
 		return "Text"
 	}
-}
-
-func trimISBD(s string) string {
-	s = strings.TrimRight(s, " ")
-	if n := len(s); n > 0 && strings.IndexByte("/:;,", s[n-1]) >= 0 {
-		s = strings.TrimRight(s[:n-1], " ")
-	}
-	return s
 }
 
 func appendValue(dst []string, v string) []string {
@@ -272,56 +240,17 @@ func appendJSON(b []byte, dc *DC) []byte {
 			b = append(b, ',')
 		}
 		c = true
-		b = appendJSONString(b, e.name)
+		b = crosswalk.AppendJSONString(b, e.name)
 		b = append(b, ':', '[')
 		for i, v := range e.values {
 			if i > 0 {
 				b = append(b, ',')
 			}
-			b = appendJSONString(b, v)
+			b = crosswalk.AppendJSONString(b, v)
 		}
 		b = append(b, ']')
 	}
 	return append(b, '}')
-}
-
-const hexDigits = "0123456789abcdef"
-
-func appendJSONString(b []byte, s string) []byte {
-	b = append(b, '"')
-	for i := 0; i < len(s); {
-		c := s[i]
-		if c < 0x80 {
-			i++
-			switch c {
-			case '"':
-				b = append(b, '\\', '"')
-			case '\\':
-				b = append(b, '\\', '\\')
-			case '\n':
-				b = append(b, '\\', 'n')
-			case '\r':
-				b = append(b, '\\', 'r')
-			case '\t':
-				b = append(b, '\\', 't')
-			default:
-				if c < 0x20 {
-					b = append(b, '\\', 'u', '0', '0', hexDigits[c>>4], hexDigits[c&0xf])
-				} else {
-					b = append(b, c)
-				}
-			}
-			continue
-		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == utf8.RuneError && size == 1 {
-			i++ // drop an invalid UTF-8 byte
-			continue
-		}
-		b = append(b, s[i:i+size]...)
-		i += size
-	}
-	return append(b, '"')
 }
 
 // Encode converts a record to a standalone oai_dc XML document.

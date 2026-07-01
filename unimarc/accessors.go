@@ -4,12 +4,13 @@ import (
 	"strings"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 )
 
 // Title returns the title proper and other title information (UNIMARC 200 $a $e).
 func Title(r *codex.Record) string {
 	if f, ok := r.DataField("200"); ok {
-		return clean(joinSub(f, "ae", " "))
+		return clean(crosswalk.JoinSub(f, "ae", " "))
 	}
 	return ""
 }
@@ -83,7 +84,7 @@ func Subjects(r *codex.Record) []string {
 	var out []string
 	for _, tag := range []string{"600", "601", "602", "604", "605", "606", "607", "608"} {
 		for _, f := range r.DataFields(tag) {
-			if v := clean(joinSub(f, "axyz", "--")); v != "" {
+			if v := clean(crosswalk.JoinSub(f, "axyz", "--")); v != "" {
 				out = append(out, v)
 			}
 		}
@@ -105,16 +106,4 @@ func subValues(r *codex.Record, tag string, code byte) []string {
 		}
 	}
 	return out
-}
-
-func joinSub(f codex.Field, codes, sep string) string {
-	var parts []string
-	for _, s := range f.Subfields {
-		if strings.IndexByte(codes, s.Code) >= 0 {
-			if v := strings.TrimRight(s.Value, " "); v != "" {
-				parts = append(parts, v)
-			}
-		}
-	}
-	return strings.Join(parts, sep)
 }

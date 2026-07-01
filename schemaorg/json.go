@@ -4,9 +4,9 @@ import (
 	"errors"
 	"io"
 	"os"
-	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/internal/crosswalk"
 )
 
 // errWriteAfterClose is returned by Write once Close has run.
@@ -19,7 +19,7 @@ const contextOpen = `{"@context":"https://schema.org"`
 func appendBook(b []byte, bk *Book) []byte {
 	b = append(b, contextOpen...)
 	b = append(b, `,"@type":`...)
-	b = appendString(b, bk.Type)
+	b = crosswalk.AppendJSONString(b, bk.Type)
 	b = strProp(b, "name", bk.Name)
 	b = agentProp(b, "author", bk.Authors)
 	b = agentProp(b, "contributor", bk.Contributors)
@@ -45,7 +45,7 @@ func strProp(b []byte, name, value string) []byte {
 		return b
 	}
 	b = key(b, name)
-	return appendString(b, value)
+	return crosswalk.AppendJSONString(b, value)
 }
 
 // arrayProp appends a scalar for one value, a JSON array for several, or nothing
@@ -56,14 +56,14 @@ func arrayProp(b []byte, name string, values []string) []byte {
 	}
 	b = key(b, name)
 	if len(values) == 1 {
-		return appendString(b, values[0])
+		return crosswalk.AppendJSONString(b, values[0])
 	}
 	b = append(b, '[')
 	for i, v := range values {
 		if i > 0 {
 			b = append(b, ',')
 		}
-		b = appendString(b, v)
+		b = crosswalk.AppendJSONString(b, v)
 	}
 	return append(b, ']')
 }
@@ -90,9 +90,9 @@ func agentProp(b []byte, name string, agents []Agent) []byte {
 
 func appendAgentJSON(b []byte, a Agent) []byte {
 	b = append(b, `{"@type":`...)
-	b = appendString(b, a.Type)
+	b = crosswalk.AppendJSONString(b, a.Type)
 	b = append(b, `,"name":`...)
-	b = appendString(b, a.Name)
+	b = crosswalk.AppendJSONString(b, a.Name)
 	return append(b, '}')
 }
 
@@ -107,49 +107,8 @@ func orgProp(b []byte, name, value string) []byte {
 
 func key(b []byte, name string) []byte {
 	b = append(b, ',')
-	b = appendString(b, name)
+	b = crosswalk.AppendJSONString(b, name)
 	return append(b, ':')
-}
-
-const hexDigits = "0123456789abcdef"
-
-// appendString appends s as a quoted JSON string, escaping control and
-// markup-significant characters and dropping invalid UTF-8.
-func appendString(b []byte, s string) []byte {
-	b = append(b, '"')
-	for i := 0; i < len(s); {
-		c := s[i]
-		if c < 0x80 {
-			i++
-			switch c {
-			case '"':
-				b = append(b, '\\', '"')
-			case '\\':
-				b = append(b, '\\', '\\')
-			case '\n':
-				b = append(b, '\\', 'n')
-			case '\r':
-				b = append(b, '\\', 'r')
-			case '\t':
-				b = append(b, '\\', 't')
-			default:
-				if c < 0x20 {
-					b = append(b, '\\', 'u', '0', '0', hexDigits[c>>4], hexDigits[c&0xf])
-				} else {
-					b = append(b, c)
-				}
-			}
-			continue
-		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == utf8.RuneError && size == 1 {
-			i++ // drop an invalid UTF-8 byte
-			continue
-		}
-		b = append(b, s[i:i+size]...)
-		i += size
-	}
-	return append(b, '"')
 }
 
 // Encode converts a record to a standalone schema.org JSON-LD object.
