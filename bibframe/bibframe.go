@@ -143,7 +143,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	g := &BIBFRAME{}
 	g.Work.Class = workClass(r.Leader().RecordType())
 	var transcribed, uniform Title
-	prov := Provision{}
+	var provFields []codex.Field
 	var descConventions string
 	for _, f := range r.Fields() {
 		switch f.Tag {
@@ -168,7 +168,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 		case "250":
 			g.Instance.EditionStatement = trimISBD(f.SubfieldValue('a'))
 		case "260", "264":
-			mergeProvision(&prov, f)
+			provFields = append(provFields, f)
 		case "300":
 			if e := extent(f); e != "" {
 				g.Instance.Extent = append(g.Instance.Extent, e)
@@ -226,6 +226,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 		g.Instance.Titles = append(g.Instance.Titles, transcribed)
 	}
 
+	prov := provisionStatement(provFields)
 	if prov.Date == "" {
 		prov.Date = date008(r)
 	}
@@ -250,7 +251,7 @@ func formatMARC005(s string) string {
 	if len(s) < 14 {
 		return ""
 	}
-	for i := 0; i < 14; i++ {
+	for i := range 14 {
 		if s[i] < '0' || s[i] > '9' {
 			return ""
 		}
@@ -344,15 +345,44 @@ func subdivided(f codex.Field) string {
 	return strings.Join(parts, "--")
 }
 
-func mergeProvision(p *Provision, f codex.Field) {
-	if p.Place == "" {
-		p.Place = trimISBD(f.SubfieldValue('a'))
+// provisionStatement picks the single 260/264 field that best describes
+// publication and reads its place/publisher/date. A 264 publication statement
+// (2nd indicator '1') is preferred over a legacy 260, which is preferred over
+// the other 264 roles (production, distribution, manufacture); a 264 copyright
+// statement (2nd indicator '4') is never chosen, so its $c copyright date is not
+// emitted as a bf:date. Reading every subfield from one field also avoids mixing
+// one statement's place with another's date.
+func provisionStatement(fields []codex.Field) Provision {
+	var best *codex.Field
+	bestRank := 0
+	for i := range fields {
+		if r := publicationRank(fields[i]); r > bestRank {
+			bestRank, best = r, &fields[i]
+		}
 	}
-	if p.Publisher == "" {
-		p.Publisher = trimISBD(f.SubfieldValue('b'))
+	if best == nil {
+		return Provision{}
 	}
-	if p.Date == "" {
-		p.Date = cleanDate(f.SubfieldValue('c'))
+	return Provision{
+		Place:     trimISBD(best.SubfieldValue('a')),
+		Publisher: trimISBD(best.SubfieldValue('b')),
+		Date:      cleanDate(best.SubfieldValue('c')),
+	}
+}
+
+// publicationRank scores a 260/264 field as a source for the bf:Publication
+// node; the highest-scoring field wins and a zero score is never chosen.
+func publicationRank(f codex.Field) int {
+	if f.Tag == "260" {
+		return 2
+	}
+	switch f.Ind2 {
+	case '1': // publication
+		return 3
+	case '4': // copyright notice date -- not a publication statement
+		return 0
+	default: // production, distribution, manufacture, or unspecified
+		return 1
 	}
 }
 

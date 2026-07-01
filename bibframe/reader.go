@@ -116,11 +116,12 @@ const (
 	formatTurtle
 )
 
-// sniffFormat guesses the RDF serialization from the leading bytes: '{'/'[' is
-// JSON-LD; '@' or a PREFIX/BASE keyword is Turtle; a leading '<' is RDF/XML when
-// it opens an element (a name with no '/') or N-Triples/Turtle when it opens a
-// full <IRI>; the line-based remainder is treated as N-Triples (which the Turtle
-// grammar also subsumes).
+// sniffFormat guesses the RDF serialization from the leading bytes: '{' is
+// JSON-LD, and '[' is JSON-LD unless it opens a Turtle blank-node property list;
+// '@' or a PREFIX/BASE keyword is Turtle; a leading '<' is RDF/XML when it opens
+// an XML start tag and N-Triples/Turtle when it opens an <IRI> subject; the
+// line-based remainder is treated as N-Triples (which the Turtle grammar also
+// subsumes).
 func sniffFormat(data []byte) rdfFormat {
 	s := bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")) // optional UTF-8 BOM
 	for {
@@ -137,26 +138,41 @@ func sniffFormat(data []byte) rdfFormat {
 		return formatNTriples
 	}
 	switch s[0] {
-	case '{', '[':
+	case '{':
+		return formatJSONLD
+	case '[':
+		// '[' opens either a JSON-LD array (whose first element is a JSON value:
+		// an object, a string, or nothing for an empty array) or a Turtle
+		// blank-node property list, "[ a bf:Work ]", whose first token is a
+		// predicate: the 'a' keyword, a prefixed name, or an <IRI>. A letter,
+		// '_', ':' or '<' after the bracket means Turtle; anything else JSON-LD.
+		rest := bytes.TrimLeft(s[1:], " \t\r\n")
+		if len(rest) > 0 && (rest[0] == '<' || rest[0] == '_' || rest[0] == ':' ||
+			(rest[0] >= 'a' && rest[0] <= 'z') || (rest[0] >= 'A' && rest[0] <= 'Z')) {
+			return formatTurtle
+		}
 		return formatJSONLD
 	case '@':
 		return formatTurtle
 	case '<':
-		// Distinguish an XML element from an <IRI>: a processing instruction or
-		// doctype, or an attribute (`=`) inside the first tag, means RDF/XML; a
-		// fragment or path ('#' or '/') with no attribute means an N-Triples/Turtle
-		// IRI. (Check `=` before '/', since an xmlns value contains '/'.)
+		// Distinguish an XML start tag from a leading <IRI>. A processing
+		// instruction or doctype is RDF/XML. Otherwise inspect the first
+		// angle-bracketed token and what follows it: an attribute ('=') inside the
+		// token is an XML start tag (RDF/XML); a following subject-position term
+		// ('<', '_', or a quote) or a first token that is an absolute IRI (bearing
+		// a scheme ':', path '/', or fragment '#') is N-Triples/Turtle.
 		if bytes.HasPrefix(s, []byte("<?")) || bytes.HasPrefix(s, []byte("<!")) {
 			return formatRDFXML
 		}
 		inner := s[1:]
-		if i := bytes.IndexByte(inner, '>'); i >= 0 {
-			inner = inner[:i]
-		}
+		first, after, _ := bytes.Cut(inner, []byte{'>'})
+		rest := bytes.TrimLeft(after, " \t\r\n")
 		switch {
-		case bytes.IndexByte(inner, '=') >= 0:
+		case bytes.IndexByte(first, '=') >= 0:
 			return formatRDFXML
-		case bytes.IndexByte(inner, '#') >= 0 || bytes.IndexByte(inner, '/') >= 0:
+		case len(rest) > 0 && (rest[0] == '<' || rest[0] == '_' || rest[0] == '"'):
+			return formatNTriples
+		case bytes.IndexByte(first, '#') >= 0 || bytes.IndexByte(first, '/') >= 0 || bytes.IndexByte(first, ':') >= 0:
 			return formatNTriples
 		default:
 			return formatRDFXML // a bare element name
@@ -359,7 +375,8 @@ func headingField(tag, label string) codex.Field {
 	return codex.NewDataField(tag, ' ', '0', subs...)
 }
 
-// identifierFields reverses bf:identifiedBy into 020/022/024.
+// identifierFields reverses bf:identifiedBy into 020/022/024, restoring the
+// scheme ($2) from any bf:source node the forward crosswalk attached.
 func identifierFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
 	var fields []codex.Field
 	for _, id := range g.Objects(inst, pIdentifiedBy) {
@@ -367,21 +384,34 @@ func identifierFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
 		if value == "" {
 			continue
 		}
+		source := sourceLabel(g, id)
 		switch typeExcept(g, id, "") {
 		case "Isbn":
-			fields = append(fields, codex.NewDataField("020", ' ', ' ', codex.NewSubfield('a', value)))
+			fields = append(fields, identifierField("020", ' ', ' ', value, source))
 		case "Issn":
-			fields = append(fields, codex.NewDataField("022", ' ', ' ', codex.NewSubfield('a', value)))
+			fields = append(fields, identifierField("022", ' ', ' ', value, source))
 		case "Lccn":
 			fields = append(fields, codex.NewDataField("010", ' ', ' ', codex.NewSubfield('a', strings.TrimSpace(value))))
 		default:
-			fields = append(fields, codex.NewDataField("024", '8', ' ', codex.NewSubfield('a', value)))
+			fields = append(fields, identifierField("024", '8', ' ', value, source))
 		}
 	}
 	return fields
 }
 
-// classificationFields reverses bf:classification into 050/082.
+// identifierField builds an 020/022/024 from a value and an optional scheme,
+// which round-trips through subfield $2.
+func identifierField(tag string, ind1, ind2 byte, value, source string) codex.Field {
+	subs := []codex.Subfield{codex.NewSubfield('a', value)}
+	if source != "" {
+		subs = append(subs, codex.NewSubfield('2', source))
+	}
+	return codex.NewDataField(tag, ind1, ind2, subs...)
+}
+
+// classificationFields reverses bf:classification into 050/082, and a generic
+// bf:Classification (source-qualified, as 072 produces) back into 072 with its
+// scheme in $2.
 func classificationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 	var fields []codex.Field
 	for _, c := range g.Objects(work, pClassif) {
@@ -394,9 +424,24 @@ func classificationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 			fields = append(fields, codex.NewDataField("050", ' ', '4', codex.NewSubfield('a', value)))
 		case "ClassificationDdc":
 			fields = append(fields, codex.NewDataField("082", ' ', '4', codex.NewSubfield('a', value)))
+		case "Classification":
+			subs := []codex.Subfield{codex.NewSubfield('a', value)}
+			if src := sourceLabel(g, c); src != "" {
+				subs = append(subs, codex.NewSubfield('2', src))
+			}
+			fields = append(fields, codex.NewDataField("072", ' ', '7', subs...))
 		}
 	}
 	return fields
+}
+
+// sourceLabel returns the rdfs:label of a node's bf:source scheme node, or "".
+func sourceLabel(g *rdf.Graph, node rdf.Term) string {
+	src, ok := g.Object(node, pSource)
+	if !ok {
+		return ""
+	}
+	return literal(g, src, pLabel)
 }
 
 // languageField reverses bf:language into a single 041 with one $a per code.
@@ -566,13 +611,37 @@ func typeExcept(g *rdf.Graph, subject rdf.Term, exclude string) string {
 }
 
 // controlNumber recovers the 001 from a "#<id>Work" fragment IRI the forward
-// crosswalk mints; other IRI shapes yield no control number.
+// crosswalk mints; other IRI shapes yield no control number. A synthetic
+// stream-index base ("r" followed by digits), which resolveBase mints for a
+// record that had no 001, is not a real control number and yields "" -- so a
+// 001-less record does not decode to a fabricated 001 that would collide with
+// every other 001-less record.
 func controlNumber(iri string) string {
 	ln := rdf.LocalName(iri)
 	if strings.HasPrefix(iri, "#") && strings.HasSuffix(ln, "Work") {
-		return strings.TrimSuffix(ln, "Work")
+		id := strings.TrimSuffix(ln, "Work")
+		if isFallbackBase(id) {
+			return ""
+		}
+		return id
 	}
 	return ""
+}
+
+// isFallbackBase reports whether id has the shape resolveBase mints for a record
+// with no 001: the letter "r" followed by one or more digits. A genuine control
+// number of exactly that shape is indistinguishable and is treated as a fallback
+// base -- an accepted trade-off, since the alternative fabricates a shared 001.
+func isFallbackBase(id string) bool {
+	if len(id) < 2 || id[0] != 'r' {
+		return false
+	}
+	for i := 1; i < len(id); i++ {
+		if id[i] < '0' || id[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // leaderForClass returns a default leader with byte 6 (type of record) set to

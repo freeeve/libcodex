@@ -159,10 +159,21 @@ func (p *turtleParser) directive() bool {
 }
 
 // triples parses a subject and its predicate-object list, terminated by '.'.
+// A blankNodePropertyList subject ("[ ... ]") carries its predicate-object pairs
+// inside the brackets, so per the Turtle grammar the trailing predicate-object
+// list is optional there ("[ a :Work ] ." is a complete statement); every other
+// subject requires one.
 func (p *turtleParser) triples() bool {
+	p.ws()
+	bracketed := p.peek() == '['
 	subj, ok := p.subject()
 	if !ok {
 		return false
+	}
+	p.ws()
+	if bracketed && p.peek() == '.' {
+		p.pos++
+		return true
 	}
 	if !p.predicateObjectList(subj) {
 		return false

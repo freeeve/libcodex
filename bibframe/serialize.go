@@ -33,10 +33,11 @@ func EncodeNQuads(r *codex.Record, graph rdf.Term) ([]byte, error) {
 }
 
 // RecordGraph returns a per-record provenance graph term derived from the
-// record's control number (field 001), suitable as the graphFor argument to
-// NewNQuadsWriter so each record's statements land in their own named graph.
-func RecordGraph(r *codex.Record) rdf.Term {
-	return rdf.NewIRI("#" + resolveBase(r, 0))
+// record's control number (field 001), or from the stream index idx when the
+// record has no 001, so each record's statements land in a distinct named graph.
+// It is the default graphFor argument to NewNQuadsWriter.
+func RecordGraph(r *codex.Record, idx int) rdf.Term {
+	return rdf.NewIRI("#" + resolveBase(r, idx))
 }
 
 // NTriplesWriter writes a collection of records as N-Triples. Because N-Triples
@@ -45,6 +46,7 @@ func RecordGraph(r *codex.Record) rdf.Term {
 type NTriplesWriter struct {
 	w   io.Writer
 	enc rdf.Encoder // shared across records so blank-node labels stay unique
+	idx int         // stream position, so 001-less records get distinct bases
 	err error
 }
 
@@ -58,9 +60,10 @@ func (nw *NTriplesWriter) Write(r *codex.Record) error {
 	if nw.err != nil {
 		return nw.err
 	}
-	if _, err := nw.w.Write(nw.enc.AppendNTriples(nil, graphFromRecord(r))); err != nil {
+	if _, err := nw.w.Write(nw.enc.AppendNTriples(nil, graphFromRecordAt(r, nw.idx))); err != nil {
 		nw.err = err
 	}
+	nw.idx++
 	return nw.err
 }
 
@@ -72,6 +75,7 @@ func (nw *NTriplesWriter) Close() error { return nw.err }
 type TurtleWriter struct {
 	w       io.Writer
 	enc     rdf.Encoder // shared across records so blank-node labels stay unique
+	idx     int         // stream position, so 001-less records get distinct bases
 	started bool
 	err     error
 }
@@ -92,9 +96,10 @@ func (tw *TurtleWriter) Write(r *codex.Record) error {
 			return err
 		}
 	}
-	if _, err := tw.w.Write(tw.enc.AppendTurtle(nil, graphFromRecord(r), bibframePrefixes)); err != nil {
+	if _, err := tw.w.Write(tw.enc.AppendTurtle(nil, graphFromRecordAt(r, tw.idx), bibframePrefixes)); err != nil {
 		tw.err = err
 	}
+	tw.idx++
 	return tw.err
 }
 
@@ -107,17 +112,19 @@ func (tw *TurtleWriter) Close() error { return tw.err }
 // number their blanks from scratch would collide and merge in the output.
 type NQuadsWriter struct {
 	w        io.Writer
-	graphFor func(*codex.Record) rdf.Term
+	graphFor func(*codex.Record, int) rdf.Term
 	enc      rdf.Encoder
+	idx      int // stream position, passed to graphFor and the node base
 	err      error
 }
 
-// NewNQuadsWriter returns an NQuadsWriter over w. graphFor maps each record to
-// its provenance graph term; a nil graphFor (or one returning a zero-value term)
-// writes the default graph, equivalent to N-Triples. It implements
-// codex.RecordWriter, so it works as a codex.Convert target. Pass RecordGraph
-// for a per-record named graph keyed on the control number.
-func NewNQuadsWriter(w io.Writer, graphFor func(*codex.Record) rdf.Term) *NQuadsWriter {
+// NewNQuadsWriter returns an NQuadsWriter over w. graphFor maps each record (and
+// its zero-based stream index) to its provenance graph term; a nil graphFor (or
+// one returning a zero-value term) writes the default graph, equivalent to
+// N-Triples. It implements codex.RecordWriter, so it works as a codex.Convert
+// target. Pass RecordGraph for a per-record named graph keyed on the control
+// number, or the stream index when the record has no 001.
+func NewNQuadsWriter(w io.Writer, graphFor func(*codex.Record, int) rdf.Term) *NQuadsWriter {
 	return &NQuadsWriter{w: w, graphFor: graphFor}
 }
 
@@ -128,11 +135,12 @@ func (nw *NQuadsWriter) Write(r *codex.Record) error {
 	}
 	var g rdf.Term
 	if nw.graphFor != nil {
-		g = nw.graphFor(r)
+		g = nw.graphFor(r, nw.idx)
 	}
-	if _, err := nw.w.Write(nw.enc.AppendNQuads(nil, graphFromRecord(r), g)); err != nil {
+	if _, err := nw.w.Write(nw.enc.AppendNQuads(nil, graphFromRecordAt(r, nw.idx), g)); err != nil {
 		nw.err = err
 	}
+	nw.idx++
 	return nw.err
 }
 
@@ -151,6 +159,6 @@ func WriteTurtleFile(path string, records []*codex.Record) error {
 
 // WriteNQuadsFile writes every record to path as one N-Quads document, tagging
 // each record's statements with the graph term returned by graphFor.
-func WriteNQuadsFile(path string, records []*codex.Record, graphFor func(*codex.Record) rdf.Term) error {
+func WriteNQuadsFile(path string, records []*codex.Record, graphFor func(*codex.Record, int) rdf.Term) error {
 	return writeFile(path, records, func(w io.Writer) closableWriter { return NewNQuadsWriter(w, graphFor) })
 }

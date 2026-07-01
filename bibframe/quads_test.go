@@ -105,7 +105,7 @@ func TestNQuadsWriterProvenance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gA, gB := RecordGraph(recs[0]), RecordGraph(recs[1])
+	gA, gB := RecordGraph(recs[0], 0), RecordGraph(recs[1], 1)
 	if gA == gB {
 		t.Fatal("distinct records produced the same provenance graph")
 	}

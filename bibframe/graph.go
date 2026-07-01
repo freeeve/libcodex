@@ -11,7 +11,14 @@ import (
 // N-Triples and Turtle serializations. The triples mirror the RDF/XML and JSON-LD
 // encoders exactly, so every serialization denotes the same graph.
 func graphFromRecord(r *codex.Record) *rdf.Graph {
-	return graphFromBIBFRAME(FromRecord(r), resolveBase(r, 0))
+	return graphFromRecordAt(r, 0)
+}
+
+// graphFromRecordAt is graphFromRecord with an explicit stream index, so a
+// collection writer can give each 001-less record a distinct base ("r<idx>")
+// rather than colliding on "r0".
+func graphFromRecordAt(r *codex.Record, idx int) *rdf.Graph {
+	return graphFromBIBFRAME(FromRecord(r), resolveBase(r, idx))
 }
 
 func graphFromBIBFRAME(bib *BIBFRAME, base string) *rdf.Graph {

@@ -53,11 +53,31 @@ because their sample records don't exercise the feature.
 
 ## Acceptance
 
-- [ ] Streaming two 001-less records yields disjoint Work/Instance IRIs in
+- [x] Streaming two 001-less records yields disjoint Work/Instance IRIs in
       N-Triples/Turtle/N-Quads and distinct named graphs from
       `RecordGraph`; regression test without 001s.
-- [ ] `Decode(Encode(r))` preserves 020/022/024 `$2` and 072 fields;
+- [x] `Decode(Encode(r))` preserves 020/022/024 `$2` and 072 fields;
       source round-trip tests added.
-- [ ] 001-less round trip does not invent a `001 r0` field.
-- [ ] `urn:`-subject N-Triples and `[`-leading Turtle decode correctly.
-- [ ] `264 _4` no longer emits bf:date on bf:Publication.
+- [x] 001-less round trip does not invent a `001 r0` field.
+- [x] `urn:`-subject N-Triples and `[`-leading Turtle decode correctly.
+- [x] `264 _4` no longer emits bf:date on bf:Publication.
+
+## Resolution
+
+- Threaded a per-writer stream index through the N-Triples/Turtle/N-Quads
+  collection writers (`graphFromRecordAt`), and made `RecordGraph` and the
+  `NQuadsWriter.graphFor` signature index-aware, so 001-less records no longer
+  collide on the `r0` base.
+- The reverse crosswalk now restores `$2` on 020/022/024 and maps a generic
+  `bf:Classification` back to 072 with its scheme in `$2` (`sourceLabel`).
+- `controlNumber` treats a synthetic `r<digits>` fallback base as "no 001"
+  (`isFallbackBase`), so 001-less records do not decode to a shared invented
+  control number.
+- `sniffFormat` distinguishes a `urn:`-subject N-Triples line and a `[`-leading
+  Turtle blank-node property list from RDF/XML and JSON-LD respectively.
+- Provision selection (`provisionStatement`/`publicationRank`) prefers a 264
+  publication statement, never selects a 264 `_4` copyright statement, and reads
+  every subfield from one field rather than mixing statements.
+- Supporting rdf fix: `turtleParser.triples` accepts a bare
+  blankNodePropertyList statement (`[ ... ] .`), valid Turtle the parser
+  previously rejected -- required for the `[`-leading Turtle acceptance.

@@ -137,3 +137,22 @@ func TestStreamTerminatorNoWhitespace(t *testing.T) {
 		t.Errorf("streamed %d triples, want 2", len(streamed))
 	}
 }
+
+// TestTurtleBareBlankPropertyList checks that a blankNodePropertyList used as a
+// statement subject with no trailing predicate-object list -- "[ a :C ] ." -- is
+// accepted, per the Turtle grammar where that predicate-object list is optional.
+func TestTurtleBareBlankPropertyList(t *testing.T) {
+	doc := "[ a <http://ex/Work> ; <http://ex/p> \"x\" ] .\n"
+	g, err := ParseTurtle([]byte(doc))
+	if err != nil {
+		t.Fatalf("ParseTurtle: %v", err)
+	}
+	if len(g.Triples) != 2 {
+		t.Fatalf("got %d triples, want 2: %+v", len(g.Triples), g.Triples)
+	}
+	// A trailing predicate-object list after the bracket is still accepted.
+	doc2 := "[ a <http://ex/Work> ] <http://ex/p> \"y\" .\n"
+	if g2, err := ParseTurtle([]byte(doc2)); err != nil || len(g2.Triples) != 2 {
+		t.Fatalf("with trailing p-o list: err=%v triples=%d", err, len(g2.Triples))
+	}
+}
