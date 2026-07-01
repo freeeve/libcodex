@@ -57,6 +57,90 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 	}
 }
 
+// TestAmpersandRoundTrip checks a value shaped like a numeric character reference
+// survives a round trip now that "&" is escaped, rather than being resolved away.
+func TestAmpersandRoundTrip(t *testing.T) {
+	const want = "AT&T and &#x24;5 &#38; more"
+	rec := codex.NewRecord().AddField(
+		codex.NewDataField("245", '1', '0', codex.NewSubfield('a', want)))
+	b, err := Encode(rec)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	got, err := Decode(b)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if v := got.SubfieldValue("245", 'a'); v != want {
+		t.Errorf("reference-shaped text corrupted on round trip: got %q, want %q", v, want)
+	}
+}
+
+// TestEncodeRejectsBadTag checks the tag is validated so a tag containing a line
+// break or the wrong length cannot inject or shift lines.
+func TestEncodeRejectsBadTag(t *testing.T) {
+	for _, tag := range []string{"9\n=999", "24", "2451", "=45", "2 5"} {
+		rec := codex.NewRecord().AddField(
+			codex.NewDataField(tag, '1', '0', codex.NewSubfield('a', "x")))
+		if _, err := Encode(rec); err == nil {
+			t.Errorf("Encode accepted invalid tag %q", tag)
+		}
+	}
+}
+
+// TestEncodeRejectsBackslashIndicator checks a literal backslash indicator, which
+// would decode back to a blank, is rejected rather than silently changed.
+func TestEncodeRejectsBackslashIndicator(t *testing.T) {
+	rec := codex.NewRecord().AddField(
+		codex.NewDataField("245", '\\', '0', codex.NewSubfield('a', "x")))
+	if _, err := Encode(rec); err == nil {
+		t.Error("Encode accepted a backslash indicator")
+	}
+}
+
+// TestDecodeRejectsMalformedLine checks a field line without the two-space
+// separator is reported rather than shifting indicators into the data.
+func TestDecodeRejectsMalformedLine(t *testing.T) {
+	if _, err := Decode([]byte("=245 10$aTitle\n")); err == nil {
+		t.Error("Decode accepted a line with a one-space separator")
+	}
+}
+
+// TestDecodeCharRefs checks a valid numeric character reference still decodes
+// (interop with MARCMaker) while a signed one is left literal.
+func TestDecodeCharRefs(t *testing.T) {
+	valid, err := Decode([]byte("=245  10$aval&#65;end\n"))
+	if err != nil {
+		t.Fatalf("Decode valid ref: %v", err)
+	}
+	if v := valid.SubfieldValue("245", 'a'); v != "valAend" {
+		t.Errorf("valid char ref = %q, want valAend", v)
+	}
+	signed, err := Decode([]byte("=245  10$aval&#+65;end\n"))
+	if err != nil {
+		t.Fatalf("Decode signed ref: %v", err)
+	}
+	if v := signed.SubfieldValue("245", 'a'); v != "val&#+65;end" {
+		t.Errorf("signed char ref should stay literal, got %q", v)
+	}
+}
+
+// TestWriterCloseSemantics checks the Writer reports Close and rejects a write
+// after Close, matching the marcxml and marcjson writers.
+func TestWriterCloseSemantics(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if err := w.Write(sample()); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := w.Write(sample()); err == nil {
+		t.Error("Write after Close should error")
+	}
+}
+
 func TestEncodeFormat(t *testing.T) {
 	b, err := Encode(sample())
 	if err != nil {
@@ -67,7 +151,7 @@ func TestEncodeFormat(t *testing.T) {
 		"=LDR  00000nam a2200000   4500\n",
 		"=001  ocm12345\n",
 		"=245  10$aStone butch blues :$ba novel /$cLeslie Feinberg.\n",
-		"=520  \\\\$aCost is {dollar}5, see {lcub}note{rcub} & more\n",
+		"=520  \\\\$aCost is {dollar}5, see {lcub}note{rcub} {amp} more\n",
 		"=650  \\0$aCafé—Lesbians\n",
 	} {
 		if !strings.Contains(out, want) {
@@ -315,6 +399,8 @@ func FuzzDecode(f *testing.F) {
 	f.Add([]byte("=001  x"))
 	f.Add([]byte("=245  10$aTitle$bSub"))
 	f.Add([]byte(""))
+	f.Add([]byte("=245  10$a&#x26;#x41;")) // reference-shaped text (was unstable)
+	f.Add([]byte("=245  10$aval&#+65;end"))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		rec, err := Decode(data)
 		if err != nil || rec == nil {

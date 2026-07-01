@@ -14,14 +14,15 @@
 //	=245  10$aStone butch blues :$ba novel /$cLeslie Feinberg.
 //	=650  \0$aLesbians
 //
-// The literal characters "$", "{" and "}" are written as the mnemonics
-// {dollar}, {lcub} and {rcub}; decoding also accepts numeric character
+// The literal characters "$", "{", "}" and "&" are written as the mnemonics
+// {dollar}, {lcub}, {rcub} and {amp}; decoding also accepts numeric character
 // references (&#xHHHH; and &#DDDD;). Values are otherwise UTF-8; the wider
 // MARC-8 mnemonic repertoire is out of scope.
 package mrk
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"iter"
@@ -68,6 +69,10 @@ func appendEscaped(dst []byte, s string) []byte {
 			dst = append(dst, "{lcub}"...)
 		case '}':
 			dst = append(dst, "{rcub}"...)
+		case '&':
+			// Escape "&" so a literal value shaped like a numeric character
+			// reference (e.g. "&#38;") is not resolved away on decode.
+			dst = append(dst, "{amp}"...)
 		default:
 			dst = append(dst, s[i])
 		}
@@ -101,6 +106,9 @@ func validate(r *codex.Record) error {
 		return fmt.Errorf("mrk: leader contains a line break")
 	}
 	for _, f := range r.Fields() {
+		if !validTag(f.Tag) {
+			return fmt.Errorf("mrk: field tag %q is not representable", f.Tag)
+		}
 		if f.IsControl() {
 			if hasNewline(f.Value) {
 				return fmt.Errorf("mrk: control field %s value contains a line break", f.Tag)
@@ -109,6 +117,11 @@ func validate(r *codex.Record) error {
 		}
 		if isBreak(f.Ind1) || isBreak(f.Ind2) {
 			return fmt.Errorf("mrk: field %s indicator contains a line break", f.Tag)
+		}
+		// A backslash indicator would decode back to a blank (the blank mnemonic),
+		// silently changing the data, so reject it as unrepresentable.
+		if f.Ind1 == '\\' || f.Ind2 == '\\' {
+			return fmt.Errorf("mrk: field %s backslash indicator is not representable", f.Tag)
 		}
 		for _, s := range f.Subfields {
 			if isBreak(s.Code) || s.Code == '$' {
@@ -120,6 +133,21 @@ func validate(r *codex.Record) error {
 		}
 	}
 	return nil
+}
+
+// validTag reports whether tag can be written as a .mrk line label: exactly three
+// printable ASCII bytes, none of them a space, control byte, or the "=" that
+// begins a line. A tag failing this would inject or shift lines on decode.
+func validTag(tag string) bool {
+	if len(tag) != 3 {
+		return false
+	}
+	for i := 0; i < len(tag); i++ {
+		if c := tag[i]; c <= 0x20 || c >= 0x7f || c == '=' {
+			return false
+		}
+	}
+	return true
 }
 
 func hasNewline(s string) bool {
@@ -158,6 +186,9 @@ func unescape(s string) string {
 		case strings.HasPrefix(s[i:], "{rcub}"):
 			b.WriteByte('}')
 			i += len("{rcub}")
+		case strings.HasPrefix(s[i:], "{amp}"):
+			b.WriteByte('&')
+			i += len("{amp}")
 		case strings.HasPrefix(s[i:], "&#"):
 			if r, n := charRef(s[i:]); n > 0 {
 				b.WriteRune(r)
@@ -187,6 +218,9 @@ func charRef(s string) (rune, int) {
 	}
 	start := j
 	for j < len(s) && s[j] != ';' {
+		if !isRefDigit(s[j], base) {
+			return 0, 0 // reject signs and stray characters (e.g. "&#+65;")
+		}
 		j++
 	}
 	if j >= len(s) || j == start {
@@ -196,7 +230,25 @@ func charRef(s string) (rune, int) {
 	if err != nil || n < 0 || n > 0x10FFFF {
 		return 0, 0
 	}
-	return rune(n), j + 1
+	r := rune(n)
+	// Reject a reference to a code point the line format cannot carry (a line
+	// break) or that is not a valid Unicode scalar (a surrogate).
+	if r == '\n' || r == '\r' || (r >= 0xD800 && r <= 0xDFFF) {
+		return 0, 0
+	}
+	return r, j + 1
+}
+
+// isRefDigit reports whether b is a valid digit for a base-10 or base-16 numeric
+// character reference, excluding signs.
+func isRefDigit(b byte, base int) bool {
+	if b >= '0' && b <= '9' {
+		return true
+	}
+	if base == 16 {
+		return (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F')
+	}
+	return false
 }
 
 // Reader reads MARC records from a .mrk stream one record at a time.
@@ -228,7 +280,9 @@ func (rd *Reader) Read() (*codex.Record, error) {
 			if rec == nil {
 				rec = codex.NewRecord()
 			}
-			parseLine(rec, text)
+			if perr := parseLine(rec, text); perr != nil {
+				return nil, perr
+			}
 		}
 		if err != nil {
 			if rec != nil {
@@ -239,18 +293,16 @@ func (rd *Reader) Read() (*codex.Record, error) {
 	}
 }
 
-// parseLine adds the field described by one "=" line to rec.
-func parseLine(rec *codex.Record, line string) {
-	if len(line) < 4 {
-		return
+// parseLine adds the field described by one "=" line to rec. A field line is
+// "=TAG  DATA": "=", a 3-character tag, exactly two spaces, then the data. It
+// returns an error if the line does not have that structure, so a misframed line
+// is reported rather than silently shifting indicators into the data.
+func parseLine(rec *codex.Record, line string) error {
+	if len(line) < 6 || line[0] != '=' || line[4] != ' ' || line[5] != ' ' {
+		return fmt.Errorf("mrk: malformed line %q", line)
 	}
 	tag := line[1:4]
-	data := ""
-	if len(line) > 6 {
-		data = line[6:]
-	} else if len(line) > 4 {
-		data = strings.TrimLeft(line[4:], " ")
-	}
+	data := line[6:]
 
 	switch {
 	case tag == "LDR":
@@ -276,6 +328,7 @@ func parseLine(rec *codex.Record, line string) {
 		}
 		rec.AddField(f)
 	}
+	return nil
 }
 
 // All returns an iterator over the remaining records, for use as
@@ -286,7 +339,7 @@ func (rd *Reader) All() iter.Seq2[*codex.Record, error] {
 
 // Decode parses a single record from a .mrk byte slice.
 func Decode(b []byte) (*codex.Record, error) {
-	rec, err := NewReader(strings.NewReader(string(b))).Read()
+	rec, err := NewReader(bytes.NewReader(b)).Read()
 	if err == io.EOF {
 		return nil, fmt.Errorf("mrk: no record found")
 	}
@@ -320,8 +373,10 @@ func ReadFile(path string) ([]*codex.Record, error) {
 
 // Writer writes records to a .mrk stream, separating them with a blank line.
 type Writer struct {
-	w   io.Writer
-	buf []byte // reused across writes
+	w      io.Writer
+	buf    []byte // reused across writes
+	closed bool
+	err    error
 }
 
 // compile-time assertion that Writer satisfies the core interface.
@@ -332,15 +387,35 @@ func NewWriter(w io.Writer) *Writer {
 	return &Writer{w: w}
 }
 
-// Write serializes one record and writes it, followed by a blank line.
+// Write serializes one record and writes it, followed by a blank line. After a
+// write error the Writer is sticky: every later call returns the same error.
 func (wr *Writer) Write(r *codex.Record) error {
+	if wr.err != nil {
+		return wr.err
+	}
+	if wr.closed {
+		return fmt.Errorf("mrk: Write after Close")
+	}
 	if err := validate(r); err != nil {
 		return err
 	}
 	wr.buf = appendRecord(wr.buf[:0], r)
 	wr.buf = append(wr.buf, '\n') // blank line separating records
-	_, err := wr.w.Write(wr.buf)
-	return err
+	if _, err := wr.w.Write(wr.buf); err != nil {
+		wr.err = err
+	}
+	return wr.err
+}
+
+// Close reports the first write error, if any, and rejects further writes. The
+// mrk stream needs no trailer, so Close flushes nothing; it exists for parity
+// with the marcxml and marcjson writers.
+func (wr *Writer) Close() error {
+	if wr.err != nil {
+		return wr.err
+	}
+	wr.closed = true
+	return nil
 }
 
 // WriteFile writes every record to the named file, creating it or truncating an
