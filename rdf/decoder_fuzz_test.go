@@ -130,9 +130,14 @@ func FuzzStreamRDFXML(f *testing.F) {
 }
 
 // FuzzStreamTurtle asserts the streaming Turtle decoder never panics or hangs.
-// (Its statement splitter can frame malformed input differently from the
-// whole-document parser, so no triple-for-triple differential is asserted; valid
-// inputs are covered by TestStreamingMatchesParse and the W3C suite.)
+// A triple-for-triple differential against ParseTurtle is not asserted over
+// arbitrary input: the byte-level statement splitter cannot always frame a "."
+// the same way the full grammar does (a "." before a letter is ambiguous between
+// a statement boundary and a prefixed local name like "ex:a.b"), and the
+// whole-document parser is lenient enough to emit empty-IRI triples for
+// degenerate input. The specific "<o>.<s2>" terminator fix and the general valid
+// case are covered by TestStreamTerminatorNoWhitespace and
+// TestStreamingMatchesParse.
 func FuzzStreamTurtle(f *testing.F) {
 	seedStream(f)
 	f.Fuzz(func(t *testing.T, data []byte) {

@@ -77,7 +77,13 @@ func readNTTerm(s string, a *arena) (Term, string, bool) {
 		if i < 0 {
 			i = len(s)
 		}
-		return NewBlank(s[2:i]), s[i:], true
+		// A trailing "." is the statement terminator, not part of the label
+		// (a label may contain "." but not end with one), so strip it.
+		end := i
+		for end > 2 && s[end-1] == '.' {
+			end--
+		}
+		return NewBlank(s[2:end]), s[end:], true
 	case strings.HasPrefix(s, `"`):
 		return readNTLiteral(s, a)
 	}

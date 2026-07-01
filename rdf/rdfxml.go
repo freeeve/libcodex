@@ -71,6 +71,13 @@ func (p *xmlParser) fresh() Term {
 	return NewBlank("b" + strconv.Itoa(p.blanks))
 }
 
+// docBlank wraps a document-supplied rdf:nodeID as a blank node, prefixing it so
+// it can never collide with a generated ("b"+n) label -- a document nodeID of
+// "b1" would otherwise merge with the first anonymous node.
+func docBlank(nodeID string) Term {
+	return NewBlank("u" + nodeID)
+}
+
 func iriOf(n xml.Name) string { return n.Space + n.Local }
 
 func attr(se xml.StartElement, space, local string) (string, bool) {
@@ -165,7 +172,7 @@ func (p *xmlParser) parseProperty(subject Term, se xml.StartElement) error {
 		return p.skipTo(se.Name)
 	}
 	if nid, ok := attr(se, NS, "nodeID"); ok {
-		p.emit(subject, pred, NewBlank(nid))
+		p.emit(subject, pred, docBlank(nid))
 		return p.skipTo(se.Name)
 	}
 	if pt, ok := attr(se, NS, "parseType"); ok && pt == "Resource" {
@@ -229,7 +236,7 @@ func (p *xmlParser) subjectOf(se xml.StartElement) Term {
 		return NewIRI(v)
 	}
 	if v, ok := attr(se, NS, "nodeID"); ok {
-		return NewBlank(v)
+		return docBlank(v)
 	}
 	if v, ok := attr(se, NS, "ID"); ok {
 		return NewIRI("#" + v)

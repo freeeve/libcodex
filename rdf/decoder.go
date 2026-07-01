@@ -295,7 +295,16 @@ func statementEnd(b []byte) int {
 			if i+1 >= len(b) {
 				return -1 // ambiguous at buffer end; read more (EOF handled by caller)
 			}
-			if isWS(b[i+1]) {
+			// A statement terminator is a "." not inside a token, and it need not be
+			// followed by whitespace: the next statement, comment, or directive can
+			// begin immediately. Only followers that can never occur inside a
+			// prefixed name or a number are treated as terminators here -- an IRI
+			// ("<"), comment ("#"), directive ("@"), blank-node list ("[") or
+			// collection ("(") subject. A "." followed by a letter, digit, or "_" is
+			// left to the whole-document parser: it is ambiguous between a statement
+			// boundary and a decimal or a prefixed local name such as "ex:a.b".
+			switch n := b[i+1]; {
+			case isWS(n), n == '#', n == '<', n == '@', n == '[', n == '(':
 				return i + 1
 			}
 			i++

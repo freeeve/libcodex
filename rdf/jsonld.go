@@ -133,13 +133,20 @@ func (p *jsonldParser) node(v any) Term {
 			}
 		}
 	}
-	for key, val := range obj {
-		if strings.HasPrefix(key, "@") {
-			continue // @id and @type handled; other keywords carry no statement here
+	// Iterate the predicate keys in sorted order so the emitted triples (and thus
+	// the blank-node numbering and serialized output) are deterministic across
+	// runs, rather than following Go's randomized map order.
+	keys := make([]string, 0, len(obj))
+	for key := range obj {
+		if !strings.HasPrefix(key, "@") { // @id and @type handled; other keywords carry no statement here
+			keys = append(keys, key)
 		}
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
 		pred := NewIRI(p.expand(key))
 		idRef := p.coerce[key] == "@id"
-		for _, o := range p.values(val, idRef) {
+		for _, o := range p.values(obj[key], idRef) {
 			p.g.Add(subject, pred, o)
 		}
 	}
@@ -164,7 +171,12 @@ func (p *jsonldParser) values(v any, idRef bool) []Term {
 	case bool:
 		return []Term{NewLiteral(strconv.FormatBool(t), "", "http://www.w3.org/2001/XMLSchema#boolean")}
 	case float64:
-		return []Term{NewLiteral(formatNumber(t), "", "http://www.w3.org/2001/XMLSchema#double")}
+		// A JSON number with no fractional part maps to xsd:integer; otherwise to
+		// xsd:double (the JSON-LD-to-RDF number conversion).
+		if t == float64(int64(t)) {
+			return []Term{NewLiteral(strconv.FormatInt(int64(t), 10), "", xsdInteger)}
+		}
+		return []Term{NewLiteral(formatNumber(t), "", xsdDouble)}
 	case map[string]any:
 		return p.objectValue(t)
 	}
@@ -218,7 +230,10 @@ func (p *jsonldParser) list(v any) Term {
 func (p *jsonldParser) subjectOf(obj map[string]any) Term {
 	if id, ok := obj["@id"].(string); ok {
 		if strings.HasPrefix(id, "_:") {
-			return NewBlank(id[2:])
+			// Prefix the document label so it can never collide with a generated
+			// ("j"+n) blank: an "@id":"_:j1" would otherwise merge with the first
+			// anonymous node.
+			return NewBlank("u" + id[2:])
 		}
 		return NewIRI(p.expand(id))
 	}

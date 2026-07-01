@@ -27,7 +27,7 @@ func TestRDFXMLConstructs(t *testing.T) {
 		t.Errorf("property attribute = %+v", tag)
 	}
 	ref, _ := g.Object(s, "http://ex/ref")
-	if !ref.IsBlank() || ref.Value != "n1" {
+	if !ref.IsBlank() || ref.Value != "un1" {
 		t.Errorf("nodeID object = %+v", ref)
 	}
 	num, _ := g.Object(s, "http://ex/num")
@@ -68,7 +68,7 @@ func TestJSONLDConstructs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewBlank("b0")
+	s := NewBlank("ub0")
 
 	if !g.HasType(s, "http://ex/Thing") {
 		t.Error("blank-node subject lost its type")

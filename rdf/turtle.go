@@ -344,11 +344,36 @@ func (p *turtleParser) iriRef() (string, bool) {
 	}
 	raw := unescapeRDF(p.s[p.pos+1 : p.pos+i])
 	p.pos += i + 1
-	if p.base != "" && !strings.Contains(raw, "://") && !strings.HasPrefix(raw, "#") {
-		// (only simple base joining is needed for the documents we read)
+	if p.base != "" && !hasScheme(raw) {
+		// Simple base joining for relative references. An absolute IRI -- any
+		// scheme, including non-hierarchical ones like urn:/mailto:/info: that
+		// carry no "://" -- is left untouched.
 		raw = p.base + raw
 	}
 	return raw, true
+}
+
+// hasScheme reports whether ref begins with an IRI scheme ("scheme:"): an ASCII
+// letter followed by letters, digits, "+", "-" or "." up to a ":", before any
+// "/", "?" or "#". Such a reference is absolute and must not be base-joined.
+func hasScheme(ref string) bool {
+	for i := 0; i < len(ref); i++ {
+		c := ref[i]
+		if c == ':' {
+			return i > 0
+		}
+		alpha := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+		if i == 0 {
+			if !alpha {
+				return false
+			}
+			continue
+		}
+		if !alpha && !(c >= '0' && c <= '9') && c != '+' && c != '-' && c != '.' {
+			return false
+		}
+	}
+	return false
 }
 
 func (p *turtleParser) blankLabel() (Term, bool) {
@@ -507,15 +532,20 @@ func (p *turtleParser) number() (Term, bool) {
 		p.pos++
 	}
 	hasDot, hasExp := false, false
+	digits, expDigits := 0, 0
 	for p.pos < len(p.s) {
 		c := p.s[p.pos]
 		switch {
 		case c >= '0' && c <= '9':
+			digits++
+			if hasExp {
+				expDigits++
+			}
 			p.pos++
 		case c == '.' && !hasDot && !hasExp && p.digitNext():
 			hasDot = true
 			p.pos++
-		case (c == 'e' || c == 'E') && !hasExp:
+		case (c == 'e' || c == 'E') && !hasExp && digits > 0:
 			hasExp = true
 			p.pos++
 			if c2 := p.peek(); c2 == '+' || c2 == '-' {
@@ -526,7 +556,10 @@ func (p *turtleParser) number() (Term, bool) {
 		}
 	}
 done:
-	if p.pos == start {
+	// Require at least one digit overall, and (for a number with an exponent) at
+	// least one digit after the e/E, so a bare sign or "1e" is rejected.
+	if digits == 0 || (hasExp && expDigits == 0) {
+		p.pos = start
 		return Term{}, false
 	}
 	dt := xsdInteger
