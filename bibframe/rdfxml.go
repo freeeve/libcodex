@@ -71,7 +71,32 @@ func appendInstanceXML(b []byte, g *BIBFRAME, base string) []byte {
 	for _, u := range g.Instance.ElectronicLocator {
 		b = resourceRef(b, "    ", "bf:electronicLocator", u)
 	}
+	b = appendAdminMetadataXML(b, g.Instance.Admin)
 	return append(b, "  </bf:Instance>\n"...)
+}
+
+// appendAdminMetadataXML renders the bf:AdminMetadata node, mirroring the graph
+// builder's adminMetadata triples.
+func appendAdminMetadataXML(b []byte, am *AdminMetadata) []byte {
+	if am == nil {
+		return b
+	}
+	b = append(b, "    <bf:adminMetadata>\n      <bf:AdminMetadata>\n"...)
+	b = append(b, "        <bf:generationProcess>\n          <bf:GenerationProcess>\n            <rdfs:label>"...)
+	b = appendXMLText(b, generatorLabel)
+	b = append(b, "</rdfs:label>\n          </bf:GenerationProcess>\n        </bf:generationProcess>\n"...)
+	if am.ChangeDate != "" {
+		b = leafXML(b, "        ", "bf:changeDate", am.ChangeDate)
+	}
+	if am.DescriptionConventions != "" {
+		b = leafXML(b, "        ", "bf:descriptionConventions", am.DescriptionConventions)
+	}
+	if am.ControlNumber != "" {
+		b = append(b, "        <bf:identifiedBy>\n          <bf:Local>\n            <rdf:value>"...)
+		b = appendXMLText(b, am.ControlNumber)
+		b = append(b, "</rdf:value>\n          </bf:Local>\n        </bf:identifiedBy>\n"...)
+	}
+	return append(b, "      </bf:AdminMetadata>\n    </bf:adminMetadata>\n"...)
 }
 
 // ---- node fragments ----

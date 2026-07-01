@@ -19,6 +19,11 @@ import (
 // graph, so order-independence is the right notion of equivalence for the
 // reverse-crosswalk round-trip.
 func normalize(g *BIBFRAME) *BIBFRAME {
+	// AdminMetadata is provenance about the conversion (generation process, the
+	// source's control number and change date), regenerated on each encode and
+	// deliberately not reverse-crosswalked to MARC, so it is not part of the
+	// bibliographic crosswalk this stability check covers.
+	g.Instance.Admin = nil
 	sort.Slice(g.Work.Titles, func(i, j int) bool { return titleKey(g.Work.Titles[i]) < titleKey(g.Work.Titles[j]) })
 	sort.Slice(g.Instance.Titles, func(i, j int) bool { return titleKey(g.Instance.Titles[i]) < titleKey(g.Instance.Titles[j]) })
 	sort.Slice(g.Work.Contributions, func(i, j int) bool { return contKey(g.Work.Contributions[i]) < contKey(g.Work.Contributions[j]) })

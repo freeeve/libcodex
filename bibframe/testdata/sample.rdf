@@ -147,5 +147,19 @@
       </bf:Identifier>
     </bf:identifiedBy>
     <bf:electronicLocator rdf:resource="https://example.org/item"/>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+        <bf:generationProcess>
+          <bf:GenerationProcess>
+            <rdfs:label>libcodex</rdfs:label>
+          </bf:GenerationProcess>
+        </bf:generationProcess>
+        <bf:identifiedBy>
+          <bf:Local>
+            <rdf:value>92005291</rdf:value>
+          </bf:Local>
+        </bf:identifiedBy>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
   </bf:Instance>
 </rdf:RDF>

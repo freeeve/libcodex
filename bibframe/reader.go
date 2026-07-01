@@ -45,6 +45,16 @@ const (
 	pLocator      = bfNS + "electronicLocator"
 	pCode         = bfNS + "code"
 
+	// Administrative metadata (bf:AdminMetadata) — provenance about the record's
+	// description and the process that generated the RDF.
+	pAdminMetadata          = bfNS + "adminMetadata"
+	pGenerationProcess      = bfNS + "generationProcess"
+	pChangeDate             = bfNS + "changeDate"
+	pDescriptionConventions = bfNS + "descriptionConventions"
+	classAdminMetadata      = bfNS + "AdminMetadata"
+	classGenerationProcess  = bfNS + "GenerationProcess"
+	classLocal              = bfNS + "Local"
+
 	// LoC's marc2bibframe2 carries the transcribed publication statement in these
 	// bflc properties, alongside the controlled bf:place / bf:date.
 	pSimplePlace = bflcNS + "simplePlace"

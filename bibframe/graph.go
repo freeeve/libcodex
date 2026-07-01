@@ -121,6 +121,28 @@ func (gb *graphBuilder) instance(work, inst rdf.Term, bib *BIBFRAME) {
 	for _, u := range bib.Instance.ElectronicLocator {
 		gb.g.Add(inst, rdf.NewIRI(pLocator), rdf.NewIRI(u))
 	}
+	gb.adminMetadata(inst, bib.Instance.Admin)
+}
+
+// adminMetadata renders the bf:AdminMetadata provenance node on the instance: a
+// generation-process marker plus the control number, change date and cataloging
+// conventions the record carries.
+func (gb *graphBuilder) adminMetadata(inst rdf.Term, am *AdminMetadata) {
+	if am == nil {
+		return
+	}
+	node := gb.fresh()
+	gb.g.Add(inst, rdf.NewIRI(pAdminMetadata), node)
+	gb.typ(node, classAdminMetadata)
+	gb.labeled(node, pGenerationProcess, classGenerationProcess, generatorLabel)
+	gb.lit(node, pChangeDate, am.ChangeDate)
+	gb.lit(node, pDescriptionConventions, am.DescriptionConventions)
+	if am.ControlNumber != "" {
+		id := gb.fresh()
+		gb.g.Add(node, rdf.NewIRI(pIdentifiedBy), id)
+		gb.typ(id, classLocal)
+		gb.lit(id, pValue, am.ControlNumber)
+	}
 }
 
 // title adds parent -bf:title-> [a bf:Title; bf:mainTitle …; …].

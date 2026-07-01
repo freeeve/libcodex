@@ -76,6 +76,7 @@ type Instance struct {
 	Extent                  []string
 	Identifiers             []Identifier
 	ElectronicLocator       []string
+	Admin                   *AdminMetadata
 }
 
 // Title is a bf:Title with its component portions.
@@ -120,6 +121,20 @@ type Provision struct {
 	Date      string
 }
 
+// AdminMetadata is administrative provenance about the record's description —
+// the BIBFRAME bf:AdminMetadata carrying the record control number, the
+// cataloging conventions, the last-change date, and the generation process that
+// produced the RDF. It is what the LoC/BIBFRAME ecosystem reads for provenance.
+type AdminMetadata struct {
+	ControlNumber          string // field 001
+	ChangeDate             string // field 005, as an xsd:dateTime string
+	DescriptionConventions string // field 040 $e (e.g. "rda")
+}
+
+// generatorLabel names this library as the bf:GenerationProcess that produced
+// the RDF, recorded in every record's bf:AdminMetadata.
+const generatorLabel = "libcodex"
+
 // FromRecord maps a MARC record to a BIBFRAME Work/Instance pair in a single
 // pass over the fields, following the common-field crosswalk.
 func FromRecord(r *codex.Record) *BIBFRAME {
@@ -127,8 +142,11 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	g.Work.Class = workClass(r.Leader().RecordType())
 	var transcribed, uniform Title
 	prov := Provision{}
+	var descConventions string
 	for _, f := range r.Fields() {
 		switch f.Tag {
+		case "040":
+			descConventions = trimISBD(f.SubfieldValue('e'))
 		case "245":
 			transcribed = Title{
 				MainTitle:  trimISBD(f.SubfieldValue('a')),
@@ -209,8 +227,30 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	if prov.Place != "" || prov.Publisher != "" || prov.Date != "" {
 		g.Instance.Provision = &prov
 	}
+	// Every record carries admin metadata: the generation process marks it as
+	// libcodex output, alongside the control number, change date and cataloging
+	// conventions the record itself provides.
+	g.Instance.Admin = &AdminMetadata{
+		ControlNumber:          r.ControlField("001"),
+		ChangeDate:             formatMARC005(r.ControlField("005")),
+		DescriptionConventions: descConventions,
+	}
 	g.addLanguages(r)
 	return g
+}
+
+// formatMARC005 converts a field 005 timestamp (yyyymmddhhmmss.f) to an
+// xsd:dateTime string, or "" when the field is absent or malformed.
+func formatMARC005(s string) string {
+	if len(s) < 14 {
+		return ""
+	}
+	for i := 0; i < 14; i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return ""
+		}
+	}
+	return s[0:4] + "-" + s[4:6] + "-" + s[6:8] + "T" + s[8:10] + ":" + s[10:12] + ":" + s[12:14]
 }
 
 // ---- crosswalk helpers ----

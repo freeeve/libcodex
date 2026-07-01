@@ -153,6 +153,33 @@ func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
+	b = appendAdminMetadataJSON(b, g.Instance.Admin)
+	return append(b, '}')
+}
+
+// appendAdminMetadataJSON renders the bf:AdminMetadata node, mirroring the graph
+// builder's adminMetadata triples.
+func appendAdminMetadataJSON(b []byte, am *AdminMetadata) []byte {
+	if am == nil {
+		return b
+	}
+	b = append(b, `,"bf:adminMetadata":{"@type":"bf:AdminMetadata"`...)
+	b = append(b, `,"bf:generationProcess":{"@type":"bf:GenerationProcess","rdfs:label":`...)
+	b = appendJSONString(b, generatorLabel)
+	b = append(b, '}')
+	if am.ChangeDate != "" {
+		b = append(b, `,"bf:changeDate":`...)
+		b = appendJSONString(b, am.ChangeDate)
+	}
+	if am.DescriptionConventions != "" {
+		b = append(b, `,"bf:descriptionConventions":`...)
+		b = appendJSONString(b, am.DescriptionConventions)
+	}
+	if am.ControlNumber != "" {
+		b = append(b, `,"bf:identifiedBy":{"@type":"bf:Local","rdf:value":`...)
+		b = appendJSONString(b, am.ControlNumber)
+		b = append(b, '}')
+	}
 	return append(b, '}')
 }
 
