@@ -157,7 +157,10 @@ func decode(b []byte, bs string) (*codex.Record, bool, error) {
 		}
 
 		f := codex.Field{Tag: tag, Ind1: ' ', Ind2: ' '}
-		p := lo
+		// Default p to hi so a field too short to hold its indicators decodes with
+		// blank indicators and no subfields, rather than rescanning the truncated
+		// indicator bytes as subfield data (a stray 0x1f there would fabricate one).
+		p := hi
 		if hi-lo >= indCount {
 			if indCount >= 1 {
 				f.Ind1 = b[lo]

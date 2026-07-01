@@ -88,6 +88,10 @@ func setByFinal(final byte, multibyte bool) *charSet {
 		return csSubscripts
 	case 'p':
 		return csSuperscripts
+	case 's':
+		// ESC s reinstates Basic Latin (ASCII) in G0 -- the technique-1 escape a
+		// record uses to return to ASCII after a single-character designation.
+		return csASCII
 	}
 	return nil
 }

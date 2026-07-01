@@ -15,6 +15,7 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"sort"
@@ -116,6 +117,10 @@ func main() {
 		}
 	}
 
+	if len(eacc) == 0 {
+		fail(fmt.Errorf("no EACC entries parsed (truncated download or upstream change?)"))
+	}
+
 	// Emit single-byte decode maps, keyed by the MARC byte in the set's home range.
 	for _, vn := range []string{
 		"basicHebrewDec", "basicCyrillicDec", "extendedCyrillicDec",
@@ -183,16 +188,7 @@ func source() ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s: %s", sourceURL, resp.Status)
 	}
-	buf := make([]byte, 0, 1<<21)
-	tmp := make([]byte, 32*1024)
-	for {
-		n, err := resp.Body.Read(tmp)
-		buf = append(buf, tmp[:n]...)
-		if err != nil {
-			break
-		}
-	}
-	return buf, nil
+	return io.ReadAll(resp.Body)
 }
 
 func fail(err error) {

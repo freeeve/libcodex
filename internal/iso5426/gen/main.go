@@ -12,6 +12,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -81,6 +82,12 @@ func main() {
 			}
 		}
 	}
+	if err := sc.Err(); err != nil {
+		fail(fmt.Errorf("reading source: %w", err))
+	}
+	if len(pairs) == 0 {
+		fail(fmt.Errorf("no precomposition pairs parsed (truncated download or upstream change?)"))
+	}
 	sort.Slice(singles, func(i, j int) bool { return singles[i].b < singles[j].b })
 	sort.Slice(pairs, func(i, j int) bool {
 		if pairs[i].b0 != pairs[j].b0 {
@@ -136,16 +143,8 @@ func source() (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("GET %s: %s", sourceURL, resp.Status)
 	}
-	var sb strings.Builder
-	buf := make([]byte, 32*1024)
-	for {
-		n, err := resp.Body.Read(buf)
-		sb.Write(buf[:n])
-		if err != nil {
-			break
-		}
-	}
-	return sb.String(), nil
+	b, err := io.ReadAll(resp.Body)
+	return string(b), err
 }
 
 func fail(err error) {

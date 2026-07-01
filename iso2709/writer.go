@@ -112,10 +112,11 @@ func toMARC8(r *codex.Record) (*codex.Record, error) {
 // delimiters; the leader geometry is forced to the MARC 21 fixed values (UTF-8,
 // 2 indicators, "4500").
 //
-// It returns dst unchanged with an error if a tag is not three bytes, a field is
-// too long to encode in four digits, the record is too long for five digits, or
-// any field datum contains a reserved structural delimiter byte (0x1d/0x1e/0x1f)
-// that the binary format cannot carry.
+// It returns dst unchanged with an error if a tag is not three printable ASCII
+// bytes, a data field carries a raw Value (which the format cannot encode and
+// would silently drop), a field is too long to encode in four digits, the record
+// is too long for five digits, or any field datum contains a reserved structural
+// delimiter byte (0x1d/0x1e/0x1f) that the binary format cannot carry.
 func EncodeInto(dst []byte, r *codex.Record) ([]byte, error) {
 	fields := r.Fields()
 
@@ -123,8 +124,11 @@ func EncodeInto(dst []byte, r *codex.Record) ([]byte, error) {
 	// dst grows at most once below.
 	dataLen := 0
 	for _, f := range fields {
-		if len(f.Tag) != 3 {
-			return dst, fmt.Errorf("iso2709: field tag %q must be 3 bytes", f.Tag)
+		if !validTag(f.Tag) {
+			return dst, fmt.Errorf("iso2709: field tag %q must be 3 printable ASCII bytes", f.Tag)
+		}
+		if !f.IsControl() && f.Value != "" {
+			return dst, fmt.Errorf("iso2709: data field %s carries a raw value the format cannot encode", f.Tag)
 		}
 		if err := checkDelimiters(f); err != nil {
 			return dst, err
@@ -188,6 +192,21 @@ func checkDelimiters(f codex.Field) error {
 		}
 	}
 	return nil
+}
+
+// validTag reports whether tag is three printable ASCII bytes. A tag containing a
+// control or delimiter byte (0x1d/0x1e/0x1f included) would be written verbatim
+// into the directory and misframe the record for any terminator-scanning reader.
+func validTag(tag string) bool {
+	if len(tag) != 3 {
+		return false
+	}
+	for i := range 3 {
+		if c := tag[i]; c < 0x20 || c >= 0x7F {
+			return false
+		}
+	}
+	return true
 }
 
 // isDelimiter reports whether b is an ISO 2709 structural delimiter.

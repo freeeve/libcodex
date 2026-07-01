@@ -67,6 +67,46 @@ func TestEncodeNFCAndNFDAgree(t *testing.T) {
 	}
 }
 
+// TestEncodeStackedMarks pins the order of two combining marks through an
+// Encode->Decode round trip. ISO 5426 stores marks before the base innermost
+// first; the mark nearest the base in Unicode order must stay innermost. The old
+// decoder composed the base with the outermost mark, silently swapping the two
+// diacritics (e.g. NFD ế decoding as é followed by a circumflex).
+func TestEncodeStackedMarks(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string // Decode(Encode(in)); canonically equivalent to in
+	}{
+		// e + combining circumflex + combining acute -> ê + combining acute.
+		{"e circumflex acute", "ế", "ế"},
+		// A + combining diaeresis + combining grave -> Ä + combining grave.
+		{"A diaeresis grave", "Ä̀", "Ä̀"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			b, err := Encode(c.in)
+			if err != nil {
+				t.Fatalf("Encode(%q): %v", c.in, err)
+			}
+			if got := Decode(b); got != c.want {
+				t.Errorf("Decode(Encode(%q)) = %q (% x), want %q", c.in, got, b, c.want)
+			}
+		})
+	}
+}
+
+// TestDecodeLossy checks the lossiness signal: a defined byte decodes cleanly
+// while an undefined high byte passes through best-effort and is flagged.
+func TestDecodeLossy(t *testing.T) {
+	if _, lossy := DecodeLossy([]byte{0xC2, 0x65}); lossy {
+		t.Error("a defined acute+e pair should not be flagged lossy")
+	}
+	if _, lossy := DecodeLossy([]byte{0x80}); !lossy {
+		t.Error("an undefined high byte should be flagged lossy")
+	}
+}
+
 func TestEncodeRejectsUnrepresentable(t *testing.T) {
 	for _, s := range []string{"日本語", "😀", "Привет"} {
 		if _, err := Encode(s); err == nil {

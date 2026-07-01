@@ -287,8 +287,13 @@ func (d *Decoder) interpretEscape(data []byte) int {
 		n++
 	}
 	if final == 0 {
+		// A sequence with no final byte is malformed or unterminated: flag the
+		// decode lossy. When only the escape itself was recognized, consume just
+		// that byte so the following byte still decodes as data rather than being
+		// silently dropped.
+		d.lossy = true
 		if n == 1 {
-			return 2 // malformed: skip the escape byte and one more
+			return 1
 		}
 		return n
 	}

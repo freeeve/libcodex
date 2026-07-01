@@ -213,6 +213,31 @@ func TestEverySetDecodes(t *testing.T) {
 	}
 }
 
+// TestReinstateASCII checks the ESC s technique-1 escape returns G0 to ASCII so
+// following bytes decode cleanly rather than being flagged lossy.
+func TestReinstateASCII(t *testing.T) {
+	d := NewDecoder()
+	if got := d.Decode([]byte{escape, 's', 'a', 'b', 'c'}); got != "abc" {
+		t.Errorf("Decode(ESC s abc) = %q, want %q", got, "abc")
+	}
+	if d.Lossy() {
+		t.Error("ESC s should reinstate ASCII, not flag the decode lossy")
+	}
+}
+
+// TestMalformedEscapeKeepsData checks a malformed escape consumes only the escape
+// byte, so the following data byte still decodes (and the decode is flagged lossy)
+// rather than being silently dropped.
+func TestMalformedEscapeKeepsData(t *testing.T) {
+	d := NewDecoder()
+	if got := d.Decode([]byte{escape, 0xA5}); got != "Æ" {
+		t.Errorf("Decode(ESC 0xA5) = %q, want %q (data byte must not be dropped)", got, "Æ")
+	}
+	if !d.Lossy() {
+		t.Error("a malformed escape should flag the decode lossy")
+	}
+}
+
 func TestDecodeEscapeEdges(t *testing.T) {
 	// None of these may panic; the lossy flag reports unusable input.
 	cases := []struct {
@@ -220,8 +245,8 @@ func TestDecodeEscapeEdges(t *testing.T) {
 		in        []byte
 		wantLossy bool
 	}{
-		{"escape at end", []byte{escape}, false},
-		{"intermediate no final", []byte{escape, '('}, false},
+		{"escape at end", []byte{escape}, true},
+		{"intermediate no final", []byte{escape, '('}, true},
 		{"unknown final to G0", []byte{escape, '(', 'Z', 'a'}, true},
 		{"unknown final to G1", []byte{escape, ')', 'Z', 0xB5}, true},
 		{"truncated eacc triple", []byte{escape, '$', '1', 0x21}, true},

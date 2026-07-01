@@ -77,23 +77,34 @@ var decNFC = func() map[[2]rune]rune {
 
 // Decode decodes an ISO 5426 byte sequence to a UTF-8 string. Combining marks
 // precede their base in ISO 5426; the decoder buffers them and emits them after
-// the base, composing the base with the nearest mark to a precomposed (NFC) code
-// point when one exists. Stacked marks are preserved.
+// the base, composing the base with the innermost (first-buffered) mark to a
+// precomposed (NFC) code point when one exists. Stacked marks are preserved in
+// Unicode order.
 func Decode(data []byte) string {
+	s, _ := DecodeLossy(data)
+	return s
+}
+
+// DecodeLossy decodes like Decode and additionally reports whether any byte fell
+// through the best-effort Latin-1 passthrough (an undefined high byte with no
+// ISO 5426 mapping). A caller that must not silently corrupt data can check the
+// flag, mirroring the marc8 decoder's Lossy signal.
+func DecodeLossy(data []byte) (string, bool) {
 	var b strings.Builder
+	b.Grow(len(data))
 	var pending []rune // combining marks awaiting their base
+	lossy := false
 
 	flush := func(base rune) {
 		if len(pending) == 0 {
 			b.WriteRune(base)
 			return
 		}
-		// The mark nearest the base (last buffered) composes with it; any remaining
-		// (outer) marks follow in their original order.
-		last := len(pending) - 1
-		if c, ok := decNFC[[2]rune{base, pending[last]}]; ok {
+		// The innermost mark (first buffered, nearest the base in Unicode order)
+		// composes with the base; any remaining stacked marks follow in order.
+		if c, ok := decNFC[[2]rune{base, pending[0]}]; ok {
 			b.WriteRune(c)
-			for _, m := range pending[:last] {
+			for _, m := range pending[1:] {
 				b.WriteRune(m)
 			}
 		} else {
@@ -124,14 +135,18 @@ func Decode(data []byte) string {
 			pending = append(pending, iso5426Combining[c])
 			i++
 		default:
-			flush(graphicRune(c))
+			r, ok := graphicRune(c)
+			if !ok {
+				lossy = true
+			}
+			flush(r)
 			i++
 		}
 	}
 	for _, m := range pending {
 		b.WriteRune(m)
 	}
-	return b.String()
+	return b.String(), lossy
 }
 
 func isCombining(c byte) bool { _, ok := iso5426Combining[c]; return ok }
@@ -143,14 +158,18 @@ func decodeRune(c byte) rune {
 	if c < 0x80 {
 		return rune(c)
 	}
-	return graphicRune(c)
+	r, _ := graphicRune(c)
+	return r
 }
 
-func graphicRune(c byte) rune {
+// graphicRune decodes a high graphic byte, returning its rune and whether the
+// byte was defined; an undefined byte passes through best-effort as Latin-1 with
+// ok=false so the caller can flag the decode lossy.
+func graphicRune(c byte) (rune, bool) {
 	if r, ok := iso5426Graphic[c]; ok {
-		return r
+		return r, true
 	}
-	return rune(c) // best-effort Latin-1 passthrough
+	return rune(c), false // best-effort Latin-1 passthrough
 }
 
 // ---- encoding ----
@@ -233,7 +252,7 @@ func Encode(s string) ([]byte, error) {
 			if i+1 < len(runes) {
 				if c, ok := encNFC[[2]rune{runes[i+1], r}]; ok {
 					var err error
-					if out, err = encodeBase(out, c); err != nil {
+					if out, err = encodeBase(out, c, nil); err != nil {
 						return nil, err
 					}
 					i++
@@ -243,8 +262,10 @@ func Encode(s string) ([]byte, error) {
 			out = append(out, b)
 			continue
 		}
-		// A base gathers the combining marks that follow it and emits them first,
-		// as ISO 5426 stores marks before the character they modify.
+		// A base gathers the combining marks that follow it. ISO 5426 stores marks
+		// before the base, innermost first; encodeBase places the base's own
+		// decomposition mark (when it is a precomposed graphic) ahead of these
+		// gathered outer marks so the sequence decodes back in Unicode order.
 		var marks []byte
 		for i+1 < len(runes) {
 			b, ok := encCombining[runes[i+1]]
@@ -254,27 +275,34 @@ func Encode(s string) ([]byte, error) {
 			marks = append(marks, b)
 			i++
 		}
-		out = append(out, marks...)
 		var err error
-		if out, err = encodeBase(out, r); err != nil {
+		if out, err = encodeBase(out, r, marks); err != nil {
 			return nil, err
 		}
 	}
 	return out, nil
 }
 
-func encodeBase(out []byte, r rune) ([]byte, error) {
+// encodeBase appends the ISO 5426 encoding of base rune r to out. The gathered
+// outer marks (already ISO 5426 mark bytes, innermost first) are inserted after
+// r's own decomposition mark when r is a precomposed graphic, and otherwise
+// immediately before r, so the byte order round-trips through Decode.
+func encodeBase(out []byte, r rune, outerMarks []byte) ([]byte, error) {
 	if r < 0x80 {
 		if r == 0x1b || r == 0x1d || r == 0x1e || r == 0x1f {
 			return nil, fmt.Errorf("iso5426: cannot encode reserved control byte 0x%02X", r)
 		}
+		out = append(out, outerMarks...)
 		return append(out, byte(r)), nil
 	}
-	if b, ok := encGraphic[r]; ok { // a single graphic byte
+	if b, ok := encGraphic[r]; ok { // a single graphic byte, no own mark
+		out = append(out, outerMarks...)
 		return append(out, b), nil
 	}
-	if pair, ok := encCompose[r]; ok { // mark byte + base byte
-		return append(out, pair[0], pair[1]), nil
+	if pair, ok := encCompose[r]; ok { // inner mark byte, then outer marks, then base byte
+		out = append(out, pair[0])
+		out = append(out, outerMarks...)
+		return append(out, pair[1]), nil
 	}
 	return nil, fmt.Errorf("iso5426: cannot encode %q (U+%04X)", r, r)
 }
