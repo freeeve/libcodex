@@ -64,6 +64,61 @@ func FuzzStreamNTriples(f *testing.F) {
 	})
 }
 
+// FuzzStreamNQuads asserts the streaming N-Quads decoder yields exactly the quads
+// ParseNQuads does (both run parseNQuadLine), preserving graph terms, and never
+// panics.
+func FuzzStreamNQuads(f *testing.F) {
+	seedStream(f)
+	f.Fuzz(func(t *testing.T, data []byte) {
+		ds, _ := ParseNQuads(data)
+		var streamed []Quad
+		d := NewDecoder(bytes.NewReader(data), NQuads)
+		for {
+			q, err := d.DecodeQuad()
+			if err != nil {
+				break
+			}
+			streamed = append(streamed, q)
+		}
+		if len(streamed) != len(ds.Quads) {
+			t.Fatalf("streamed %d quads, parsed %d", len(streamed), len(ds.Quads))
+		}
+		for i := range streamed {
+			if streamed[i] != ds.Quads[i] {
+				t.Fatalf("quad %d differs:\n stream %+v\n parse  %+v", i, streamed[i], ds.Quads[i])
+			}
+		}
+	})
+}
+
+// FuzzNQuadsReSerialize parses N-Quads, serializes the dataset and reparses it,
+// requiring the quad count to hold and the serialization to be idempotent, so no
+// term (including the graph) is lost or corrupted across a round trip.
+func FuzzNQuadsReSerialize(f *testing.F) {
+	seedStream(f)
+	f.Fuzz(func(t *testing.T, data []byte) {
+		ds, _ := ParseNQuads(data)
+		if len(ds.Quads) == 0 {
+			return
+		}
+		// The serializer emits clean UTF-8, so literals a lenient parse accepted with
+		// invalid bytes are intentionally not byte-stable; skip them.
+		for _, q := range ds.Quads {
+			if q.O.IsLiteral() && !utf8.ValidString(q.O.Value) {
+				return
+			}
+		}
+		once := ds.NQuads()
+		ds2, _ := ParseNQuads(once)
+		if len(ds2.Quads) != len(ds.Quads) {
+			t.Fatalf("re-serialize changed quad count: %d -> %d\n%s", len(ds.Quads), len(ds2.Quads), once)
+		}
+		if twice := ds2.NQuads(); !bytes.Equal(once, twice) {
+			t.Fatalf("serialization not idempotent:\n once:  %q\n twice: %q", once, twice)
+		}
+	})
+}
+
 // FuzzStreamRDFXML asserts the streaming RDF/XML decoder yields exactly the same
 // triples as ParseRDFXML (both run the same token walker), and never panics.
 func FuzzStreamRDFXML(f *testing.F) {

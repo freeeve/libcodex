@@ -33,8 +33,8 @@ const (
 // JSON-LD is not streamable here (its document must be materialized); use
 // ParseJSONLD for that.
 type Decoder struct {
-	next func() (Triple, error)
-	stop func() // signals the producer goroutine to stop early (nil for the line path)
+	nextQuad func() (Quad, error)
+	stop     func() // signals the producer goroutine to stop early (nil for the line path)
 }
 
 // NewDecoder returns a streaming Decoder reading the given format from r.
@@ -50,26 +50,35 @@ func NewDecoder(r io.Reader, format Format) *Decoder {
 		})
 	default: // NTriples, NQuads
 		br := bufio.NewReader(r)
-		return &Decoder{next: func() (Triple, error) {
+		return &Decoder{nextQuad: func() (Quad, error) {
 			for {
 				line, err := br.ReadString('\n')
 				if len(line) > 0 {
-					if tr, ok := parseNTLine(line, nil); ok {
-						return tr, nil
+					if q, ok := parseNQuadLine(line, nil); ok {
+						return q, nil
 					}
 				}
 				if err != nil {
-					return Triple{}, err // io.EOF at a clean end
+					return Quad{}, err // io.EOF at a clean end
 				}
 			}
 		}}
 	}
 }
 
-// Decode returns the next triple, or io.EOF when the input is exhausted. Blank,
-// comment and malformed lines/statements are skipped, so a stray line never aborts
-// a large stream.
-func (d *Decoder) Decode() (Triple, error) { return d.next() }
+// Decode returns the next triple, or io.EOF when the input is exhausted. Any
+// fourth (graph) term on an N-Quads line is dropped; use DecodeQuad to keep it.
+// Blank, comment and malformed lines/statements are skipped, so a stray line
+// never aborts a large stream.
+func (d *Decoder) Decode() (Triple, error) {
+	q, err := d.nextQuad()
+	return q.Triple(), err
+}
+
+// DecodeQuad returns the next statement as a quad, preserving the graph term of
+// an N-Quads line; the triple-only formats (N-Triples, RDF/XML, Turtle) yield a
+// zero-value graph term (the default graph). It returns io.EOF at end of input.
+func (d *Decoder) DecodeQuad() (Quad, error) { return d.nextQuad() }
 
 // Close stops a streaming decoder early, releasing its producer goroutine. It is a
 // no-op for the line-based formats and after the stream is exhausted.
@@ -93,11 +102,33 @@ func (d *Decoder) All() iter.Seq[Triple] {
 			defer d.stop()
 		}
 		for {
-			tr, err := d.next()
+			q, err := d.nextQuad()
 			if err != nil {
 				return
 			}
-			if !yield(tr) {
+			if !yield(q.Triple()) {
+				return
+			}
+		}
+	}
+}
+
+// AllQuads returns an iterator over the remaining statements as quads,
+// preserving N-Quads graph terms. Like All, it ends at the first error and
+// breaking out of the loop stops the producer:
+//
+//	for q := range dec.AllQuads() { ... }
+func (d *Decoder) AllQuads() iter.Seq[Quad] {
+	return func(yield func(Quad) bool) {
+		if d.stop != nil {
+			defer d.stop()
+		}
+		for {
+			q, err := d.nextQuad()
+			if err != nil {
+				return
+			}
+			if !yield(q) {
 				return
 			}
 		}
@@ -135,12 +166,14 @@ func pipe(producer func(emit func(s, pr, o Term)) error) *Decoder {
 	var termErr error
 	finished := false
 	return &Decoder{
-		next: func() (Triple, error) {
+		// The pipe formats (RDF/XML, Turtle) carry no graph term, so each triple
+		// becomes a default-graph quad.
+		nextQuad: func() (Quad, error) {
 			if finished {
-				return Triple{}, termErr
+				return Quad{}, termErr
 			}
 			if tr, ok := <-ch; ok {
-				return tr, nil
+				return Quad{tr.S, tr.P, tr.O, Term{}}, nil
 			}
 			finished, termErr = true, io.EOF
 			select {
@@ -150,7 +183,7 @@ func pipe(producer func(emit func(s, pr, o Term)) error) *Decoder {
 				}
 			default:
 			}
-			return Triple{}, termErr
+			return Quad{}, termErr
 		},
 		stop: func() {
 			select {

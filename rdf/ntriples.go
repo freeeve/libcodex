@@ -24,26 +24,42 @@ func ParseNTriples(data []byte) (*Graph, error) {
 	return g, nil
 }
 
-// parseNTLine parses one N-Triples/N-Quads line, returning false for blank,
-// comment or malformed lines.
+// parseNTLine parses one N-Triples/N-Quads line into a triple, dropping any
+// fourth (graph) term. It returns false for blank, comment or malformed lines.
 func parseNTLine(line string, a *arena) (Triple, bool) {
+	q, ok := parseNQuadLine(line, a)
+	return q.Triple(), ok
+}
+
+// parseNQuadLine parses one N-Triples/N-Quads line into a quad, keeping the
+// optional fourth (graph) term; a three-term line falls in the default graph
+// (zero-value G). It returns false for blank, comment or malformed lines.
+func parseNQuadLine(line string, a *arena) (Quad, bool) {
 	s := strings.TrimSpace(line)
 	if s == "" || s[0] == '#' {
-		return Triple{}, false
+		return Quad{}, false
 	}
 	subj, s, ok := readNTTerm(s, a)
 	if !ok || subj.IsLiteral() { // a literal subject is not valid RDF
-		return Triple{}, false
+		return Quad{}, false
 	}
 	pred, s, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
 	if !ok || !pred.IsIRI() {
-		return Triple{}, false
+		return Quad{}, false
 	}
-	obj, _, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
+	obj, s, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
 	if !ok {
-		return Triple{}, false
+		return Quad{}, false
 	}
-	return Triple{subj, pred, obj}, true
+	// The optional graph label is an IRI or blank node before the terminating
+	// '.'; a literal there is not a valid graph name and is ignored.
+	var graph Term
+	if rest := strings.TrimLeft(s, " \t"); len(rest) > 0 && rest[0] != '.' {
+		if g, _, ok := readNTTerm(rest, a); ok && !g.IsLiteral() {
+			graph = g
+		}
+	}
+	return Quad{subj, pred, obj, graph}, true
 }
 
 // readNTTerm reads one term from the front of s, returning the term and the
@@ -181,18 +197,32 @@ func appendNTTerm(b []byte, t Term, bn *blankNamer) []byte {
 
 // ---- shared escaping ----
 
-// appendEscapedIRI escapes the characters not allowed bare in an IRI reference.
-func appendEscapedIRI(b []byte, s string) []byte {
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c <= 0x20 || c == '<' || c == '>' || c == '"' || c == '{' || c == '}' ||
-			c == '|' || c == '^' || c == '`' || c == '\\' {
-			b = appendUnicodeEscape(b, rune(c))
-			continue
-		}
-		b = append(b, c)
+// iriNeedsEscape[c] reports whether byte c must be \u-escaped in an IRI
+// reference — the ASCII controls and space plus the delimiters IRIs forbid bare.
+// A table lookup replaces a per-byte chain of comparisons on the write path.
+var iriNeedsEscape = func() (t [256]bool) {
+	for c := 0; c <= 0x20; c++ {
+		t[c] = true
 	}
-	return b
+	for _, c := range []byte{'<', '>', '"', '{', '}', '|', '^', '`', '\\'} {
+		t[c] = true
+	}
+	return
+}()
+
+// appendEscapedIRI escapes the characters not allowed bare in an IRI reference.
+// Clean runs — the overwhelming common case, since real IRIs need no escaping —
+// are bulk-copied in one append rather than byte by byte.
+func appendEscapedIRI(b []byte, s string) []byte {
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if iriNeedsEscape[s[i]] {
+			b = append(b, s[start:i]...)
+			b = appendUnicodeEscape(b, rune(s[i]))
+			start = i + 1
+		}
+	}
+	return append(b, s[start:]...)
 }
 
 // appendEscapedLiteral escapes a literal's lexical form for Turtle/N-Triples.
@@ -253,6 +283,13 @@ func (bn *blankNamer) name(label string) string {
 	bn.m[label] = v
 	return v
 }
+
+// newScope drops the label→name mappings while keeping the running counter, so
+// the next labels begin a fresh blank-node scope yet still receive globally
+// unique output names. It lets independently-labeled graphs (e.g. one per
+// record) serialize into a single N-Quads document without their blank nodes
+// merging.
+func (bn *blankNamer) newScope() { bn.m = nil }
 
 func appendUnicodeEscape(b []byte, r rune) []byte {
 	const hex = "0123456789ABCDEF"
