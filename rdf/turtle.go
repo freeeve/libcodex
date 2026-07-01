@@ -616,15 +616,22 @@ func TurtleHeader(prefixes map[string]string) []byte {
 }
 
 // TurtleBody serializes the triples grouped by subject, without a prefix header.
-// It groups without a per-subject map: subjects are ranked by first appearance,
-// then a stable sort of triple indices by that rank makes each subject's triples
-// contiguous in document order — turning thousands of small allocations into a
-// handful.
 func (g *Graph) TurtleBody(prefixes map[string]string) []byte {
+	var e Encoder
+	return e.AppendTurtle(nil, g, prefixes)
+}
+
+// AppendTurtle appends g's triples to b as a Turtle body (no @prefix header),
+// grouped by subject, in a fresh blank-node scope. It groups without a
+// per-subject map: subjects are ranked by first appearance, then a stable sort
+// of triple indices by that rank makes each subject's triples contiguous in
+// document order — turning thousands of small allocations into a handful.
+func (e *Encoder) AppendTurtle(b []byte, g *Graph, prefixes map[string]string) []byte {
 	n := len(g.Triples)
 	if n == 0 {
-		return nil
+		return b
 	}
+	e.bn.newScope()
 	rank := make(map[Term]int, n)
 	rankOf := make([]int, n)
 	next := 0
@@ -642,15 +649,13 @@ func (g *Graph) TurtleBody(prefixes map[string]string) []byte {
 	}
 	sort.SliceStable(idx, func(a, b int) bool { return rankOf[idx[a]] < rankOf[idx[b]] })
 
-	var b []byte
 	var done []bool // reused across subjects
-	bn := &blankNamer{}
 	for i := 0; i < n; {
 		j := i + 1
 		for j < n && g.Triples[idx[j]].S == g.Triples[idx[i]].S {
 			j++
 		}
-		b = appendTurtleSubject(b, g.Triples, idx[i:j], prefixes, &done, bn)
+		b = appendTurtleSubject(b, g.Triples, idx[i:j], prefixes, &done, &e.bn)
 		i = j
 	}
 	return b

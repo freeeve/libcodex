@@ -2,11 +2,75 @@ package bibframe
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/freeeve/libcodex"
 	"github.com/freeeve/libcodex/rdf"
 )
+
+// blankLabels returns the set of _:label tokens in an N-Triples or Turtle
+// fragment.
+func blankLabels(b []byte) map[string]bool {
+	s, m := string(b), map[string]bool{}
+	name := func(c byte) bool {
+		return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_'
+	}
+	for i := 0; i+1 < len(s); i++ {
+		if s[i] == '_' && s[i+1] == ':' {
+			j := i + 2
+			for j < len(s) && name(s[j]) {
+				j++
+			}
+			m[s[i:j]] = true
+			i = j
+		}
+	}
+	return m
+}
+
+type recWriter interface {
+	Write(*codex.Record) error
+	Close() error
+}
+
+// TestStreamingWritersBlankScope checks the N-Triples and Turtle collection
+// writers keep blank-node labels unique across records, so concatenating records
+// into one document never merges their blank nodes.
+func TestStreamingWritersBlankScope(t *testing.T) {
+	recs := []*codex.Record{
+		provRecord("rec-A", "Title A", "Publisher A"),
+		provRecord("rec-B", "Title B", "Publisher B"),
+	}
+	for _, tc := range []struct {
+		name string
+		make func(io.Writer) recWriter
+	}{
+		{"ntriples", func(w io.Writer) recWriter { return NewNTriplesWriter(w) }},
+		{"turtle", func(w io.Writer) recWriter { return NewTurtleWriter(w) }},
+	} {
+		var buf bytes.Buffer
+		w := tc.make(&buf)
+		if err := w.Write(recs[0]); err != nil {
+			t.Fatal(err)
+		}
+		n1 := buf.Len()
+		if err := w.Write(recs[1]); err != nil {
+			t.Fatal(err)
+		}
+		_ = w.Close()
+
+		first, second := blankLabels(buf.Bytes()[:n1]), blankLabels(buf.Bytes()[n1:])
+		if len(first) == 0 {
+			t.Fatalf("%s: first record emitted no blank nodes; test is vacuous", tc.name)
+		}
+		for lbl := range first {
+			if second[lbl] {
+				t.Errorf("%s: blank %q reused in the second record — records merged", tc.name, lbl)
+			}
+		}
+	}
+}
 
 func provRecord(id, title, pub string) *codex.Record {
 	return codex.NewRecord().

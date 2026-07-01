@@ -155,17 +155,8 @@ func langTagLen(s string) int {
 
 // NTriples serializes the graph as N-Triples.
 func (g *Graph) NTriples() []byte {
-	var b []byte
-	bn := &blankNamer{}
-	for _, t := range g.Triples {
-		b = appendNTTerm(b, t.S, bn)
-		b = append(b, ' ')
-		b = appendNTTerm(b, t.P, bn)
-		b = append(b, ' ')
-		b = appendNTTerm(b, t.O, bn)
-		b = append(b, ' ', '.', '\n')
-	}
-	return b
+	var e Encoder
+	return e.AppendNTriples(nil, g)
 }
 
 // appendNTTerm writes a term in N-Triples syntax.

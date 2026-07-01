@@ -52,20 +52,23 @@ func (d *Dataset) Graphs() []Term {
 	return out
 }
 
-// ---- N-Quads serialization ----
+// ---- serialization ----
 
-// NQuadsEncoder serializes quads and graphs to N-Quads incrementally, keeping
-// blank-node labels unique across everything it writes. Blank-node labels in an
-// N-Quads document are scoped to the whole document, so one encoder must be
-// reused across every graph written to a single stream; otherwise two graphs
-// that each number their blanks from scratch would collide and merge.
-type NQuadsEncoder struct {
+// Encoder serializes a sequence of graphs into one document — N-Triples,
+// N-Quads or Turtle — keeping blank-node labels unique across the graphs it
+// writes. Blank-node labels are scoped to the whole document, so a single
+// Encoder must be reused for every graph written to one stream; a fresh encoder
+// per graph would let graphs that each number their blanks from scratch (such as
+// one BIBFRAME graph per record) collide and merge. It is the serialization
+// counterpart to Decoder; the whole-graph Graph.NTriples, Graph.NQuads and
+// Graph.Turtle methods each use a fresh Encoder internally.
+type Encoder struct {
 	bn blankNamer
 }
 
 // AppendQuad appends one quad to b as an N-Quads line. A default-graph quad
 // (zero-value G) is written as a three-term N-Triples line.
-func (e *NQuadsEncoder) AppendQuad(b []byte, q Quad) []byte {
+func (e *Encoder) AppendQuad(b []byte, q Quad) []byte {
 	b = appendNTTerm(b, q.S, &e.bn)
 	b = append(b, ' ')
 	b = appendNTTerm(b, q.P, &e.bn)
@@ -78,13 +81,12 @@ func (e *NQuadsEncoder) AppendQuad(b []byte, q Quad) []byte {
 	return append(b, ' ', '.', '\n')
 }
 
-// AppendGraph appends every triple of g to b as N-Quads tagged with the graph
+// AppendNQuads appends every triple of g to b as N-Quads tagged with the graph
 // term — g's named graph / provenance. A zero-value graph term writes the
-// default graph (plain N-Triples). Each call is treated as an independent
-// blank-node scope, so graphs that each label their blanks from scratch (such
-// as one BIBFRAME graph per record) never merge, while their output labels stay
-// unique across the whole document.
-func (e *NQuadsEncoder) AppendGraph(b []byte, g *Graph, graph Term) []byte {
+// default graph (plain N-Triples). Each call is a fresh blank-node scope, so
+// graphs that label their blanks from scratch never merge, while their output
+// labels stay unique across the whole document.
+func (e *Encoder) AppendNQuads(b []byte, g *Graph, graph Term) []byte {
 	e.bn.newScope()
 	n := 0
 	for _, t := range g.Triples {
@@ -95,6 +97,12 @@ func (e *NQuadsEncoder) AppendGraph(b []byte, g *Graph, graph Term) []byte {
 		b = e.AppendQuad(b, Quad{t.S, t.P, t.O, graph})
 	}
 	return b
+}
+
+// AppendNTriples appends g's triples to b as N-Triples in a fresh blank-node
+// scope — N-Triples being N-Quads restricted to the default graph.
+func (e *Encoder) AppendNTriples(b []byte, g *Graph) []byte {
+	return e.AppendNQuads(b, g, Term{})
 }
 
 // quadBytes estimates the serialized N-Quads byte length of one statement, used
@@ -113,7 +121,7 @@ func quadBytes(s, p, o, g Term) int {
 
 // NQuads serializes the dataset as an N-Quads document.
 func (d *Dataset) NQuads() []byte {
-	var e NQuadsEncoder
+	var e Encoder
 	n := 0
 	for _, q := range d.Quads {
 		n += quadBytes(q.S, q.P, q.O, q.G)
@@ -129,8 +137,8 @@ func (d *Dataset) NQuads() []byte {
 // graph term (its named graph / provenance). A zero-value graph term produces
 // plain N-Triples.
 func (g *Graph) NQuads(graph Term) []byte {
-	var e NQuadsEncoder
-	return e.AppendGraph(nil, g, graph)
+	var e Encoder
+	return e.AppendNQuads(nil, g, graph)
 }
 
 // ---- N-Quads parsing ----

@@ -44,6 +44,7 @@ func RecordGraph(r *codex.Record) rdf.Term {
 // API symmetry with the other writers.
 type NTriplesWriter struct {
 	w   io.Writer
+	enc rdf.Encoder // shared across records so blank-node labels stay unique
 	err error
 }
 
@@ -51,12 +52,13 @@ type NTriplesWriter struct {
 // codex.RecordWriter, so it works as a codex.Convert target.
 func NewNTriplesWriter(w io.Writer) *NTriplesWriter { return &NTriplesWriter{w: w} }
 
-// Write serializes one record's BIBFRAME graph.
+// Write serializes one record's BIBFRAME graph, keeping its blank-node labels
+// distinct from every other record's in the stream.
 func (nw *NTriplesWriter) Write(r *codex.Record) error {
 	if nw.err != nil {
 		return nw.err
 	}
-	if _, err := nw.w.Write(graphFromRecord(r).NTriples()); err != nil {
+	if _, err := nw.w.Write(nw.enc.AppendNTriples(nil, graphFromRecord(r))); err != nil {
 		nw.err = err
 	}
 	return nw.err
@@ -69,6 +71,7 @@ func (nw *NTriplesWriter) Close() error { return nw.err }
 // header once before the first record.
 type TurtleWriter struct {
 	w       io.Writer
+	enc     rdf.Encoder // shared across records so blank-node labels stay unique
 	started bool
 	err     error
 }
@@ -76,7 +79,8 @@ type TurtleWriter struct {
 // NewTurtleWriter returns a TurtleWriter over w. It implements codex.RecordWriter.
 func NewTurtleWriter(w io.Writer) *TurtleWriter { return &TurtleWriter{w: w} }
 
-// Write serializes one record, preceded by the prefix header on the first call.
+// Write serializes one record, preceded by the prefix header on the first call,
+// keeping its blank-node labels distinct from every other record's in the stream.
 func (tw *TurtleWriter) Write(r *codex.Record) error {
 	if tw.err != nil {
 		return tw.err
@@ -88,7 +92,7 @@ func (tw *TurtleWriter) Write(r *codex.Record) error {
 			return err
 		}
 	}
-	if _, err := tw.w.Write(graphFromRecord(r).TurtleBody(bibframePrefixes)); err != nil {
+	if _, err := tw.w.Write(tw.enc.AppendTurtle(nil, graphFromRecord(r), bibframePrefixes)); err != nil {
 		tw.err = err
 	}
 	return tw.err
@@ -104,7 +108,7 @@ func (tw *TurtleWriter) Close() error { return tw.err }
 type NQuadsWriter struct {
 	w        io.Writer
 	graphFor func(*codex.Record) rdf.Term
-	enc      rdf.NQuadsEncoder
+	enc      rdf.Encoder
 	err      error
 }
 
@@ -126,7 +130,7 @@ func (nw *NQuadsWriter) Write(r *codex.Record) error {
 	if nw.graphFor != nil {
 		g = nw.graphFor(r)
 	}
-	if _, err := nw.w.Write(nw.enc.AppendGraph(nil, graphFromRecord(r), g)); err != nil {
+	if _, err := nw.w.Write(nw.enc.AppendNQuads(nil, graphFromRecord(r), g)); err != nil {
 		nw.err = err
 	}
 	return nw.err

@@ -68,10 +68,10 @@ func TestNQuadsEncoderBlankScope(t *testing.T) {
 	g2 := &Graph{}
 	g2.Add(NewBlank("x"), NewIRI("u:p"), NewIRI("u:o2"))
 
-	var e NQuadsEncoder
+	var e Encoder
 	var b []byte
-	b = e.AppendGraph(b, g1, NewIRI("u:g1"))
-	b = e.AppendGraph(b, g2, NewIRI("u:g2"))
+	b = e.AppendNQuads(b, g1, NewIRI("u:g1"))
+	b = e.AppendNQuads(b, g2, NewIRI("u:g2"))
 
 	ds, _ := ParseNQuads(b)
 	if len(ds.Quads) != 2 {
