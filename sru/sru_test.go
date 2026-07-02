@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	codex "github.com/freeeve/libcodex"
@@ -150,6 +151,28 @@ func TestHTTPError(t *testing.T) {
 	}
 	if _, err := c.NewReader(context.Background(), "x").Read(); err == nil {
 		t.Error("Reader.Read on HTTP 500 should error")
+	}
+}
+
+// TestMaxResponseBytes covers the response size cap: oversized responses fail
+// with a distinct limit error, negative means unlimited, and the default is
+// generous enough for every fixture.
+func TestMaxResponseBytes(t *testing.T) {
+	body := fixture(t, "search_page1.xml")
+	srv := serve(t, func(url.Values) []byte { return body })
+	c := NewClient(srv.URL)
+
+	c.MaxResponseBytes = 64 // far below the fixture size
+	_, err := c.SearchRetrieve(context.Background(), Request{Query: "x"})
+	if err == nil || !strings.Contains(err.Error(), "exceeds 64 bytes") {
+		t.Fatalf("undersized cap: err = %v, want a limit-naming error", err)
+	}
+
+	for _, limit := range []int64{0, -1, int64(len(body))} {
+		c.MaxResponseBytes = limit
+		if _, err := c.SearchRetrieve(context.Background(), Request{Query: "x"}); err != nil {
+			t.Errorf("limit %d: %v", limit, err)
+		}
 	}
 }
 

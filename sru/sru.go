@@ -42,6 +42,12 @@ const defaultVersion = "1.2"
 // leave it unset.
 const defaultMaxRecords = 10
 
+// defaultMaxResponseBytes bounds how much of a response body the client will
+// buffer when the Client sets no limit: far above any real SRU page (which is
+// bounded by maximumRecords) while still capping memory against a misbehaving
+// server.
+const defaultMaxResponseBytes = 64 << 20
+
 // Client is an SRU endpoint. The zero value is not usable; construct one with
 // [NewClient]. HTTPClient, Version, Schema and MaxRecords are optional overrides.
 type Client struct {
@@ -50,6 +56,11 @@ type Client struct {
 	Version    string       // SRU version; "" uses defaultVersion ("1.2")
 	Schema     string       // default recordSchema; "" uses "marcxml"
 	MaxRecords int          // records requested per page; <=0 uses defaultMaxRecords
+
+	// MaxResponseBytes bounds how much of a response body is buffered: 0 uses a
+	// generous 64 MiB default, negative means unlimited. A response over the
+	// limit fails with a distinct error rather than being truncated.
+	MaxResponseBytes int64
 }
 
 // NewClient returns a Client for the SRU endpoint at baseURL with default
@@ -185,15 +196,39 @@ func (c *Client) SearchRetrieve(ctx context.Context, r Request) (*Response, erro
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("sru: unexpected HTTP status %s", resp.Status)
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readBody(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("sru: read response: %w", err)
+		return nil, err
 	}
 	out, err := parseResponse(body)
 	if err != nil {
 		return nil, err
 	}
 	return out, out.Err()
+}
+
+// readBody buffers a response body up to the client's size limit, failing with
+// a limit-naming error (not a truncated parse error) when the server sends more.
+func (c *Client) readBody(r io.Reader) ([]byte, error) {
+	limit := c.MaxResponseBytes
+	if limit == 0 {
+		limit = defaultMaxResponseBytes
+	}
+	if limit < 0 {
+		body, err := io.ReadAll(r)
+		if err != nil {
+			return nil, fmt.Errorf("sru: read response: %w", err)
+		}
+		return body, nil
+	}
+	body, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, fmt.Errorf("sru: read response: %w", err)
+	}
+	if int64(len(body)) > limit {
+		return nil, fmt.Errorf("sru: response exceeds %d bytes; raise Client.MaxResponseBytes to allow larger responses", limit)
+	}
+	return body, nil
 }
 
 // buildURL renders the searchRetrieve request URL, merging the SRU parameters

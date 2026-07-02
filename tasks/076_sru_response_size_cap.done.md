@@ -32,8 +32,17 @@ it is willing to buffer.
 
 ## Acceptance
 
-- [ ] Oversized response -> a distinct "response exceeds N bytes" error, not a
+- [x] Oversized response -> a distinct "response exceeds N bytes" error, not a
       parse error; body memory bounded by the cap.
-- [ ] Default generous (no fixture or realistic page trips it); 0/negative
+- [x] Default generous (no fixture or realistic page trips it); 0/negative
       semantics tested.
-- [ ] Suite green; no API break for existing callers.
+- [x] Suite green; no API break for existing callers.
+
+## Result
+
+`Client.MaxResponseBytes` (0 -> 64 MiB default, negative -> unlimited) bounds
+the body read via `io.LimitReader(body, limit+1)` in a new `readBody` helper; a
+response over the limit fails with "response exceeds N bytes; raise
+Client.MaxResponseBytes..." rather than a confusing truncated-XML parse error.
+`TestMaxResponseBytes` covers the distinct error, the default, unlimited, and
+an exact-size limit.
