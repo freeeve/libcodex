@@ -44,11 +44,43 @@ avoidable per-record work.
 
 ## Acceptance
 
-- [ ] 264 ind2 table test: production/publication/distribution/manufacture/
+- [x] 264 ind2 table test: production/publication/distribution/manufacture/
       copyright each map correctly; no duplicate `<place>` for RDA hybrids.
-- [ ] `author = {{Food and Agriculture Organization}}` (or equivalent
+      (`TestOrigin264Indicators`, `TestRDAHybridNoDuplicatePlace`.)
+- [x] `author = {{Food and Agriculture Organization}}` (or equivalent
       brace-protected form) in BibTeX output; parser-perspective test.
-- [ ] 245 with only $k/$n/$p yields a non-empty MODS titleInfo.
-- [ ] mods WriterStream allocs/op reduced materially (benchstat recorded);
-      citation newline copy gone.
-- [ ] API decision on `RIS`/`BibTeX` naming documented in the package doc.
+      (`TestBibTeXCorporateAuthor`.)
+- [x] 245 with only $n/$p yields a non-empty MODS titleInfo.
+      (`TestTitleFromPartOnly`.)
+- [x] mods WriterStream allocs/op reduced materially; citation newline copy
+      gone. See benchstat below.
+- [x] API decision on `RIS`/`BibTeX` naming documented in the package doc.
+
+## Resolution
+
+1. **mods origin** -- `originFromPublication` ranks the 260/264 fields
+   (264 ind2='1' > 260 > other 264 roles; copyright never chosen), reads
+   place/publisher/date from the single best field (no cross-field place
+   duplication), and maps a 264 ind2='4' $c to the new
+   `OriginInfo.CopyrightDate`. Ranking matches bibframe's `provisionStatement`.
+2. **BibTeX corporate authors** -- `Entry.Authors` is now `[]Author{Name,
+   Corporate}`; corporate/conference names (110/710/111/711) are wrapped in a
+   literal brace group so BibTeX does not split them on an internal "and".
+3. **mods title** -- the 245 titleInfo is kept when any of
+   Title/SubTitle/PartNumber/PartName is present, not only $a.
+4. **Writer efficiency** -- mods now hand-rolls its serializer
+   (`serialize.go`) into a reused per-Writer buffer instead of reflection-based
+   `xml.MarshalIndent` + a `\n` realloc; output is byte-identical (golden
+   unchanged). The `BibTeXWriter` writes the inter-entry newline separately
+   rather than prepending it to a fresh slice. The XML text escaper is now
+   shared (`crosswalk.AppendXMLText`, used by mods and dublincore).
+5. **citation API** -- the package doc explains why citation exposes format-named
+   `RIS`/`BibTeX` (two formats, not one `Encode`) and keeps the always-nil error
+   for signature parity with the other exporters.
+
+### benchstat (Apple Silicon, -benchtime=200ms)
+
+| bench                    | before                     | after                       |
+|--------------------------|----------------------------|-----------------------------|
+| mods Encode              | 17364 ns, 8066 B, 51 allocs | 9423 ns, 4568 B, 28 allocs |
+| mods WriterStream        | 62.6 MB/s, 4903 allocs/op  | 198.6 MB/s, 1912 allocs/op  |

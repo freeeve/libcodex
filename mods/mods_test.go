@@ -178,6 +178,69 @@ func TestEncodeMappingExtras(t *testing.T) {
 	}
 }
 
+// TestOrigin264Indicators checks the 264 second-indicator handling: publication
+// (1) supplies publisher/date; a copyright statement (4) maps $c to
+// copyrightDate and never to publisher/dateIssued; and when both are present the
+// publication statement wins.
+func TestOrigin264Indicators(t *testing.T) {
+	// A copyright-only record: no publisher, copyrightDate set, dateIssued not "©".
+	cr := codex.NewRecord().
+		AddField(codex.NewDataField("264", ' ', '4', codex.NewSubfield('c', "©2016")))
+	o := FromRecord(cr).OriginInfo
+	if o == nil || o.CopyrightDate != "©2016" {
+		t.Errorf("copyright-only originInfo = %+v, want CopyrightDate ©2016", o)
+	}
+	if o != nil && o.DateIssued == "©2016" {
+		t.Errorf("copyright date leaked into dateIssued: %+v", o)
+	}
+	if o != nil && o.Publisher != "" {
+		t.Errorf("copyright statement must not set publisher: %+v", o)
+	}
+
+	// Publication (264_1) preferred over a distribution statement (264_2).
+	both := codex.NewRecord().
+		AddField(codex.NewDataField("264", ' ', '1',
+			codex.NewSubfield('a', "London :"), codex.NewSubfield('b', "Penguin,"), codex.NewSubfield('c', "2019"))).
+		AddField(codex.NewDataField("264", ' ', '2',
+			codex.NewSubfield('a', "Boston :"), codex.NewSubfield('b', "Distributor,"), codex.NewSubfield('c', "2020")))
+	o = FromRecord(both).OriginInfo
+	if o == nil || o.Publisher != "Penguin" || o.DateIssued != "2019" {
+		t.Errorf("publication statement should win: %+v", o)
+	}
+	if len(o.Place) != 1 || o.Place[0].PlaceTerm.Value != "London" {
+		t.Errorf("place should come only from the publication statement: %+v", o.Place)
+	}
+}
+
+// TestRDAHybridNoDuplicatePlace confirms a legacy 260 plus an RDA 264 does not
+// emit the place twice.
+func TestRDAHybridNoDuplicatePlace(t *testing.T) {
+	rec := codex.NewRecord().
+		AddField(codex.NewDataField("260", ' ', ' ',
+			codex.NewSubfield('a', "New York :"), codex.NewSubfield('b', "Old Pub,"), codex.NewSubfield('c', "1990"))).
+		AddField(codex.NewDataField("264", ' ', '1',
+			codex.NewSubfield('a', "New York :"), codex.NewSubfield('b', "New Pub,"), codex.NewSubfield('c', "1990")))
+	o := FromRecord(rec).OriginInfo
+	if o == nil || len(o.Place) != 1 {
+		t.Errorf("RDA hybrid should yield exactly one place, got %+v", o)
+	}
+	if o != nil && o.Publisher != "New Pub" {
+		t.Errorf("264 publication publisher should win: %+v", o)
+	}
+}
+
+// TestTitleFromPartOnly confirms a 245 titled only via $n/$p (no $a) is not
+// dropped.
+func TestTitleFromPartOnly(t *testing.T) {
+	rec := codex.NewRecord().
+		AddField(codex.NewDataField("245", '0', '0',
+			codex.NewSubfield('n', "Part 2,"), codex.NewSubfield('p', "The Return")))
+	m := FromRecord(rec)
+	if len(m.TitleInfo) != 1 || m.TitleInfo[0].PartName != "The Return" {
+		t.Errorf("part-only titleInfo dropped: %+v", m.TitleInfo)
+	}
+}
+
 func TestEncodeNamespace(t *testing.T) {
 	b, err := Encode(sample())
 	if err != nil {

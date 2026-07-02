@@ -6,6 +6,14 @@
 // codex.RecordWriter, so they plug into codex.Convert; both formats are
 // self-delimiting (an RIS record ends with ER, a BibTeX entry is a complete
 // @type{...} block), so no Close is needed.
+//
+// Unlike the single-format exporters (mods, dublincore, schemaorg) that expose
+// one Encode, this package renders two distinct citation formats, so the
+// package-level entry points are named for the format they produce: [RIS] and
+// [BibTeX] (with [FromRecord] as the shared extraction step). Both return
+// ([]byte, error) for signature parity with the other exporters so callers can
+// treat any exporter uniformly; the error is always nil because rendering a
+// citation string cannot fail.
 package citation
 
 import (
@@ -18,13 +26,22 @@ import (
 	"github.com/freeeve/libcodex/internal/crosswalk"
 )
 
+// Author is a name with intellectual responsibility. Corporate marks a corporate
+// body or conference name (MARC 110/710/111/711) so BibTeX can brace-protect it
+// -- otherwise BibTeX would split "Food and Agriculture Organization" into two
+// authors on the internal "and".
+type Author struct {
+	Name      string
+	Corporate bool
+}
+
 // Entry is the bibliographic information extracted from a record, shared by the
 // RIS and BibTeX renderers.
 type Entry struct {
 	risType   string // RIS TY value
 	bibType   string // BibTeX entry type (without the @)
 	Title     string
-	Authors   []string
+	Authors   []Author
 	Year      string
 	Date      string
 	Publisher string
@@ -48,7 +65,7 @@ func FromRecord(r *codex.Record) *Entry {
 			e.Title = crosswalk.JoinSub(f, "ab", " ")
 		case "100", "110", "111", "700", "710", "711":
 			if v := crosswalk.TrimISBD(f.SubfieldValue('a')); v != "" {
-				e.Authors = append(e.Authors, v)
+				e.Authors = append(e.Authors, Author{Name: v, Corporate: f.Tag != "100" && f.Tag != "700"})
 			}
 		case "250":
 			e.Edition = crosswalk.TrimISBD(f.SubfieldValue('a'))
@@ -141,7 +158,7 @@ func (e *Entry) RIS() []byte {
 	b = risLine(b, "TY", e.risType)
 	b = risLine(b, "TI", e.Title)
 	for _, a := range e.Authors {
-		b = risLine(b, "AU", a)
+		b = risLine(b, "AU", a.Name)
 	}
 	b = risLine(b, "PY", e.Year)
 	b = risLine(b, "DA", e.Date)
@@ -213,7 +230,7 @@ func (e *Entry) BibTeX() []byte {
 	b = append(b, e.citeKey()...)
 	b = append(b, ",\n"...)
 	if len(e.Authors) > 0 {
-		b = bibField(b, "author", strings.Join(e.Authors, " and "))
+		b = bibAuthors(b, e.Authors)
 	}
 	b = bibField(b, "title", e.Title)
 	b = bibField(b, "year", e.Year)
@@ -245,6 +262,28 @@ func bibField(b []byte, name, value string) []byte {
 	b = append(b, name...)
 	b = append(b, " = {"...)
 	b = appendBibTeX(b, value)
+	return append(b, "},\n"...)
+}
+
+// bibAuthors writes the author field, joining names with BibTeX's " and "
+// separator. A corporate name is wrapped in an extra brace group so BibTeX
+// treats it as a single unit -- without it "Food and Agriculture Organization"
+// would split into two authors on the internal "and". The literal braces are
+// written directly (not through appendBibTeX, which would escape them).
+func bibAuthors(b []byte, authors []Author) []byte {
+	b = append(b, "  author = {"...)
+	for i, a := range authors {
+		if i > 0 {
+			b = append(b, " and "...)
+		}
+		if a.Corporate {
+			b = append(b, '{')
+			b = appendBibTeX(b, a.Name)
+			b = append(b, '}')
+		} else {
+			b = appendBibTeX(b, a.Name)
+		}
+	}
 	return append(b, "},\n"...)
 }
 
@@ -287,7 +326,7 @@ func appendBibTeX(b []byte, s string) []byte {
 func (e *Entry) citeKey() string {
 	var b strings.Builder
 	if len(e.Authors) > 0 {
-		surname := e.Authors[0]
+		surname := e.Authors[0].Name
 		if i := strings.IndexByte(surname, ','); i >= 0 {
 			surname = surname[:i]
 		}
@@ -360,14 +399,18 @@ func (wr *BibTeXWriter) Write(r *codex.Record) error {
 	if wr.err != nil {
 		return wr.err
 	}
-	b := FromRecord(r).BibTeX()
 	if wr.wrote {
-		b = append([]byte{'\n'}, b...) // blank line between entries
+		if _, wr.err = wr.w.Write(entrySep); wr.err != nil { // blank line between entries
+			return wr.err
+		}
 	}
 	wr.wrote = true
-	_, wr.err = wr.w.Write(b)
+	_, wr.err = wr.w.Write(FromRecord(r).BibTeX())
 	return wr.err
 }
+
+// entrySep is the blank line written between BibTeX entries.
+var entrySep = []byte{'\n'}
 
 // WriteRISFile writes every record to the named file in RIS format.
 func WriteRISFile(path string, records []*codex.Record) error {

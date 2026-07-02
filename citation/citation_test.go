@@ -92,6 +92,21 @@ func TestBibTeX(t *testing.T) {
 	}
 }
 
+// TestBibTeXCorporateAuthor confirms a corporate body (110/710) is wrapped in an
+// extra brace group so BibTeX does not split it on its internal "and", while a
+// personal co-author is left unbraced.
+func TestBibTeXCorporateAuthor(t *testing.T) {
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00000nam a2200000 a 4500")).
+		AddField(codex.NewDataField("110", '2', ' ', codex.NewSubfield('a', "Food and Agriculture Organization"))).
+		AddField(codex.NewDataField("700", '1', ' ', codex.NewSubfield('a', "Smith, Jane"))).
+		AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "Report")))
+	out := string(FromRecord(rec).BibTeX())
+	if !strings.Contains(out, "author = {{Food and Agriculture Organization} and Smith, Jane},\n") {
+		t.Errorf("corporate author not brace-protected:\n%s", out)
+	}
+}
+
 func TestKind(t *testing.T) {
 	cases := map[string][2]string{
 		"00000nam a2200000 a 4500": {"BOOK", "book"},    // monograph
@@ -394,7 +409,7 @@ func TestCitationBoundaries(t *testing.T) {
 		t.Errorf("008 length 38: language = %q, want eng", l)
 	}
 	// citeKey takes the surname up to the first comma; a leading comma yields "".
-	e := &Entry{Authors: []string{",Solo"}, Year: "2000", Title: "Book"}
+	e := &Entry{Authors: []Author{{Name: ",Solo"}}, Year: "2000", Title: "Book"}
 	if k := e.citeKey(); k != "2000book" {
 		t.Errorf("citeKey leading-comma author = %q, want 2000book", k)
 	}

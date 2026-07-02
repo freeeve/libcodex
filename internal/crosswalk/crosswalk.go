@@ -107,3 +107,39 @@ func AppendJSONString(b []byte, s string) []byte {
 	}
 	return append(b, '"')
 }
+
+// AppendXMLText appends s to b as escaped XML character data: it escapes the
+// markup-significant runes (& < >) and a carriage return, drops control
+// characters XML 1.0 cannot represent (a lossy export), and drops invalid UTF-8
+// bytes so the output is always well-formed.
+func AppendXMLText(b []byte, s string) []byte {
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c < 0x80 {
+			i++
+			switch c {
+			case '&':
+				b = append(b, "&amp;"...)
+			case '<':
+				b = append(b, "&lt;"...)
+			case '>':
+				b = append(b, "&gt;"...)
+			case '\r':
+				b = append(b, "&#xD;"...)
+			default:
+				if c >= 0x20 || c == '\t' || c == '\n' {
+					b = append(b, c)
+				}
+			}
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size == 1 {
+			i++ // drop an invalid UTF-8 byte
+			continue
+		}
+		b = append(b, s[i:i+size]...)
+		i += size
+	}
+	return b
+}

@@ -82,10 +82,11 @@ type RoleTerm struct {
 }
 
 type OriginInfo struct {
-	Place      []Place `xml:"place"`
-	Publisher  string  `xml:"publisher,omitempty"`
-	DateIssued string  `xml:"dateIssued,omitempty"`
-	Edition    string  `xml:"edition,omitempty"`
+	Place         []Place `xml:"place"`
+	Publisher     string  `xml:"publisher,omitempty"`
+	DateIssued    string  `xml:"dateIssued,omitempty"`
+	CopyrightDate string  `xml:"copyrightDate,omitempty"`
+	Edition       string  `xml:"edition,omitempty"`
 }
 
 type Place struct {
@@ -139,10 +140,13 @@ type RecordInfo struct {
 func FromRecord(r *codex.Record) *MODS {
 	m := &MODS{TypeOfResource: typeOfResource(r.Leader().RecordType())}
 	origin := OriginInfo{}
+	var pubFields []codex.Field // 260/264, resolved after the pass
 	for _, f := range r.Fields() {
 		switch f.Tag {
 		case "245":
-			if t := titleFrom(f); t.Title != "" {
+			// Keep the titleInfo when any part is present, not just $a: archival
+			// and multipart material may be titled only via $n/$p (or $b).
+			if t := titleFrom(f); t.Title != "" || t.SubTitle != "" || t.PartNumber != "" || t.PartName != "" {
 				m.TitleInfo = append(m.TitleInfo, t)
 			}
 		case "130", "240":
@@ -158,7 +162,7 @@ func FromRecord(r *codex.Record) *MODS {
 		case "250":
 			origin.Edition = crosswalk.TrimISBD(f.SubfieldValue('a'))
 		case "260", "264":
-			mergeOrigin(&origin, f)
+			pubFields = append(pubFields, f)
 		case "300":
 			if m.PhysicalDesc == nil {
 				if e := extentFrom(f); e != "" {
@@ -201,10 +205,12 @@ func FromRecord(r *codex.Record) *MODS {
 		}
 	}
 
+	originFromPublication(&origin, pubFields)
 	if origin.DateIssued == "" {
 		origin.DateIssued = date008(r)
 	}
-	if len(origin.Place) > 0 || origin.Publisher != "" || origin.DateIssued != "" || origin.Edition != "" {
+	if len(origin.Place) > 0 || origin.Publisher != "" || origin.DateIssued != "" ||
+		origin.CopyrightDate != "" || origin.Edition != "" {
 		m.OriginInfo = &origin
 	}
 	addLanguages(m, r)
@@ -233,15 +239,50 @@ func extentFrom(f codex.Field) string {
 	return strings.Join(parts, " ")
 }
 
-func mergeOrigin(o *OriginInfo, f codex.Field) {
-	if p := crosswalk.TrimISBD(f.SubfieldValue('a')); p != "" {
-		o.Place = append(o.Place, Place{PlaceTerm: PlaceTerm{Type: "text", Value: p}})
+// originFromPublication fills o's place/publisher/date from the single best
+// publication statement among the 260/264 fields, and maps a 264 copyright
+// statement (2nd indicator '4') $c to copyrightDate. Reading place, publisher
+// and date from one field avoids mixing one statement's place with another's
+// date and stops RDA 260+264 hybrids from emitting duplicate <place> elements.
+// The ranking matches bibframe's provisionStatement: 264 ind2='1' (publication)
+// is preferred over a legacy 260, then the other 264 roles; a copyright
+// statement is never chosen for place/publisher/date.
+func originFromPublication(o *OriginInfo, fields []codex.Field) {
+	var best *codex.Field
+	bestRank := 0
+	for i := range fields {
+		if r := publicationRank(fields[i]); r > bestRank {
+			bestRank, best = r, &fields[i]
+		}
+		if fields[i].Ind2 == '4' && o.CopyrightDate == "" {
+			o.CopyrightDate = crosswalk.TrimISBD(fields[i].SubfieldValue('c'))
+		}
 	}
-	if o.Publisher == "" {
-		o.Publisher = crosswalk.TrimISBD(f.SubfieldValue('b'))
+	if best == nil {
+		return
 	}
-	if o.DateIssued == "" {
-		o.DateIssued = crosswalk.TrimISBD(f.SubfieldValue('c'))
+	for _, p := range best.SubfieldValues('a') {
+		if p = crosswalk.TrimISBD(p); p != "" {
+			o.Place = append(o.Place, Place{PlaceTerm: PlaceTerm{Type: "text", Value: p}})
+		}
+	}
+	o.Publisher = crosswalk.TrimISBD(best.SubfieldValue('b'))
+	o.DateIssued = crosswalk.TrimISBD(best.SubfieldValue('c'))
+}
+
+// publicationRank scores a 260/264 field as a publication statement; the
+// highest-scoring field wins and a zero-scored field is never chosen.
+func publicationRank(f codex.Field) int {
+	if f.Tag == "260" {
+		return 2
+	}
+	switch f.Ind2 {
+	case '1': // publication
+		return 3
+	case '4': // copyright notice date -- not a publication statement
+		return 0
+	default: // production, distribution, manufacture, or unspecified
+		return 1
 	}
 }
 
@@ -398,13 +439,14 @@ func Encode(r *codex.Record) ([]byte, error) {
 	m := FromRecord(r)
 	m.Xmlns = Namespace
 	m.Version = "3.7"
-	return xml.MarshalIndent(m, "", "  ")
+	return appendMODS(nil, m, "", "  "), nil
 }
 
 // Writer converts records and writes them into a <modsCollection>. Close must be
 // called to emit the closing tag.
 type Writer struct {
 	w      io.Writer
+	buf    []byte
 	opened bool
 	closed bool
 	err    error
@@ -427,11 +469,9 @@ func (wr *Writer) Write(r *codex.Record) error {
 	if err := wr.open(); err != nil {
 		return err
 	}
-	b, err := xml.MarshalIndent(FromRecord(r), "  ", "  ")
-	if err != nil {
-		return err
-	}
-	return wr.writeAll(append(b, '\n'))
+	wr.buf = appendMODS(wr.buf[:0], FromRecord(r), "  ", "  ")
+	wr.buf = append(wr.buf, '\n')
+	return wr.writeAll(wr.buf)
 }
 
 // Close writes the closing </modsCollection> tag.

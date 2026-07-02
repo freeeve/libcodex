@@ -17,7 +17,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/freeeve/libcodex"
 	"github.com/freeeve/libcodex/internal/crosswalk"
@@ -186,38 +185,7 @@ func appendXML(b []byte, dc *DC, open, indent string) []byte {
 	return append(b, "</oai_dc:dc>"...)
 }
 
-func appendXMLText(b []byte, s string) []byte {
-	for i := 0; i < len(s); {
-		c := s[i]
-		if c < 0x80 {
-			i++
-			switch c {
-			case '&':
-				b = append(b, "&amp;"...)
-			case '<':
-				b = append(b, "&lt;"...)
-			case '>':
-				b = append(b, "&gt;"...)
-			case '\r':
-				b = append(b, "&#xD;"...)
-			default:
-				// Drop control characters XML 1.0 cannot represent (lossy export).
-				if c >= 0x20 || c == '\t' || c == '\n' {
-					b = append(b, c)
-				}
-			}
-			continue
-		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == utf8.RuneError && size == 1 {
-			i++ // drop an invalid UTF-8 byte
-			continue
-		}
-		b = append(b, s[i:i+size]...)
-		i += size
-	}
-	return b
-}
+func appendXMLText(b []byte, s string) []byte { return crosswalk.AppendXMLText(b, s) }
 
 func appendJSON(b []byte, dc *DC) []byte {
 	b = append(b, '{')
