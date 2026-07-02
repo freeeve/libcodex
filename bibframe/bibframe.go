@@ -208,12 +208,30 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 		case "072":
 			// Subject category code (e.g. BISAC): a source-qualified classification.
 			g.appendClassification(trimISBD(f.SubfieldValue('a')), "Classification", trimISBD(f.SubfieldValue('2')))
+		case "084":
+			// Other classification number (e.g. BISAC in MARC Express): repeated $a
+			// codes qualified by the $2 scheme, mirroring the 072 source handling.
+			source := trimISBD(f.SubfieldValue('2'))
+			for _, sf := range f.Subfields {
+				if sf.Code == 'a' {
+					g.appendClassification(trimISBD(sf.Value), "Classification", source)
+				}
+			}
 		case "020":
 			g.appendIdentifiers(f, 'a', "Isbn")
 		case "022":
 			g.appendIdentifiers(f, 'a', "Issn")
 		case "024":
 			g.appendIdentifiers(f, 'a', "Identifier")
+		case "037":
+			// Source of acquisition (e.g. the OverDrive Reserve ID): the $a value,
+			// with the supplying scheme ($2) or agency ($b) kept as the identifier
+			// source so it is not dropped on the MARC import path.
+			source := trimISBD(f.SubfieldValue('2'))
+			if source == "" {
+				source = trimISBD(f.SubfieldValue('b'))
+			}
+			g.appendIdentifier("Identifier", trimISBD(f.SubfieldValue('a')), source)
 		case "856":
 			for _, sf := range f.Subfields {
 				if sf.Code == 'u' {
@@ -285,9 +303,9 @@ func (g *BIBFRAME) presize(fields []codex.Field) {
 			contrib++
 		case "650", "651", "600", "610", "611":
 			subj++
-		case "050", "082", "072":
+		case "050", "082", "072", "084":
 			classif++
-		case "020", "022", "024":
+		case "020", "022", "024", "037":
 			ident++
 		}
 	}
@@ -335,10 +353,15 @@ func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class string) {
 	source := trimISBD(f.SubfieldValue('2')) // $2 names the identifier scheme (bf:source)
 	for _, sf := range f.Subfields {
 		if sf.Code == code {
-			if v := trimISBD(sf.Value); v != "" {
-				g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{Class: class, Value: v, Source: source})
-			}
+			g.appendIdentifier(class, trimISBD(sf.Value), source)
 		}
+	}
+}
+
+// appendIdentifier records one Instance identifier when the value is non-empty.
+func (g *BIBFRAME) appendIdentifier(class, value, source string) {
+	if value != "" {
+		g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{Class: class, Value: value, Source: source})
 	}
 }
 
