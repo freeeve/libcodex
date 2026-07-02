@@ -83,6 +83,7 @@ Fixtures in `sru/testdata/` with `SOURCES.md` provenance (synthetic, LC SRU shap
 
 ### Deferred (future tasks)
 
-- SRU 2.0 parameter set; `explain` and `scan` operations; a CQL query builder.
+- A typed CQL query builder -- split to task 080 (Tier 2, ergonomics).
+- SRU 2.0 parameter set; `explain` and `scan` operations (low).
 - MODS/DC -> `codex.Record` decoders (would let those schemas decode too).
-- Z39.50 transport for the same use case -- see `tasks/075_z3950_client.md`.
+- Z39.50 transport for the same use case -- done, task 075 (`z3950` package).
