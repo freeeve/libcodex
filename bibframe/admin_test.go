@@ -48,8 +48,13 @@ func TestAdminMetadataFields(t *testing.T) {
 	if v, _ := g.Literal(node, bfNS+"changeDate"); v != "1993-12-04T09:30:00" {
 		t.Errorf("changeDate = %q, want 1993-12-04T09:30:00", v)
 	}
-	if v, _ := g.Literal(node, bfNS+"descriptionConventions"); v != "rda" {
-		t.Errorf("descriptionConventions = %q, want rda", v)
+	// descriptionConventions is a bf:DescriptionConventions node carrying bf:code.
+	dc, ok := g.Object(node, bfNS+"descriptionConventions")
+	if !ok {
+		t.Fatal("AdminMetadata has no bf:descriptionConventions")
+	}
+	if v, _ := g.Literal(dc, bfNS+"code"); v != "rda" {
+		t.Errorf("descriptionConventions code = %q, want rda", v)
 	}
 	// The control number is on a nested bf:Local identifier.
 	id, ok := g.Object(node, bfNS+"identifiedBy")

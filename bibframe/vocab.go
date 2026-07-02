@@ -51,29 +51,31 @@ func nsIRI(ns string) string {
 // Class qnames. The iri fields reuse the full-IRI constants declared in reader.go
 // where they exist, so the two stay in lock-step.
 var (
-	qcWork                = qname{nsBF, "Work", "bf:Work", classWork}
-	qcInstance            = qname{nsBF, "Instance", "bf:Instance", classInstance}
-	qcTitle               = qname{nsBF, "Title", "bf:Title", bfNS + "Title"}
-	qcPublication         = qname{nsBF, "Publication", "bf:Publication", bfNS + "Publication"}
-	qcProduction          = qname{nsBF, "Production", "bf:Production", bfNS + "Production"}
-	qcDistribution        = qname{nsBF, "Distribution", "bf:Distribution", bfNS + "Distribution"}
-	qcManufacture         = qname{nsBF, "Manufacture", "bf:Manufacture", bfNS + "Manufacture"}
-	qcLanguage            = qname{nsBF, "Language", "bf:Language", bfNS + "Language"}
-	qcLocal               = qname{nsBF, "Local", "bf:Local", classLocal}
-	qcAdminMetadata       = qname{nsBF, "AdminMetadata", "bf:AdminMetadata", classAdminMetadata}
-	qcGenerationProcess   = qname{nsBF, "GenerationProcess", "bf:GenerationProcess", classGenerationProcess}
-	qcSource              = qname{nsBF, "Source", "bf:Source", classSource}
-	qcStatus              = qname{nsBF, "Status", "bf:Status", classStatus}
-	qcPlace               = qname{nsBF, "Place", "bf:Place", bfNS + "Place"}
-	qcRole                = qname{nsBF, "Role", "bf:Role", bfNS + "Role"}
-	qcExtent              = qname{nsBF, "Extent", "bf:Extent", bfNS + "Extent"}
-	qcContent             = qname{nsBF, "Content", "bf:Content", bfNS + "Content"}
-	qcMedia               = qname{nsBF, "Media", "bf:Media", bfNS + "Media"}
-	qcCarrier             = qname{nsBF, "Carrier", "bf:Carrier", bfNS + "Carrier"}
-	qcGenreForm           = qname{nsBF, "GenreForm", "bf:GenreForm", bfNS + "GenreForm"}
-	qcSummary             = qname{nsBF, "Summary", "bf:Summary", bfNS + "Summary"}
-	qcContribution        = qname{nsBF, "Contribution", "bf:Contribution", bfNS + "Contribution"}
-	qcPrimaryContribution = qname{nsBFLC, "PrimaryContribution", "bflc:PrimaryContribution", primaryContribution}
+	qcWork                   = qname{nsBF, "Work", "bf:Work", classWork}
+	qcInstance               = qname{nsBF, "Instance", "bf:Instance", classInstance}
+	qcTitle                  = qname{nsBF, "Title", "bf:Title", bfNS + "Title"}
+	qcPublication            = qname{nsBF, "Publication", "bf:Publication", bfNS + "Publication"}
+	qcProduction             = qname{nsBF, "Production", "bf:Production", bfNS + "Production"}
+	qcDistribution           = qname{nsBF, "Distribution", "bf:Distribution", bfNS + "Distribution"}
+	qcManufacture            = qname{nsBF, "Manufacture", "bf:Manufacture", bfNS + "Manufacture"}
+	qcLanguage               = qname{nsBF, "Language", "bf:Language", bfNS + "Language"}
+	qcLocal                  = qname{nsBF, "Local", "bf:Local", classLocal}
+	qcAdminMetadata          = qname{nsBF, "AdminMetadata", "bf:AdminMetadata", classAdminMetadata}
+	qcGenerationProcess      = qname{nsBF, "GenerationProcess", "bf:GenerationProcess", classGenerationProcess}
+	qcSource                 = qname{nsBF, "Source", "bf:Source", classSource}
+	qcStatus                 = qname{nsBF, "Status", "bf:Status", classStatus}
+	qcPlace                  = qname{nsBF, "Place", "bf:Place", bfNS + "Place"}
+	qcRole                   = qname{nsBF, "Role", "bf:Role", bfNS + "Role"}
+	qcAgent                  = qname{nsBF, "Agent", "bf:Agent", bfNS + "Agent"}
+	qcDescriptionConventions = qname{nsBF, "DescriptionConventions", "bf:DescriptionConventions", bfNS + "DescriptionConventions"}
+	qcExtent                 = qname{nsBF, "Extent", "bf:Extent", bfNS + "Extent"}
+	qcContent                = qname{nsBF, "Content", "bf:Content", bfNS + "Content"}
+	qcMedia                  = qname{nsBF, "Media", "bf:Media", bfNS + "Media"}
+	qcCarrier                = qname{nsBF, "Carrier", "bf:Carrier", bfNS + "Carrier"}
+	qcGenreForm              = qname{nsBF, "GenreForm", "bf:GenreForm", bfNS + "GenreForm"}
+	qcSummary                = qname{nsBF, "Summary", "bf:Summary", bfNS + "Summary"}
+	qcContribution           = qname{nsBF, "Contribution", "bf:Contribution", bfNS + "Contribution"}
+	qcPrimaryContribution    = qname{nsBFLC, "PrimaryContribution", "bflc:PrimaryContribution", primaryContribution}
 )
 
 // Predicate qnames.
@@ -121,6 +123,7 @@ var (
 	qpAdminMetadata          = qname{nsBF, "adminMetadata", "bf:adminMetadata", pAdminMetadata}
 	qpGenerationProcess      = qname{nsBF, "generationProcess", "bf:generationProcess", pGenerationProcess}
 	qpChangeDate             = qname{nsBF, "changeDate", "bf:changeDate", pChangeDate}
+	qpAssigner               = qname{nsBF, "assigner", "bf:assigner", pAssigner}
 	qpDescriptionConventions = qname{nsBF, "descriptionConventions", "bf:descriptionConventions", pDescriptionConventions}
 	qpSource                 = qname{nsBF, "source", "bf:source", pSource}
 	qpQualifier              = qname{nsBF, "qualifier", "bf:qualifier", pQualifier}

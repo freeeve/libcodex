@@ -180,12 +180,19 @@ beyond 520 and the entire 76x-78x linking family are absent.
 - GAP (high, structural) -- 76x-78x linking entries entirely unhandled; m2b emits
   `bf:relation -> bf:Relation` with a relationship-vocab IRI + `bf:associatedResource`
   (per-field minted Work/Instance IRIs), not bare `bf:precededBy`. **[073]**
-- GAP (med) -- 003 not read; the `bf:Local` (001) has no `bf:assigner`. **[069]**
-- DIVERGENCE (med) -- 040 $e emitted as a plain literal and only the first $e;
-  m2b emits a `bf:DescriptionConventions` node (vocab IRI + code) per $e. **[069]**
-- DIVERGENCE (low) -- 005 emitted as a bare literal; m2b tags `xsd:dateTime`. **[069]**
-- GAP (low) -- 040 $b (`bf:descriptionLanguage`), 042 (`bf:descriptionAuthentication`)
-  unhandled. **[069]**
+- RESOLVED [069] -- 003 is read into `AdminMetadata.ControlOrg` and attached to the
+  001 `bf:Local` as a `bf:assigner` agent (organizations-vocabulary IRI when the
+  code is IRI-safe, plus `bf:code`). Only emitted when 003 is present -- no DLC
+  default, to avoid falsely attributing non-LoC records.
+- RESOLVED [069] -- every 040 $e -> a `bf:DescriptionConventions` node (RDA
+  descriptionConventions IRI + `bf:code`), replacing the first-$e plain literal.
+- RESOLVED [069] -- 005 `bf:changeDate` is now an `xsd:dateTime` typed literal via a
+  new `litTyped` sink method (the crosswalk's first typed literal; both parsers
+  already read datatypes). AdminMetadata stays forward-only provenance (not reversed
+  to MARC, excluded from the round-trip by `normalize`), so this changed no goldens
+  and needs no reverse.
+- GAP (low), deferred [069] -- 040 $b (`bf:descriptionLanguage`), 042
+  (`bf:descriptionAuthentication`) still unhandled.
 - DIVERGENCE (low) -- 856 ind2 not consulted (ind2=2 -> `bf:supplementaryContent`,
   ToC -> `bf:tableOfContents`); no `bf:Item`/secondary Electronic Instance. **[072]**
 - MATCH-by-omission -- 040 $a/$d assigner/modifier are commented out in current

@@ -59,6 +59,7 @@ const (
 	pGenerationProcess      = bfNS + "generationProcess"
 	pChangeDate             = bfNS + "changeDate"
 	pDescriptionConventions = bfNS + "descriptionConventions"
+	pAssigner               = bfNS + "assigner"
 	classAdminMetadata      = bfNS + "AdminMetadata"
 	classGenerationProcess  = bfNS + "GenerationProcess"
 	classLocal              = bfNS + "Local"

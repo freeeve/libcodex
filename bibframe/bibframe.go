@@ -56,6 +56,10 @@ const (
 	contentVocab = "http://id.loc.gov/vocabulary/contentTypes/"
 	mediaVocab   = "http://id.loc.gov/vocabulary/mediaTypes/"
 	carrierVocab = "http://id.loc.gov/vocabulary/carriers/"
+	// orgVocab names a cataloging-agency IRI from a MARC organization code (003,
+	// 040 $a); conventionsVocab names a description-convention IRI from 040 $e.
+	orgVocab         = "http://id.loc.gov/vocabulary/organizations/"
+	conventionsVocab = "http://id.loc.gov/vocabulary/descriptionConventions/"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -184,9 +188,10 @@ type RDATerm struct {
 // cataloging conventions, the last-change date, and the generation process that
 // produced the RDF. It is what the LoC/BIBFRAME ecosystem reads for provenance.
 type AdminMetadata struct {
-	ControlNumber          string // field 001
-	ChangeDate             string // field 005, as an xsd:dateTime string
-	DescriptionConventions string // field 040 $e (e.g. "rda")
+	ControlNumber          string   // field 001
+	ControlOrg             string   // field 003 -- the agency that assigned the 001
+	ChangeDate             string   // field 005, as an xsd:dateTime string
+	DescriptionConventions []string // field 040 $e (e.g. "rda"), one per $e
 }
 
 // generatorLabel names this library as the bf:GenerationProcess that produced
@@ -202,11 +207,15 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	g.presize(fields)
 	var transcribed, uniform Title
 	var provFields []codex.Field
-	var descConventions string
+	var descConventions []string
 	for _, f := range fields {
 		switch f.Tag {
 		case "040":
-			descConventions = trimISBD(f.SubfieldValue('e'))
+			for _, e := range f.SubfieldValues('e') {
+				if v := trimISBD(e); v != "" {
+					descConventions = append(descConventions, v)
+				}
+			}
 		case "245":
 			transcribed = Title{
 				MainTitle:  trimISBD(f.SubfieldValue('a')),
@@ -343,6 +352,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	// conventions the record itself provides.
 	g.Instance.Admin = &AdminMetadata{
 		ControlNumber:          r.ControlField("001"),
+		ControlOrg:             strings.TrimSpace(r.ControlField("003")),
 		ChangeDate:             formatMARC005(r.ControlField("005")),
 		DescriptionConventions: descConventions,
 	}

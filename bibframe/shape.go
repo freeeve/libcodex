@@ -50,6 +50,28 @@ func rdaIRIVal(vocab, code string) iriVal {
 	return iriVal{vocab, code, ""}
 }
 
+// orgIRIVal builds a cataloging-agency IRI in the LoC organizations vocabulary from
+// a MARC organization code (lowercased). A code carrying anything but letters and
+// hyphens yields the zero iriVal (a blank assigner node bearing only bf:code), so a
+// malformed 003 cannot mint an unsafe IRI.
+func orgIRIVal(code string) iriVal {
+	if code == "" {
+		return iriVal{}
+	}
+	b := make([]byte, len(code))
+	for i := 0; i < len(code); i++ {
+		switch c := code[i]; {
+		case c >= 'A' && c <= 'Z':
+			b[i] = c + 32
+		case (c >= 'a' && c <= 'z') || c == '-':
+			b[i] = c
+		default:
+			return iriVal{}
+		}
+	}
+	return iriVal{orgVocab, string(b), ""}
+}
+
 // sink receives the shape as a stream of calls. beginChild/endChild bracket a
 // single child node; beginList/endList bracket a repeated one (JSON renders it as
 // an array); a bare beginNode/endNode is a root node. iri is the zero iriVal for a
@@ -59,6 +81,7 @@ type sink interface {
 	beginNode(class qname, iri iriVal, extra qname)
 	endNode()
 	lit(pred qname, text string)
+	litTyped(pred qname, text, datatype string)
 	ref(pred qname, iri iriVal)
 	refList(pred qname, iris []string)
 	beginChild(pred qname)
@@ -422,18 +445,37 @@ func emitAdmin(s sink, am *AdminMetadata) {
 	emitLabeled(s, qcGenerationProcess, generatorLabel)
 	s.endChild()
 	if am.ChangeDate != "" {
-		s.lit(qpChangeDate, am.ChangeDate)
+		s.litTyped(qpChangeDate, am.ChangeDate, xsdDateTime)
 	}
-	if am.DescriptionConventions != "" {
-		s.lit(qpDescriptionConventions, am.DescriptionConventions)
+	for _, dc := range am.DescriptionConventions {
+		s.beginChild(qpDescriptionConventions)
+		s.beginNode(qcDescriptionConventions, rdaIRIVal(conventionsVocab, dc), qname{})
+		s.lit(qpCode, dc)
+		s.endNode()
+		s.endChild()
 	}
 	if am.ControlNumber != "" {
 		s.beginChild(qpIdentifiedBy)
 		s.beginNode(qcLocal, iriVal{}, qname{})
 		s.lit(qpValue, am.ControlNumber)
+		emitAssigner(s, am.ControlOrg)
 		s.endNode()
 		s.endChild()
 	}
+	s.endNode()
+	s.endChild()
+}
+
+// emitAssigner attaches a bf:assigner agent (the cataloging agency named by 003) to
+// the 001 bf:Local: an organizations-vocabulary IRI when the code is IRI-safe, plus
+// the raw code as bf:code.
+func emitAssigner(s sink, org string) {
+	if org == "" {
+		return
+	}
+	s.beginChild(qpAssigner)
+	s.beginNode(qcAgent, orgIRIVal(org), qname{})
+	s.lit(qpCode, org)
 	s.endNode()
 	s.endChild()
 }
