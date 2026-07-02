@@ -144,12 +144,15 @@ Instance, language + content class on Work) but consistently simplified: every
   countries vocabulary on a Publication node (minted when the record has no usable
   26X); the reverse reconstructs a minimal 008 carrying just the country so it
   round-trips. Still no EDTF datatype on dates (deferred, cosmetic).
-- GAP (med/high) -- 336 content type unhandled; no `bf:content`, and no leader/06
-  fallback content IRI (m2b Works always carry one). **[067]**
-- GAP (med) -- 337/338 emit label-only `bf:Media`/`bf:Carrier`; m2b builds the RDA
-  `mediaTypes`/`carriers` IRI from $b (or $a-map), repeatable. **[067]**
-- DIVERGENCE (low) -- 300 conflates $a/$b/$c/$e into one Extent label; m2b routes
-  $b/$c/$e to separate notes/dimensions. **[067]**
+- RESOLVED [067] -- 336 $b -> `Work.Content` -> `bf:content` IRI in the RDA
+  contentTypes vocabulary, with a leader/06 fallback (`content06`) so every Work
+  carries a content term. Reverse emits 336 $b + $2 rdacontent.
+- RESOLVED [067] -- 337/338 -> `[]RDATerm` (repeatable); a $b code drives the RDA
+  `mediaTypes`/`carriers` IRI (label from $a), a $a-only term stays a blank labeled
+  node. Reverse restores $a/$b/$2.
+- RESOLVED [067] -- 300 extent is $a(+$b/$f/$g); $c is routed to `bf:dimensions`
+  (round-tripped to 300 $c) rather than inflating the extent. $e still dropped
+  (deferred, low-frequency).
 - DIVERGENCE (low/med) -- `bf:Language` node stamps `rdfs:label`=3-letter code; m2b
   emits a bare `bf:language` resource (or `bf:code`/`bf:part`), never label=code. **[068]**
 - GAP (low) -- 041 reads $a only; $h (translated-from) -> `bf:accompaniedBy` work

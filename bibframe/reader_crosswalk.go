@@ -56,14 +56,17 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	for _, f := range provisionFields(g, inst) {
 		add(f)
 	}
-	for _, e := range labelsOf(g, inst, pExtent) {
-		add(codex.NewDataField("300", ' ', ' ', codex.NewSubfield('a', e)))
+	for _, f := range physicalFields(g, inst) {
+		add(f)
 	}
-	for _, m := range labelsOf(g, inst, pMedia) {
-		add(codex.NewDataField("337", ' ', ' ', codex.NewSubfield('a', m)))
+	if c := contentField(g, work); c != nil {
+		add(*c)
 	}
-	for _, c := range labelsOf(g, inst, pCarrier) {
-		add(codex.NewDataField("338", ' ', ' ', codex.NewSubfield('a', c)))
+	for _, m := range rdaFields(g, inst, pMedia, "337", mediaVocab, "rdamedia") {
+		add(m)
+	}
+	for _, c := range rdaFields(g, inst, pCarrier, "338", carrierVocab, "rdacarrier") {
+		add(c)
 	}
 	for _, s := range labelsOf(g, work, pSummary) {
 		add(codex.NewDataField("520", ' ', ' ', codex.NewSubfield('a', s)))
@@ -447,6 +450,92 @@ func deweyInd1(edition string) byte {
 		return '1'
 	}
 	return ' '
+}
+
+// physicalFields reverses the Instance's bf:extent labels and bf:dimensions into
+// 300 fields: one 300 per extent (the first also carrying every $c dimension), or a
+// dimensions-only 300 when there is no extent.
+func physicalFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
+	extents := labelsOf(g, inst, pExtent)
+	dims := literalsOf(g, inst, pDimensions)
+	dimSubs := func() []codex.Subfield {
+		var subs []codex.Subfield
+		for _, d := range dims {
+			subs = append(subs, codex.NewSubfield('c', d))
+		}
+		return subs
+	}
+	var fields []codex.Field
+	for i, e := range extents {
+		subs := []codex.Subfield{codex.NewSubfield('a', e)}
+		if i == 0 {
+			subs = append(subs, dimSubs()...)
+		}
+		fields = append(fields, codex.NewDataField("300", ' ', ' ', subs...))
+	}
+	if len(extents) == 0 && len(dims) > 0 {
+		fields = append(fields, codex.NewDataField("300", ' ', ' ', dimSubs()...))
+	}
+	return fields
+}
+
+// contentField reverses the Work's bf:content into a 336 with the RDA code in $b
+// and the rdacontent source in $2, or nil when there is no content term.
+func contentField(g *rdf.Graph, work rdf.Term) *codex.Field {
+	c, ok := g.Object(work, pContent)
+	if !ok {
+		return nil
+	}
+	code := rdaValue(c, contentVocab)
+	if code == "" {
+		return nil
+	}
+	f := codex.NewDataField("336", ' ', ' ', codex.NewSubfield('b', code), codex.NewSubfield('2', "rdacontent"))
+	return &f
+}
+
+// rdaFields reverses the Instance's bf:media/bf:carrier nodes into 337/338 fields:
+// the vocabulary code in $b, a differing label in $a, and the RDA source in $2.
+func rdaFields(g *rdf.Graph, inst rdf.Term, pred, tag, vocab, source string) []codex.Field {
+	var fields []codex.Field
+	for _, node := range g.Objects(inst, pred) {
+		code := rdaValue(node, vocab)
+		label := literal(g, node, pLabel)
+		var subs []codex.Subfield
+		if label != "" && label != code {
+			subs = append(subs, codex.NewSubfield('a', label))
+		}
+		if code != "" {
+			subs = append(subs, codex.NewSubfield('b', code), codex.NewSubfield('2', source))
+		}
+		if len(subs) == 0 {
+			continue
+		}
+		fields = append(fields, codex.NewDataField(tag, ' ', ' ', subs...))
+	}
+	return fields
+}
+
+// rdaValue returns an RDA node's code: the local name of its vocabulary IRI when it
+// sits under vocab, else "".
+func rdaValue(node rdf.Term, vocab string) string {
+	if node.IsIRI() {
+		if code := strings.TrimPrefix(node.Value, vocab); code != node.Value {
+			return code
+		}
+	}
+	return ""
+}
+
+// literalsOf returns every literal object of subject reached through predicate.
+func literalsOf(g *rdf.Graph, subject rdf.Term, predicate string) []string {
+	var out []string
+	for _, o := range g.Objects(subject, predicate) {
+		if o.IsLiteral() && o.Value != "" {
+			out = append(out, o.Value)
+		}
+	}
+	return out
 }
 
 // sourceLabel returns the rdfs:label of a node's bf:source scheme node, or "".

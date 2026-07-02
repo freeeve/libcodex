@@ -41,6 +41,15 @@ func roleIRIVal(iri string) iriVal {
 // country code.
 func countryIRIVal(code string) iriVal { return iriVal{countriesVocab, code, ""} }
 
+// rdaIRIVal builds a term IRI in an RDA vocabulary (content/media/carrier) from a
+// code, or the zero iriVal (a blank node) for an empty code.
+func rdaIRIVal(vocab, code string) iriVal {
+	if code == "" {
+		return iriVal{}
+	}
+	return iriVal{vocab, code, ""}
+}
+
 // sink receives the shape as a stream of calls. beginChild/endChild bracket a
 // single child node; beginList/endList bracket a repeated one (JSON renders it as
 // an array); a bare beginNode/endNode is a root node. iri is the zero iriVal for a
@@ -107,6 +116,13 @@ func emitWorkBody(s sink, w *Work) {
 		}
 		s.endList()
 	}
+	if w.Content != "" {
+		s.beginChild(qpContent)
+		s.beginNode(qcContent, rdaIRIVal(contentVocab, w.Content), qname{})
+		s.lit(qpLabel, w.Content)
+		s.endNode()
+		s.endChild()
+	}
 	if len(w.GenreForms) > 0 {
 		s.beginList(qpGenreForm)
 		for _, gf := range w.GenreForms {
@@ -172,15 +188,22 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 		}
 		s.endList()
 	}
-	if in.Media != "" {
-		s.beginChild(qpMedia)
-		emitLabeled(s, qcMedia, in.Media)
-		s.endChild()
+	for _, d := range in.Dimensions {
+		s.lit(qpDimensions, d)
 	}
-	if in.Carrier != "" {
-		s.beginChild(qpCarrier)
-		emitLabeled(s, qcCarrier, in.Carrier)
-		s.endChild()
+	if len(in.Media) > 0 {
+		s.beginList(qpMedia)
+		for _, m := range in.Media {
+			emitRDA(s, qcMedia, mediaVocab, m)
+		}
+		s.endList()
+	}
+	if len(in.Carrier) > 0 {
+		s.beginList(qpCarrier)
+		for _, c := range in.Carrier {
+			emitRDA(s, qcCarrier, carrierVocab, c)
+		}
+		s.endList()
 	}
 	if len(in.Identifiers) > 0 {
 		s.beginList(qpIdentifiedBy)
@@ -271,6 +294,19 @@ func emitRelatedWork(s sink, rw RelatedWork) {
 	s.endChild()
 	s.endNode()
 	s.endChild()
+}
+
+// emitRDA emits an RDA content/media/carrier node: an IRI-typed node in the given
+// vocabulary when the term has a code, else a blank node; labeled with the term's
+// label, or its code when only a code is present.
+func emitRDA(s sink, class qname, vocab string, t RDATerm) {
+	s.beginNode(class, rdaIRIVal(vocab, t.Code), qname{})
+	if label := t.Label; label != "" {
+		s.lit(qpLabel, label)
+	} else if t.Code != "" {
+		s.lit(qpLabel, t.Code)
+	}
+	s.endNode()
 }
 
 // emitRole emits a bf:role node: an IRI-typed bf:Role for a relator IRI (labeled

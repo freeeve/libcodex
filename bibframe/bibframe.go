@@ -51,6 +51,11 @@ const (
 	// countriesVocab is the LoC country vocabulary; an 008/15-17 MARC country code
 	// names a place IRI beneath it (e.g. .../countries/nyu).
 	countriesVocab = "http://id.loc.gov/vocabulary/countries/"
+	// The RDA content/media/carrier vocabularies name a term IRI from the code in
+	// 336/337/338 $b (e.g. .../contentTypes/txt, .../mediaTypes/n, .../carriers/nc).
+	contentVocab = "http://id.loc.gov/vocabulary/contentTypes/"
+	mediaVocab   = "http://id.loc.gov/vocabulary/mediaTypes/"
+	carrierVocab = "http://id.loc.gov/vocabulary/carriers/"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -62,6 +67,7 @@ type BIBFRAME struct {
 // Work is the intellectual content (bf:Work) plus a specific content class.
 type Work struct {
 	Class           string // bf class refining bf:Work (e.g. "Text"), or ""
+	Content         string // RDA content-type code (336 $b or leader/06 fallback) -> bf:content IRI; optional
 	Titles          []Title
 	Contributions   []Contribution
 	RelatedWorks    []RelatedWork
@@ -91,8 +97,9 @@ type Instance struct {
 	Provisions              []Provision
 	CopyrightDate           string // 264 _4 $c -> bf:copyrightDate; optional
 	Extent                  []string
-	Media                   string // RDA media type (bf:media), e.g. "unmediated", "audio", "computer"
-	Carrier                 string // RDA carrier type (bf:carrier), e.g. "volume", "online resource", "audio disc"
+	Dimensions              []string  // 300 $c -> bf:dimensions
+	Media                   []RDATerm // RDA media types (337) -> bf:media
+	Carrier                 []RDATerm // RDA carrier types (338) -> bf:carrier
 	Identifiers             []Identifier
 	ElectronicLocator       []string
 	Admin                   *AdminMetadata
@@ -164,6 +171,13 @@ type Provision struct {
 	Country   string // 008/15-17 country code -> controlled bf:place IRI; optional
 }
 
+// RDATerm is an RDA content/media/carrier term: a code ($b, driving the vocabulary
+// IRI) and/or a transcribed label ($a).
+type RDATerm struct {
+	Code  string // RDA code ($b) -> vocabulary IRI; "" for a label-only term
+	Label string // RDA term ($a) -> rdfs:label
+}
+
 // AdminMetadata is administrative provenance about the record's description —
 // the BIBFRAME bf:AdminMetadata carrying the record control number, the
 // cataloging conventions, the last-change date, and the generation process that
@@ -216,14 +230,19 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			if e := extent(f); e != "" {
 				g.Instance.Extent = append(g.Instance.Extent, e)
 			}
+			for _, d := range f.SubfieldValues('c') { // dimensions, not part of the extent
+				if v := trimISBD(d); v != "" {
+					g.Instance.Dimensions = append(g.Instance.Dimensions, v)
+				}
+			}
+		case "336":
+			if c := rdaCode(f); c != "" {
+				g.Work.Content = c
+			}
 		case "337":
-			if g.Instance.Media == "" {
-				g.Instance.Media = trimISBD(f.SubfieldValue('a')) // RDA media type
-			}
+			g.Instance.Media = append(g.Instance.Media, rdaTerm(f))
 		case "338":
-			if g.Instance.Carrier == "" {
-				g.Instance.Carrier = trimISBD(f.SubfieldValue('a')) // RDA carrier type
-			}
+			g.Instance.Carrier = append(g.Instance.Carrier, rdaTerm(f))
 		case "520":
 			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
 				g.Work.Summary = append(g.Work.Summary, v)
@@ -298,6 +317,12 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 				}
 			}
 		}
+	}
+
+	// Every Work carries an RDA content type: 336 when present, else a fallback
+	// derived from leader/06, so the content signal is never absent (mirroring m2b).
+	if g.Work.Content == "" {
+		g.Work.Content = content06(r.Leader().RecordType())
 	}
 
 	// The Work's preferred title is the uniform title when present, else the
@@ -846,14 +871,55 @@ func cleanDate(s string) string {
 	return strings.TrimRight(s, " .,;:")
 }
 
+// extent renders a 300 field's extent label from $a plus the $b other-physical and
+// $f/$g size subfields; $c (dimensions) and $e (accompanying material) are routed
+// elsewhere so they no longer inflate the extent.
 func extent(f codex.Field) string {
 	parts := make([]string, 0, 4)
-	for _, code := range []byte{'a', 'b', 'c', 'e'} {
+	for _, code := range []byte{'a', 'b', 'f', 'g'} {
 		if v := trimISBD(f.SubfieldValue(code)); v != "" {
 			parts = append(parts, v)
 		}
 	}
 	return strings.Join(parts, " ")
+}
+
+// rdaCode returns the RDA code of a 33X field: $b (the controlled code) when
+// present, else "".
+func rdaCode(f codex.Field) string {
+	return trimISBD(f.SubfieldValue('b'))
+}
+
+// rdaTerm reads a 337/338 field into an RDATerm: $b as the code, $a as the label.
+func rdaTerm(f codex.Field) RDATerm {
+	return RDATerm{Code: rdaCode(f), Label: trimISBD(f.SubfieldValue('a'))}
+}
+
+// content06 maps leader/06 (type of record) to the fallback RDA content-type code
+// used when the record has no 336, or "" when no single content type applies.
+func content06(recordType byte) string {
+	switch recordType {
+	case 'a', 't':
+		return "txt" // text
+	case 'c', 'd':
+		return "ntm" // notated music
+	case 'e', 'f':
+		return "cri" // cartographic image
+	case 'g':
+		return "tdi" // two-dimensional moving image
+	case 'i':
+		return "spw" // spoken word
+	case 'j':
+		return "prm" // performed music
+	case 'k':
+		return "sti" // still image
+	case 'm':
+		return "cop" // computer program
+	case 'r':
+		return "tdf" // three-dimensional form
+	default:
+		return ""
+	}
 }
 
 // workClass maps leader byte 6 (type of record) to a BIBFRAME content class

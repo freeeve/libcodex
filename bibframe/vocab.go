@@ -67,6 +67,7 @@ var (
 	qcPlace               = qname{nsBF, "Place", "bf:Place", bfNS + "Place"}
 	qcRole                = qname{nsBF, "Role", "bf:Role", bfNS + "Role"}
 	qcExtent              = qname{nsBF, "Extent", "bf:Extent", bfNS + "Extent"}
+	qcContent             = qname{nsBF, "Content", "bf:Content", bfNS + "Content"}
 	qcMedia               = qname{nsBF, "Media", "bf:Media", bfNS + "Media"}
 	qcCarrier             = qname{nsBF, "Carrier", "bf:Carrier", bfNS + "Carrier"}
 	qcGenreForm           = qname{nsBF, "GenreForm", "bf:GenreForm", bfNS + "GenreForm"}
@@ -109,6 +110,8 @@ var (
 	qpPlace                  = qname{nsBF, "place", "bf:place", pPlace}
 	qpDate                   = qname{nsBF, "date", "bf:date", pDate}
 	qpExtent                 = qname{nsBF, "extent", "bf:extent", pExtent}
+	qpDimensions             = qname{nsBF, "dimensions", "bf:dimensions", pDimensions}
+	qpContent                = qname{nsBF, "content", "bf:content", pContent}
 	qpMedia                  = qname{nsBF, "media", "bf:media", pMedia}
 	qpCarrier                = qname{nsBF, "carrier", "bf:carrier", pCarrier}
 	qpIdentifiedBy           = qname{nsBF, "identifiedBy", "bf:identifiedBy", pIdentifiedBy}

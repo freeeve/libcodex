@@ -94,6 +94,11 @@
         </bf:source>
       </bf:Meeting>
     </bf:subject>
+    <bf:content>
+      <bf:Content rdf:about="http://id.loc.gov/vocabulary/contentTypes/txt">
+        <rdfs:label>txt</rdfs:label>
+      </bf:Content>
+    </bf:content>
     <bf:genreForm>
       <bf:GenreForm>
         <rdfs:label>Bildungsromans.</rdfs:label>
@@ -152,9 +157,10 @@
     </bf:provisionActivity>
     <bf:extent>
       <bf:Extent>
-        <rdfs:label>301 pages 22 cm</rdfs:label>
+        <rdfs:label>301 pages</rdfs:label>
       </bf:Extent>
     </bf:extent>
+    <bf:dimensions>22 cm</bf:dimensions>
     <bf:identifiedBy>
       <bf:Isbn>
         <rdf:value>0786803525</rdf:value>

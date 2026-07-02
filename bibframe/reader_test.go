@@ -282,8 +282,10 @@ func TestInstanceCarrierMedia(t *testing.T) {
 		AddField(codex.NewDataField("337", ' ', ' ', codex.NewSubfield('a', "audio"))).
 		AddField(codex.NewDataField("338", ' ', ' ', codex.NewSubfield('a', "audio disc")))
 
-	if bib := FromRecord(rec); bib.Instance.Media != "audio" || bib.Instance.Carrier != "audio disc" {
-		t.Fatalf("FromRecord media/carrier = %q/%q, want audio/audio disc", bib.Instance.Media, bib.Instance.Carrier)
+	bib := FromRecord(rec)
+	if len(bib.Instance.Media) != 1 || bib.Instance.Media[0].Label != "audio" ||
+		len(bib.Instance.Carrier) != 1 || bib.Instance.Carrier[0].Label != "audio disc" {
+		t.Fatalf("FromRecord media/carrier = %+v/%+v, want audio/audio disc", bib.Instance.Media, bib.Instance.Carrier)
 	}
 
 	x, _ := Encode(rec)

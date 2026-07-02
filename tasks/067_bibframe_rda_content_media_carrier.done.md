@@ -32,7 +32,32 @@ Ref: `docs/bibframe_m2b_audit.md` section 5; m2b `ConvSpec-3XX.xsl`, `ConvSpec-L
 
 ## Acceptance
 
-- [ ] Work carries `bf:content` (from 336 or leader/06 fallback).
-- [ ] 337/338 carry RDA vocab IRIs and are repeatable.
-- [ ] 300 no longer conflates dimensions/notes into the extent label.
-- [ ] Goldens regenerated + reviewed; round-trip + fuzz green.
+- [x] Work carries `bf:content` (from 336 or leader/06 fallback).
+- [x] 337/338 carry RDA vocab IRIs and are repeatable.
+- [x] 300 no longer conflates dimensions/notes into the extent label.
+- [x] Goldens regenerated + reviewed; round-trip + fuzz green.
+
+## Result
+
+Added `Work.Content` (RDA content code), `Instance.Dimensions []string`, and made
+`Instance.Media`/`Carrier` `[]RDATerm` ({Code,Label}). Forward: 336 $b -> Content,
+falling back to `content06(leader/06)` so every Work carries a content term; 337/338
+-> `rdaTerm` ($b code, $a label), repeatable; 300 extent from $a/$b/$f/$g with $c
+routed to Dimensions.
+
+Emit: `bf:content` -> `bf:Content` IRI in the RDA contentTypes vocabulary
+(`rdaIRIVal`), `bf:media`/`bf:carrier` as lists of IRI-or-blank nodes (`emitRDA`),
+and `bf:dimensions` literals. Reverse: `contentField` -> 336 $b + $2 rdacontent,
+`rdaFields` -> 337/338 $a/$b/$2 (code from the vocabulary IRI local name,
+`rdaValue`), `physicalFields` -> 300 with $a per extent and $c dimensions on the
+first. `extent` now excludes $c/$e.
+
+Goldens: the sample's leader/06 'a' adds `bf:content` contentTypes/txt on the Work;
+300 `$a 301 pages $c 22 cm` splits into `bf:extent "301 pages"` +
+`bf:dimensions "22 cm"`. Regenerated both serializations. Tests:
+`rda_content_test.go` (336 content + leader fallback, repeatable 337/338 RDA codes,
+extent/dimension split, RDF/XML + JSON-LD round-trip). Suite + FuzzFromMARC +
+FuzzDecode green.
+
+Deferred (documented): 300 $e accompanying material, $a-label -> code lookup when a
+33X carries no $b, EDTF date datatypes.

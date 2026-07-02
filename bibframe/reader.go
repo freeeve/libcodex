@@ -44,6 +44,8 @@ const (
 	pPlace        = bfNS + "place"
 	pDate         = bfNS + "date"
 	pExtent       = bfNS + "extent"
+	pDimensions   = bfNS + "dimensions"
+	pContent      = bfNS + "content"
 	pMedia        = bfNS + "media"
 	pCarrier      = bfNS + "carrier"
 	pIdentifiedBy = bfNS + "identifiedBy"
