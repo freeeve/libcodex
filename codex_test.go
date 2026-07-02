@@ -79,6 +79,34 @@ func TestRecordAccessors(t *testing.T) {
 	})
 }
 
+// BenchmarkSubfieldValues exercises the multi-match paths the pre-sizing targets:
+// a single field with several matching subfields (regrowth in the naive impl) and
+// a record with several same-tag fields (per-field intermediate slices in the
+// naive impl). The single-match sample records in the exporter benchmarks never
+// hit either case, so this is where the allocation win shows.
+func BenchmarkSubfieldValues(b *testing.B) {
+	f := NewDataField("650", ' ', '0',
+		NewSubfield('a', "a1"), NewSubfield('x', "sub"),
+		NewSubfield('a', "a2"), NewSubfield('a', "a3"))
+	rec := NewRecord().SetLeader(Leader("00000nam a2200000 a 4500"))
+	for range 4 {
+		rec = rec.AddField(NewDataField("650", ' ', '0',
+			NewSubfield('a', "v1"), NewSubfield('a', "v2")))
+	}
+	b.Run("field", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = f.SubfieldValues('a')
+		}
+	})
+	b.Run("record", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = rec.SubfieldValues("650", 'a')
+		}
+	})
+}
+
 func TestFieldSubfieldValues(t *testing.T) {
 	f := NewDataField("020", ' ', ' ',
 		NewSubfield('a', "first"),

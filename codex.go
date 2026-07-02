@@ -201,15 +201,31 @@ func (f Field) SubfieldValue(code byte) string {
 }
 
 // SubfieldValues returns the values of every subfield with the given code, in
-// order.
+// order, or nil when none match. It sizes the result to the match count so a
+// field with several matching subfields allocates once with no regrowth.
 func (f Field) SubfieldValues(code byte) []string {
-	var out []string
+	n := countSubfields(f.Subfields, code)
+	if n == 0 {
+		return nil
+	}
+	out := make([]string, 0, n)
 	for _, s := range f.Subfields {
 		if s.Code == code {
 			out = append(out, s.Value)
 		}
 	}
 	return out
+}
+
+// countSubfields reports how many subfields carry the given code.
+func countSubfields(subs []Subfield, code byte) int {
+	n := 0
+	for _, s := range subs {
+		if s.Code == code {
+			n++
+		}
+	}
+	return n
 }
 
 // Leader is the 24-byte MARC record leader. Helper methods decode the fields
@@ -427,14 +443,29 @@ func (r *Record) SubfieldValue(tag string, code byte) string {
 }
 
 // SubfieldValues returns the values of every subfield with the given code
-// across all data fields with the given tag, in order.
+// across all data fields with the given tag, in order, or nil when none match.
+// It sizes the result to the total match count in one pass, so the aggregate
+// allocates once with no regrowth and no per-field intermediate slices.
 func (r *Record) SubfieldValues(tag string, code byte) []string {
-	var out []string
+	n := 0
+	for _, f := range r.fields {
+		if f.Tag == tag && !f.IsControl() {
+			n += countSubfields(f.Subfields, code)
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	out := make([]string, 0, n)
 	for _, f := range r.fields {
 		if f.Tag != tag || f.IsControl() {
 			continue
 		}
-		out = append(out, f.SubfieldValues(code)...)
+		for _, s := range f.Subfields {
+			if s.Code == code {
+				out = append(out, s.Value)
+			}
+		}
 	}
 	return out
 }
