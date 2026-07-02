@@ -112,6 +112,47 @@ func TestReaderPaging(t *testing.T) {
 	}
 }
 
+// TestReaderPagingWithoutNextRecordPosition checks the pager against a server
+// that omits nextRecordPosition entirely (the element is optional): the Reader
+// must fall back to advancing by the records received, bounded by
+// numberOfRecords, instead of truncating the result set to the first page.
+func TestReaderPagingWithoutNextRecordPosition(t *testing.T) {
+	page1 := bytes.ReplaceAll(fixture(t, "search_page1.xml"),
+		[]byte("<zs:nextRecordPosition>3</zs:nextRecordPosition>"), nil)
+	srv := serve(t, func(q url.Values) []byte {
+		if q.Get("startRecord") == "3" {
+			return fixture(t, "search_page2.xml")
+		}
+		return page1
+	})
+	c := NewClient(srv.URL)
+
+	recs, err := codex.ReadAll(c.NewReader(context.Background(), "q"))
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if len(recs) != 3 {
+		t.Fatalf("read %d records, want 3 (pager must not stop when nextRecordPosition is omitted)", len(recs))
+	}
+}
+
+// TestHTTPError checks that a non-200 response is a transport error from both
+// SearchRetrieve and the Reader.
+func TestHTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClient(srv.URL)
+
+	if _, err := c.SearchRetrieve(context.Background(), Request{Query: "x"}); err == nil {
+		t.Error("SearchRetrieve on HTTP 500 should error")
+	}
+	if _, err := c.NewReader(context.Background(), "x").Read(); err == nil {
+		t.Error("Reader.Read on HTTP 500 should error")
+	}
+}
+
 // TestDiagnostics checks that a zero-record diagnostics response surfaces as a
 // *DiagnosticsError from both SearchRetrieve and the Reader.
 func TestDiagnostics(t *testing.T) {

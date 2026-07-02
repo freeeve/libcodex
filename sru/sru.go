@@ -30,9 +30,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/freeeve/libcodex/marcxml"
-
 	codex "github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/marcxml"
 )
 
 // defaultVersion is the SRU protocol version sent when a Client sets none. 1.2 is

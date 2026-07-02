@@ -14,15 +14,15 @@ import (
 // codex.Record; records in other schemas are skipped (inspect them with
 // [Client.SearchRetrieve] instead).
 type Reader struct {
-	c     *Client
-	ctx   context.Context
-	req   Request
-	buf   []Record
-	i     int
-	next  int  // startRecord of the next page to fetch (1-based)
-	begun bool // whether the first page has been fetched
-	done  bool // whether the result set is exhausted
-	err   error
+	c       *Client
+	ctx     context.Context
+	req     Request
+	buf     []Record
+	i       int
+	next    int // startRecord of the next page to fetch (1-based)
+	fetched int // records received so far, bounding the pager when nextRecordPosition is omitted
+	done    bool
+	err     error
 }
 
 // compile-time assertion that Reader satisfies the core interface.
@@ -65,7 +65,11 @@ func (rd *Reader) Read() (*codex.Record, error) {
 }
 
 // fetch loads the next page into the buffer, or returns io.EOF when the result
-// set is exhausted.
+// set is exhausted. nextRecordPosition is optional in SRU (guaranteed absent only
+// when the set is exhausted, but omitted always by some servers), so when a page
+// carries records without one, the pager falls back to advancing by the records
+// received, bounded by numberOfRecords -- next strictly increases either way, so
+// paging always terminates.
 func (rd *Reader) fetch() error {
 	if rd.done {
 		return io.EOF
@@ -76,17 +80,19 @@ func (rd *Reader) fetch() error {
 	if err != nil {
 		return err
 	}
-	rd.begun = true
 	rd.buf = resp.Records
 	rd.i = 0
-	if resp.NextRecordPosition > rd.next && len(resp.Records) > 0 {
-		rd.next = resp.NextRecordPosition
-	} else {
-		rd.done = true // no further page advertised
-	}
-	if len(resp.Records) == 0 {
+	rd.fetched += len(resp.Records)
+	switch {
+	case len(resp.Records) == 0:
 		rd.done = true
 		return io.EOF
+	case resp.NextRecordPosition > rd.next:
+		rd.next = resp.NextRecordPosition
+	case rd.fetched < resp.NumberOfRecords:
+		rd.next += len(resp.Records)
+	default:
+		rd.done = true
 	}
 	return nil
 }
