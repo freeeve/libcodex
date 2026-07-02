@@ -1,12 +1,16 @@
 package unimarc
 
 import (
+	"bytes"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/citation"
 	"github.com/freeeve/libcodex/iso2709"
+	"github.com/freeeve/libcodex/mods"
 	"github.com/freeeve/libcodex/schemaorg"
 )
 
@@ -96,7 +100,8 @@ func TestISO5426Path(t *testing.T) {
 	for i := range coded {
 		coded[i] = ' '
 	}
-	coded[26], coded[27] = '0', '1' // ISO 5426 character set
+	coded[26], coded[27] = '0', '1' // base Latin (ISO 646) in the first slot
+	coded[28], coded[29] = '0', '3' // ISO 5426 extended Latin in the second slot
 	rec := codex.NewRecord().
 		AddField(codex.NewDataField("100", ' ', ' ', codex.NewSubfield('a', string(coded)))).
 		AddField(codex.NewDataField("200", '1', ' ',
@@ -163,11 +168,120 @@ func TestToMARC21Comprehensive(t *testing.T) {
 		"250a": "2e édition", "260a": "Paris", "260b": "Gallimard", "260c": "2020",
 		"300a": "300 p.", "490a": "Collection X", "520a": "Résumé du livre.",
 		"650a": "Sujet", "650x": "Sous-sujet", "651a": "France",
-		"100a": "Dupont Jean", "100d": "1950-", "110a": "Institut National",
+		"100a": "Dupont, Jean", "100d": "1950-", "110a": "Institut National",
 	}
 	for k, want := range checks {
 		if got := m.SubfieldValue(k[:3], k[3]); got != want {
 			t.Errorf("%s = %q, want %q", k, got, want)
+		}
+	}
+	// UNIMARC 100/8 'd' (monograph complete when issued) must become MARC 008/06
+	// 's' (single known date), not the verbatim 'd' (a ceased serial to MARC).
+	if c := m.ControlField("008"); len(c) < 7 || c[6] != 's' {
+		t.Errorf("008/06 type-of-date = %q, want 's'", c)
+	}
+}
+
+// TestSubjectSubdivisionSwap confirms UNIMARC's geographical $y and chronological
+// $z are swapped into MARC 21's $z (geographic) and $y (chronological), and that
+// the result renders as the correct MODS temporal/geographic elements.
+func TestSubjectSubdivisionSwap(t *testing.T) {
+	r := codex.NewRecord().
+		AddField(codex.NewDataField("606", ' ', ' ',
+			codex.NewSubfield('a', "Art"),
+			codex.NewSubfield('y', "France"),      // UNIMARC geographical
+			codex.NewSubfield('z', "19e siècle"))) // UNIMARC chronological
+	m := ToMARC21(r)
+	if got := m.SubfieldValue("650", 'z'); got != "France" {
+		t.Errorf("650$z (geographic) = %q, want %q", got, "France")
+	}
+	if got := m.SubfieldValue("650", 'y'); got != "19e siècle" {
+		t.Errorf("650$y (chronological) = %q, want %q", got, "19e siècle")
+	}
+	b, err := mods.Encode(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !contains(s, "<geographic>France</geographic>") {
+		t.Errorf("MODS missing <geographic>France</geographic>:\n%s", s)
+	}
+	if !contains(s, "<temporal>19e siècle</temporal>") {
+		t.Errorf("MODS missing <temporal>19e siècle</temporal>:\n%s", s)
+	}
+}
+
+// TestDateType covers the UNIMARC 100/8 -> MARC 008/06 translation table.
+func TestDateType(t *testing.T) {
+	cases := []struct {
+		u        byte
+		hasDate1 bool
+		want     byte
+	}{
+		{'a', true, 'c'}, {'b', true, 'd'}, {'d', true, 's'}, {'f', true, 'q'},
+		{'g', true, 'm'}, {'h', true, 't'}, {'i', true, 't'}, {'j', true, 'e'},
+		{'u', true, 'n'}, {'x', true, 's'}, {'x', false, 'b'}, {' ', false, 'b'},
+	}
+	for _, c := range cases {
+		if got := dateType(c.u, c.hasDate1); got != c.want {
+			t.Errorf("dateType(%q, %v) = %q, want %q", c.u, c.hasDate1, got, c.want)
+		}
+	}
+}
+
+// TestNameInversionCitation confirms the surname-first name (700 ind2=1) keeps
+// its comma so citation derives the surname correctly instead of treating the
+// forename as part of it.
+func TestNameInversionCitation(t *testing.T) {
+	m := ToMARC21(richRecord())
+	if got := m.SubfieldValue("100", 'a'); got != "Dupont, Jean" {
+		t.Fatalf("100$a = %q, want %q", got, "Dupont, Jean")
+	}
+	b := citation.FromRecord(m).BibTeX()
+	s := string(b)
+	if !contains(s, "Dupont, Jean") {
+		t.Errorf("BibTeX author not inverted (want 'Dupont, Jean'):\n%s", s)
+	}
+	// The cite key uses the surname (text before the comma), not "dupontjean".
+	if !contains(s, "@book{dupont2020") {
+		t.Errorf("BibTeX cite key should derive surname 'dupont':\n%s", s)
+	}
+}
+
+// TestCyrillicFlaggedLossy confirms a record declaring an unsupported Cyrillic
+// set is flagged lossy by the streaming reader rather than silently mis-decoded,
+// and that a plain UTF-8 record is not flagged.
+func TestCyrillicFlaggedLossy(t *testing.T) {
+	build := func(cs string) []byte {
+		coded := make([]byte, 34)
+		for i := range coded {
+			coded[i] = ' '
+		}
+		coded[26], coded[27] = cs[0], cs[1]
+		rec := codex.NewRecord().
+			AddField(codex.NewDataField("100", ' ', ' ', codex.NewSubfield('a', string(coded)))).
+			AddField(codex.NewDataField("200", '1', ' ', codex.NewSubfield('a', "Title")))
+		raw, err := iso2709.Encode(rec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	for _, tc := range []struct {
+		cs        string
+		wantLossy bool
+	}{
+		{"50", false}, // UTF-8
+		{"01", false}, // base Latin
+		{"02", true},  // basic Cyrillic -- no decoder
+		{"05", true},  // Greek -- no decoder
+	} {
+		rd := NewReader(bytes.NewReader(build(tc.cs)))
+		if _, err := rd.Read(); err != nil {
+			t.Fatalf("charset %q: Read: %v", tc.cs, err)
+		}
+		if got := rd.Lossy(); got != tc.wantLossy {
+			t.Errorf("charset %q: Lossy() = %v, want %v", tc.cs, got, tc.wantLossy)
 		}
 	}
 }
@@ -194,5 +308,38 @@ func TestReadMalformed(t *testing.T) {
 	// A truncated record (length larger than the data) must error.
 	if _, err := NewReader(strings.NewReader("00099ab")).Read(); err == nil {
 		t.Error("expected error for truncated record")
+	}
+}
+
+// iccuRaw returns the single ISO 2709 record from the ICCU corpus, trimmed to
+// its leader-declared length.
+func iccuRaw(tb testing.TB) []byte {
+	tb.Helper()
+	raw, err := os.ReadFile(filepath.Join("testdata", "iccu-unimarc.dat"))
+	if err != nil {
+		tb.Fatalf("ReadFile: %v", err)
+	}
+	if n, ok := atoi5(raw[:5]); ok && n <= len(raw) {
+		raw = raw[:n]
+	}
+	return raw
+}
+
+func BenchmarkDecode(b *testing.B) {
+	raw := iccuRaw(b)
+	b.ReportAllocs()
+	b.SetBytes(int64(len(raw)))
+	for i := 0; i < b.N; i++ {
+		if _, err := Decode(raw); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkToMARC21(b *testing.B) {
+	r := richRecord()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = ToMARC21(r)
 	}
 }

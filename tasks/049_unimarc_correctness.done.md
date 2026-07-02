@@ -55,13 +55,41 @@ repo (88.3%).
 
 ## Acceptance
 
-- [ ] Round-trip test with both $y and $z subdivisions produces correct
+- [x] Round-trip test with both $y and $z subdivisions produces correct
       MARC 21 and correct mods temporal/geographic output.
-- [ ] `Dupont, Jean` restored; citation citeKey and BibTeX author tests
-      cover the UNIMARC path.
-- [ ] richRecord's 008/06 is `s`; table-driven test over the code list.
-- [ ] "0103"-pattern and Cyrillic records detected correctly; unsupported
-      sets flagged, not passed through silently.
-- [ ] Decode-path allocations per record reduced (benchmark added --
-      unimarc currently has none) and coverage raised toward the >=90%
-      neighborhood of the sibling packages.
+      (`TestSubjectSubdivisionSwap`: UNIMARC 606 $y->MARC 650 $z->MODS
+      `<geographic>`, $z->$y->`<temporal>`.)
+- [x] `Dupont, Jean` restored; citation citeKey and BibTeX author tests
+      cover the UNIMARC path. (`personName` joins with ", " when 7xx ind2=1
+      and $b has no leading comma; `TestNameInversionCitation`.)
+- [x] richRecord's 008/06 is `s`; table-driven test over the code list.
+      (`dateType` translation table; `TestDateType`, `TestToMARC21Comprehensive`.)
+- [x] "0103"-pattern and Cyrillic records detected correctly; unsupported
+      sets flagged, not passed through silently. (`charset` reads all four
+      slots and triggers 5426 on "03"; `Reader.Lossy()` flags unsupported
+      Cyrillic/Greek; `TestCyrillicFlaggedLossy`, `TestISO5426Path`.)
+- [x] Decode-path allocations per record reduced (`Reader.Read` decodes in
+      place without the per-record leader copy; `codeMap`/`strings.Repeat`
+      allocations removed; `Authors`/`Subjects` single-pass) and coverage
+      raised to 89.7% (from 88.0%). Benchmarks added (`BenchmarkDecode`,
+      `BenchmarkToMARC21`).
+
+## Resolution
+
+All six problems fixed:
+
+1. `addSubject` swaps UNIMARC $y (geographical) -> MARC $z and $z
+   (chronological) -> MARC $y.
+2. `personName` joins surname-first names ($a/$b, 7xx ind2=1, no stored
+   comma) with ", "; the corpus form ($b = ", Isaac") is unchanged.
+3. `dateType` maps UNIMARC 100/8 to MARC 008/06 (a->c, b->d, d->s, f->q,
+   g->m, h/i->t, j->e, u->n; default s with date1, else b).
+4. `charset` reads all four graphic-set slots (positions 26-33), triggers
+   ISO 5426 on "03" in any slot, and flags 02/04/05 (Cyrillic/Greek) as
+   unsupported/lossy via the new `Reader.Lossy()` (mirrors iso2709).
+5. The exported `Decode` keeps the defensive copy; `Reader.Read` calls the
+   internal `decode`, which mutates its owned buffer's leader in place.
+6. `build008` hoists the template to `blank008`, returns "" when 100 has no
+   coded data (dead guard removed), drops the no-op writes; `remapCode`
+   scans the pair spec without a per-field map; `Authors`/`Subjects` do a
+   single pass over the fields.

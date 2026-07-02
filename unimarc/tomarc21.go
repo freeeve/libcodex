@@ -82,24 +82,66 @@ func marc21Leader(l codex.Leader) codex.Leader {
 	return codex.Leader(b)
 }
 
+// blank008 is the 40-position MARC 008 template: all blanks except the
+// material-specific block (positions 18-34) filled with the "no attempt to
+// code" fill character.
+var blank008 = func() string {
+	b := []byte(strings.Repeat(" ", 40))
+	for i := 18; i < 35; i++ {
+		b[i] = '|'
+	}
+	return string(b)
+}()
+
 // build008 assembles a minimal MARC 008 from the UNIMARC coded-data fields: the
-// dates from 100 and the language of the text from 101.
+// dates from 100 and the language of the text from 101. It returns "" when field
+// 100 carries no coded data, so ToMARC21 omits the 008 rather than emitting a
+// content-free one.
 func build008(r *codex.Record) string {
 	c100 := r.SubfieldValue("100", 'a')
-	b := []byte(strings.Repeat(" ", 40))
-	copy(b[18:35], []byte(strings.Repeat("|", 17)))
-	if len(c100) >= 17 {
-		copy(b[0:6], c100[2:8])     // date entered, yymmdd
-		b[6] = c100[8]              // type of date
-		copy(b[7:11], c100[9:13])   // date 1
-		copy(b[11:15], c100[13:17]) // date 2
+	if len(c100) < 17 {
+		return ""
 	}
+	b := []byte(blank008)
+	copy(b[0:6], c100[2:8])     // date entered, yymmdd
+	copy(b[7:11], c100[9:13])   // date 1
+	copy(b[11:15], c100[13:17]) // date 2
+	b[6] = dateType(c100[8], strings.TrimSpace(c100[9:13]) != "")
 	if lang := Language(r); len(lang) == 3 {
 		copy(b[35:38], lang)
 	}
-	b[38] = ' '
-	b[39] = ' '
 	return string(b)
+}
+
+// dateType translates a UNIMARC 100/8 type-of-publication-date code to the MARC
+// 21 008/06 code. The two dictionaries diverge -- UNIMARC "d" is a monograph
+// complete when issued (MARC "s"), whereas MARC "d" is a ceased continuing
+// resource -- so a verbatim copy misreports the resource. Codes outside the
+// table fall back to "s" (single known date) when a date1 is present, else "b"
+// (no dates).
+func dateType(u byte, hasDate1 bool) byte {
+	switch u {
+	case 'a':
+		return 'c' // continuing resource, currently published
+	case 'b':
+		return 'd' // continuing resource, ceased
+	case 'd':
+		return 's' // monograph, single known date
+	case 'f':
+		return 'q' // questionable date
+	case 'g':
+		return 'm' // multiple dates
+	case 'h', 'i':
+		return 't' // publication and copyright dates
+	case 'j':
+		return 'e' // detailed date
+	case 'u':
+		return 'n' // dates unknown
+	}
+	if hasDate1 {
+		return 's'
+	}
+	return 'b'
 }
 
 // addRetag re-tags f to newTag, keeping only the subfields named in codes and
@@ -107,9 +149,8 @@ func build008(r *codex.Record) string {
 // a single trailing character maps to itself.
 func addRetag(out *codex.Record, f codex.Field, newTag, codes string) {
 	nf := codex.Field{Tag: newTag, Ind1: ' ', Ind2: ' '}
-	m := codeMap(codes)
 	for _, s := range f.Subfields {
-		if to, ok := m[s.Code]; ok {
+		if to, ok := remapCode(codes, s.Code); ok {
 			if v := clean(strings.TrimRight(s.Value, " ")); v != "" {
 				nf.Subfields = append(nf.Subfields, codex.NewSubfield(to, v))
 			}
@@ -120,18 +161,19 @@ func addRetag(out *codex.Record, f codex.Field, newTag, codes string) {
 	}
 }
 
-// codeMap parses a "from1to1from2to2…" spec into a subfield-code mapping; an odd
-// trailing character maps to itself.
-func codeMap(codes string) map[byte]byte {
-	m := map[byte]byte{}
+// remapCode looks up the target subfield code for from in the pair spec codes
+// ("from1to1from2to2…", an odd trailing character mapping to itself), scanning
+// the short constant spec directly rather than building a map per call.
+func remapCode(codes string, from byte) (byte, bool) {
 	for i := 0; i < len(codes); i += 2 {
-		if i+1 < len(codes) {
-			m[codes[i]] = codes[i+1]
-		} else {
-			m[codes[i]] = codes[i]
+		if codes[i] == from {
+			if i+1 < len(codes) {
+				return codes[i+1], true
+			}
+			return from, true
 		}
 	}
-	return m
+	return 0, false
 }
 
 // title245 maps UNIMARC 200 (title and statement of responsibility) to MARC 245.
@@ -191,6 +233,9 @@ func addName(out *codex.Record, f codex.Field, newTag string) {
 }
 
 // addSubject maps a UNIMARC topical/geographic subject to its MARC 6xx field.
+// The subdivision subfields are swapped: UNIMARC $y is geographical and $z is
+// chronological, the reverse of MARC 21, whose $y is chronological and $z is
+// geographical.
 func addSubject(out *codex.Record, f codex.Field, newTag string) {
 	nf := codex.Field{Tag: newTag, Ind1: ' ', Ind2: '0'}
 	for _, s := range f.Subfields {
@@ -201,9 +246,9 @@ func addSubject(out *codex.Record, f codex.Field, newTag string) {
 		case 'x':
 			to = 'x'
 		case 'y':
-			to = 'y'
+			to = 'z' // UNIMARC geographical -> MARC 21 geographical
 		case 'z':
-			to = 'z'
+			to = 'y' // UNIMARC chronological -> MARC 21 chronological
 		default:
 			continue
 		}

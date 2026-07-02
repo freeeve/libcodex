@@ -16,11 +16,13 @@ func Title(r *codex.Record) string {
 }
 
 // Authors returns the personal and corporate names with intellectual
-// responsibility (UNIMARC 700/701/702 personal, 710/711/712 corporate).
+// responsibility (UNIMARC 700/701/702 personal, 710/711/712 corporate) in a
+// single pass over the record's fields.
 func Authors(r *codex.Record) []string {
 	var out []string
-	for _, tag := range []string{"700", "701", "702", "710", "711", "712", "720", "721"} {
-		for _, f := range r.DataFields(tag) {
+	for _, f := range r.Fields() {
+		switch f.Tag {
+		case "700", "701", "702", "710", "711", "712", "720", "721":
 			if name := personName(f); name != "" {
 				out = append(out, name)
 			}
@@ -30,20 +32,27 @@ func Authors(r *codex.Record) []string {
 }
 
 // personName joins the entry element (UNIMARC $a) with the rest of the name
-// ($b), which conventionally already begins with the separating punctuation.
+// ($b). $b conventionally carries any separating punctuation, but ISO-2709
+// UNIMARC records frequently omit it: when the second indicator marks a
+// surname-first (inverted) entry and $b has no leading comma, the surname and
+// forename are joined with ", " so downstream citation and BibTeX consumers read
+// the name correctly.
 func personName(f codex.Field) string {
 	a := clean(strings.TrimRight(f.SubfieldValue('a'), " "))
 	b := clean(strings.TrimSpace(f.SubfieldValue('b')))
 	if a == "" {
 		return ""
 	}
-	if b != "" {
-		if strings.HasPrefix(b, ",") {
-			return a + b
-		}
-		return a + " " + b
+	if b == "" {
+		return a
 	}
-	return a
+	if strings.HasPrefix(b, ",") {
+		return a + b
+	}
+	if f.Ind2 == '1' { // entered under surname: "Surname, Forename"
+		return a + ", " + b
+	}
+	return a + " " + b
 }
 
 // ISBN returns the ISBNs (UNIMARC 010 $a).
@@ -79,11 +88,13 @@ func PublicationDate(r *codex.Record) string {
 }
 
 // Subjects returns the subject access points (UNIMARC 600/601 names used as
-// subjects, 606 topical, 607 geographic, 608 form/genre).
+// subjects, 606 topical, 607 geographic, 608 form/genre) in a single pass over
+// the record's fields.
 func Subjects(r *codex.Record) []string {
 	var out []string
-	for _, tag := range []string{"600", "601", "602", "604", "605", "606", "607", "608"} {
-		for _, f := range r.DataFields(tag) {
+	for _, f := range r.Fields() {
+		switch f.Tag {
+		case "600", "601", "602", "604", "605", "606", "607", "608":
 			if v := clean(crosswalk.JoinSub(f, "axyz", "--")); v != "" {
 				out = append(out, v)
 			}
