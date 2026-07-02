@@ -216,6 +216,31 @@ It streams the 3.3 GB LCSH N-Triples file (23M triples) at ~800 MB/s with a live
 heap of a few megabytes, and holds RDF/XML and Turtle to a few MB regardless of
 file size. (JSON-LD is whole-document only — its tree must be materialized.)
 
+## Fetching records over SRU (`sru`)
+
+[SRU](https://www.loc.gov/standards/sru/) (Search/Retrieve via URL) is the HTTP
+search protocol library catalogs expose for copy-cataloging and discovery — the
+web successor to Z39.50. The `sru` client runs a `searchRetrieve` over `net/http`,
+parses the response, and hands the embedded records to the decoders above. Its
+`Reader` implements `codex.RecordReader`, so a catalog search is a `Convert`
+source. This is the one package that reaches the network; it remains standard
+library only.
+
+```go
+c := sru.NewClient("http://lx2.loc.gov:210/lcdb")
+rd := c.NewReader(ctx, `dc.title = `+sru.Quote("moby dick")) // CQL; pages automatically
+codex.Convert(rd, marcjson.NewWriter(os.Stdout))            // stream hits into any format
+
+// Or one page at a time, with counts and diagnostics:
+resp, _ := c.SearchRetrieve(ctx, sru.Request{Query: `bath.isbn = "9780142437247"`})
+rec, _ := resp.Records[0].Decode() // MARCXML -> *codex.Record
+```
+
+MARCXML records decode to `*codex.Record`; records in other schemas (MODS, Dublin
+Core) are returned as raw XML in `Record.Data` (those crosswalks are export-only).
+The client targets SRU 1.1/1.2. Fetching over the older, binary Z39.50 protocol is
+tracked as future work.
+
 ## Reading UNIMARC
 
 [UNIMARC](https://www.ifla.org/g/unimarc-rg/) (IFLA, used widely in Europe) shares

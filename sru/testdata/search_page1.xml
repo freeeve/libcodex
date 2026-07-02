@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zs:searchRetrieveResponse xmlns:zs="http://www.loc.gov/zing/srw/">
+  <zs:version>1.2</zs:version>
+  <zs:numberOfRecords>3</zs:numberOfRecords>
+  <zs:records>
+    <zs:record>
+      <zs:recordSchema>info:srw/schema/1/marcxml-v1.1</zs:recordSchema>
+      <zs:recordPacking>xml</zs:recordPacking>
+      <zs:recordData>
+        <record xmlns="http://www.loc.gov/MARC21/slim">
+          <leader>00000cam a2200000 a 4500</leader>
+          <controlfield tag="001">92005291</controlfield>
+          <controlfield tag="008">920219s1993    nyu           000 1 eng  </controlfield>
+          <datafield tag="020" ind1=" " ind2=" ">
+            <subfield code="a">0786803525</subfield>
+          </datafield>
+          <datafield tag="100" ind1="1" ind2=" ">
+            <subfield code="a">Feinberg, Leslie.</subfield>
+          </datafield>
+          <datafield tag="245" ind1="1" ind2="0">
+            <subfield code="a">Stone butch blues :</subfield>
+            <subfield code="b">a novel /</subfield>
+            <subfield code="c">Leslie Feinberg.</subfield>
+          </datafield>
+        </record>
+      </zs:recordData>
+      <zs:recordPosition>1</zs:recordPosition>
+    </zs:record>
+    <zs:record>
+      <zs:recordSchema>info:srw/schema/1/marcxml-v1.1</zs:recordSchema>
+      <zs:recordPacking>xml</zs:recordPacking>
+      <zs:recordData>
+        <record xmlns="http://www.loc.gov/MARC21/slim">
+          <leader>00000cam a2200000 a 4500</leader>
+          <controlfield tag="001">2002550001</controlfield>
+          <datafield tag="020" ind1=" " ind2=" ">
+            <subfield code="a">9780142437247</subfield>
+          </datafield>
+          <datafield tag="100" ind1="1" ind2=" ">
+            <subfield code="a">Melville, Herman,</subfield>
+          </datafield>
+          <datafield tag="245" ind1="1" ind2="0">
+            <subfield code="a">Moby-Dick, or, The whale /</subfield>
+            <subfield code="c">Herman Melville.</subfield>
+          </datafield>
+        </record>
+      </zs:recordData>
+      <zs:recordPosition>2</zs:recordPosition>
+    </zs:record>
+  </zs:records>
+  <zs:nextRecordPosition>3</zs:nextRecordPosition>
+</zs:searchRetrieveResponse>
