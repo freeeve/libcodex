@@ -111,9 +111,10 @@ type Classification struct {
 
 // Identifier is a typed identifier carried by the Instance.
 type Identifier struct {
-	Class  string // "Isbn", "Issn" or "Identifier"
-	Value  string
-	Source string // identifier scheme (bf:source), e.g. a provider code; optional
+	Class     string // "Isbn", "Issn" or "Identifier"
+	Value     string
+	Source    string // identifier scheme (bf:source), e.g. a provider code; optional
+	Qualifier string // qualifying note (bf:qualifier), e.g. "electronic bk"; optional
 }
 
 // Provision is a bf:Publication (place / publisher / date).
@@ -218,11 +219,11 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 				}
 			}
 		case "020":
-			g.appendIdentifiers(f, 'a', "Isbn")
+			g.appendIdentifiers(f, 'a', "Isbn", true)
 		case "022":
-			g.appendIdentifiers(f, 'a', "Issn")
+			g.appendIdentifiers(f, 'a', "Issn", false)
 		case "024":
-			g.appendIdentifiers(f, 'a', "Identifier")
+			g.appendIdentifiers(f, 'a', "Identifier", false)
 		case "037":
 			// Source of acquisition (e.g. the OverDrive Reserve ID): the $a value,
 			// with the supplying scheme ($2) or agency ($b) kept as the identifier
@@ -231,7 +232,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			if source == "" {
 				source = trimISBD(f.SubfieldValue('b'))
 			}
-			g.appendIdentifier("Identifier", trimISBD(f.SubfieldValue('a')), source)
+			g.appendIdentifier("Identifier", trimISBD(f.SubfieldValue('a')), source, "")
 		case "856":
 			for _, sf := range f.Subfields {
 				if sf.Code == 'u' {
@@ -349,20 +350,56 @@ func (g *BIBFRAME) appendClassification(value, class, source string) {
 	}
 }
 
-func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class string) {
+// appendIdentifiers records one Instance identifier per matching subfield. When
+// qualified is set (ISBN/ISMN-style fields), a trailing parenthetical on the value
+// and any $q subfield are split into the identifier's bf:qualifier, matching
+// marc2bibframe2's handling of 020 qualifying information.
+func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class string, qualified bool) {
 	source := trimISBD(f.SubfieldValue('2')) // $2 names the identifier scheme (bf:source)
+	qualifier := ""
+	if qualified {
+		qualifier = trimISBD(f.SubfieldValue('q'))
+	}
 	for _, sf := range f.Subfields {
 		if sf.Code == code {
-			g.appendIdentifier(class, trimISBD(sf.Value), source)
+			value := trimISBD(sf.Value)
+			q := qualifier
+			if qualified {
+				var paren string
+				value, paren = splitParenthetical(value)
+				if q == "" {
+					q = paren
+				}
+			}
+			g.appendIdentifier(class, value, source, q)
 		}
 	}
 }
 
 // appendIdentifier records one Instance identifier when the value is non-empty.
-func (g *BIBFRAME) appendIdentifier(class, value, source string) {
+func (g *BIBFRAME) appendIdentifier(class, value, source, qualifier string) {
 	if value != "" {
-		g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{Class: class, Value: value, Source: source})
+		g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{Class: class, Value: value, Source: source, Qualifier: qualifier})
 	}
+}
+
+// splitParenthetical separates a trailing "(qualifier)" note from an identifier
+// value, returning the bare value and the qualifier text (empty when absent). It
+// mirrors marc2bibframe2, which lifts the parenthetical out of an 020 $a into a
+// bf:qualifier: "0781234567 (v.1)" -> "0781234567", "v.1".
+func splitParenthetical(s string) (value, qualifier string) {
+	open := strings.IndexByte(s, '(')
+	if open < 0 {
+		return s, ""
+	}
+	end := strings.IndexByte(s[open:], ')')
+	if end < 0 {
+		return s, ""
+	}
+	end += open
+	qualifier = strings.TrimSpace(s[open+1 : end])
+	value = strings.TrimSpace(s[:open] + s[end+1:])
+	return value, qualifier
 }
 
 func (g *BIBFRAME) addLanguages(r *codex.Record) {

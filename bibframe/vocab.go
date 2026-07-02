@@ -108,4 +108,5 @@ var (
 	qpChangeDate             = qname{nsBF, "changeDate", "bf:changeDate", pChangeDate}
 	qpDescriptionConventions = qname{nsBF, "descriptionConventions", "bf:descriptionConventions", pDescriptionConventions}
 	qpSource                 = qname{nsBF, "source", "bf:source", pSource}
+	qpQualifier              = qname{nsBF, "qualifier", "bf:qualifier", pQualifier}
 )

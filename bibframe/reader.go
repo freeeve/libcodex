@@ -60,6 +60,9 @@ const (
 	pSource     = bfNS + "source"
 	classSource = bfNS + "Source"
 
+	// Qualifying information on an identifier (bf:qualifier), e.g. "electronic bk".
+	pQualifier = bfNS + "qualifier"
+
 	// LoC's marc2bibframe2 carries the transcribed publication statement in these
 	// bflc properties, alongside the controlled bf:place / bf:date.
 	pSimplePlace = bflcNS + "simplePlace"

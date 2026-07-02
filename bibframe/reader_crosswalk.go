@@ -198,24 +198,29 @@ func identifierFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
 			continue
 		}
 		source := sourceLabel(g, id)
+		qualifier := literal(g, id, pQualifier)
 		switch typeExcept(g, id, "") {
 		case "Isbn":
-			fields = append(fields, identifierField("020", ' ', ' ', value, source))
+			fields = append(fields, identifierField("020", ' ', ' ', value, source, qualifier))
 		case "Issn":
-			fields = append(fields, identifierField("022", ' ', ' ', value, source))
+			fields = append(fields, identifierField("022", ' ', ' ', value, source, qualifier))
 		case "Lccn":
 			fields = append(fields, codex.NewDataField("010", ' ', ' ', codex.NewSubfield('a', strings.TrimSpace(value))))
 		default:
-			fields = append(fields, identifierField("024", '8', ' ', value, source))
+			fields = append(fields, identifierField("024", '8', ' ', value, source, qualifier))
 		}
 	}
 	return fields
 }
 
-// identifierField builds an 020/022/024 from a value and an optional scheme,
-// which round-trips through subfield $2.
-func identifierField(tag string, ind1, ind2 byte, value, source string) codex.Field {
+// identifierField builds an 020/022/024 from a value plus an optional scheme and
+// qualifier, which round-trip through subfields $2 and $q. A bf:qualifier lifted
+// out of an ISBN parenthetical is normalized back into $q, the modern form.
+func identifierField(tag string, ind1, ind2 byte, value, source, qualifier string) codex.Field {
 	subs := []codex.Subfield{codex.NewSubfield('a', value)}
+	if qualifier != "" {
+		subs = append(subs, codex.NewSubfield('q', qualifier))
+	}
 	if source != "" {
 		subs = append(subs, codex.NewSubfield('2', source))
 	}

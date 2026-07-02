@@ -243,6 +243,9 @@ func emitClassification(s sink, c Classification) {
 func emitIdentifier(s sink, id Identifier) {
 	s.beginNode(bfName(id.Class), iriVal{}, qname{})
 	s.lit(qpValue, id.Value)
+	if id.Qualifier != "" {
+		s.lit(qpQualifier, id.Qualifier)
+	}
 	if id.Source != "" {
 		s.beginChild(qpSource)
 		emitLabeled(s, qcSource, id.Source)
