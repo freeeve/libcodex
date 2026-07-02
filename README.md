@@ -263,9 +263,12 @@ recs, _ := conn.Present(ctx, 1, 10) // fetch records 1-10
 Records decode by their record syntax: MARC21 via `iso2709` (including MARC-8
 transcoding), UNIMARC via `unimarc`, MARCXML via `marcxml`; SUTRS text is exposed
 raw. Query access points: `any`, `title`, `author`, `subject`, `isbn`, `issn`,
-`lccn`, `id`, combined with `And`/`Or`/`AndNot`. Interop is tested against YAZ's
-`yaz-ztest` (skipped when YAZ is not installed) and, opt-in via
-`Z3950_LIVE_TARGET`, any live target.
+`lccn`, `id`, combined with `And`/`Or`/`AndNot`. Multi-word terms automatically
+search as phrases, a trailing `*` right-truncates (`"mob*"` finds moby), and
+`.Exact()`/`.Phrase()`/`.Word()`/`.Truncated()` refine a term for strict servers.
+Guarded targets authenticate via `Client.User`/`Password`/`Group` (idPass) or
+`Client.AuthOpen`. Interop is tested against YAZ's `yaz-ztest` (skipped when YAZ
+is not installed) and, opt-in via `Z3950_LIVE_TARGET`, any live target.
 
 ## Reading UNIMARC
 

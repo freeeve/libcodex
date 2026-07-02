@@ -36,9 +36,32 @@ return wrong result sets on a large share of real targets.
 
 ## Acceptance
 
-- [ ] Multi-word terms carry structure=phrase automatically; single words
+- [x] Multi-word terms carry structure=phrase automatically; single words
       structure=word.
-- [ ] Truncation, exact and word/phrase overrides encode the documented
+- [x] Truncation, exact and word/phrase overrides encode the documented
       attribute pairs (hermetic AttributeList assertions).
-- [ ] yaz-ztest interop and live Koha/LC spot checks still return expected hit
+- [x] yaz-ztest interop and live Koha/LC spot checks still return expected hit
       counts for single-word queries.
+
+## Result
+
+- `Query` gains structure/truncation/exact state with fluent refinements
+  (`Phrase`/`Word`/`Truncated`/`Exact`); `Term` and the boolean combinators are
+  unchanged for existing callers.
+- Auto-structure: whitespace in the term -> structure=phrase (4=1), else
+  structure=word (4=2), always emitted -- the gap that made multi-word terms
+  brittle on strict servers.
+- Trailing `*` strips to a right-truncated stem (5=1); `\*` escapes a literal
+  asterisk; a bare `*` errors (empty stem). `.Exact()` adds relation=equal
+  (2=3), position=first-in-field (3=1), completeness=complete-field (6=3).
+- AttributeElements emit in ascending attribute-type order; `query_test.go`
+  pins the exact (type,value) list per builder form plus the boolean branch
+  shape.
+- Live: Koha Zebra -- phrase "fire island" 2 hits (matching its SRU dc.title
+  count), `fire*` 33, author+any boolean 2; LC production -- 318 / 9672 / 17.
+  yaz-ztest interop green with the new attributes.
+
+### Deferred
+
+- [ ] Proximity operator; relation attributes beyond equal (ranges, stem).
+- [ ] Left/both truncation (5=2/3); regexp truncation (5=102/103).
