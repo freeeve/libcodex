@@ -25,8 +25,45 @@ func graphFromBIBFRAME(bib *BIBFRAME, base string) *rdf.Graph {
 	gb := &graphBuilder{g: &rdf.Graph{}, prefix: base}
 	work := rdf.NewIRI(workURI(base))
 	inst := rdf.NewIRI(instanceURI(base))
-	gb.work(work, inst, bib)
-	gb.instance(work, inst, bib)
+	gb.work(work, &bib.Work)
+	gb.g.Add(work, rdf.NewIRI(pHasInstance), inst)
+	gb.instance(work, inst, &bib.Instance)
+	return gb.g
+}
+
+// WorkInstances is a Work together with the Instances that realize it — different
+// editions, formats or translations of the same intellectual content. It
+// serializes to one BIBFRAME grain in which the Work's triples appear once and
+// each Instance is linked to it in both directions.
+type WorkInstances struct {
+	Work      Work
+	Instances []Instance
+}
+
+// Graph assembles the Work at #<workBase>Work and each Instance i at
+// #<instanceBases[i]>Instance, linked bf:hasInstance (Work -> each Instance) and
+// bf:instanceOf (each Instance -> Work). The work and instance bases are
+// independent, so a caller can mint opaque ids at both tiers; every base is
+// sanitized like BIBFRAME.Graph. len(instanceBases) must equal len(wi.Instances).
+//
+// The whole grain is built with one blank-node counter, so blank labels are unique
+// across the Work and all Instances and RDFC-1.0 canonicalization of the result is
+// stable. Serialize it with rdf's NQuads, NTriples or Turtle encoders; a
+// zero-Instance Work yields just the Work node. It panics if instanceBases does not
+// match wi.Instances in length, which is a caller programming error.
+func (wi *WorkInstances) Graph(workBase string, instanceBases []string) *rdf.Graph {
+	if len(instanceBases) != len(wi.Instances) {
+		panic("bibframe: WorkInstances.Graph: len(instanceBases) != len(Instances)")
+	}
+	wb := sanitizeID(workBase)
+	gb := &graphBuilder{g: &rdf.Graph{}, prefix: wb}
+	work := rdf.NewIRI(workURI(wb))
+	gb.work(work, &wi.Work)
+	for i := range wi.Instances {
+		inst := rdf.NewIRI(instanceURI(sanitizeID(instanceBases[i])))
+		gb.g.Add(work, rdf.NewIRI(pHasInstance), inst)
+		gb.instance(work, inst, &wi.Instances[i])
+	}
 	return gb.g
 }
 
@@ -79,30 +116,32 @@ func (gb *graphBuilder) labeled(parent rdf.Term, predIRI, classIRI, label string
 	gb.lit(node, pLabel, label)
 }
 
-func (gb *graphBuilder) work(work, inst rdf.Term, bib *BIBFRAME) {
+// work emits the Work's triples. The bf:hasInstance links are added by the caller
+// (one per Instance), so a Work with several Instances emits its own triples once.
+func (gb *graphBuilder) work(work rdf.Term, w *Work) {
 	gb.typ(work, classWork)
-	if bib.Work.Class != "" {
-		gb.typ(work, bfNS+bib.Work.Class)
+	if w.Class != "" {
+		gb.typ(work, bfNS+w.Class)
 	}
-	for _, t := range bib.Work.Titles {
+	for _, t := range w.Titles {
 		gb.title(work, t)
 	}
-	for _, c := range bib.Work.Contributions {
+	for _, c := range w.Contributions {
 		gb.contribution(work, c)
 	}
-	for _, s := range bib.Work.Subjects {
+	for _, s := range w.Subjects {
 		gb.labeled(work, pSubject, bfNS+s.Class, s.Label)
 	}
-	for _, gf := range bib.Work.GenreForms {
+	for _, gf := range w.GenreForms {
 		gb.labeled(work, pGenreForm, bfNS+"GenreForm", gf)
 	}
-	for _, code := range bib.Work.Languages {
+	for _, code := range w.Languages {
 		lang := rdf.NewIRI(langVocab + code)
 		gb.g.Add(work, rdf.NewIRI(pLanguage), lang)
 		gb.typ(lang, bfNS+"Language")
 		gb.lit(lang, pLabel, code)
 	}
-	for _, c := range bib.Work.Classifications {
+	for _, c := range w.Classifications {
 		node := gb.fresh()
 		gb.g.Add(work, rdf.NewIRI(pClassif), node)
 		gb.typ(node, bfNS+c.Class)
@@ -111,21 +150,20 @@ func (gb *graphBuilder) work(work, inst rdf.Term, bib *BIBFRAME) {
 			gb.labeled(node, pSource, classSource, c.Source)
 		}
 	}
-	for _, s := range bib.Work.Summary {
+	for _, s := range w.Summary {
 		gb.labeled(work, pSummary, bfNS+"Summary", s)
 	}
-	gb.g.Add(work, rdf.NewIRI(pHasInstance), inst)
 }
 
-func (gb *graphBuilder) instance(work, inst rdf.Term, bib *BIBFRAME) {
+func (gb *graphBuilder) instance(work, inst rdf.Term, in *Instance) {
 	gb.typ(inst, classInstance)
 	gb.g.Add(inst, rdf.NewIRI(pInstanceOf), work)
-	for _, t := range bib.Instance.Titles {
+	for _, t := range in.Titles {
 		gb.title(inst, t)
 	}
-	gb.lit(inst, pRespStmt, bib.Instance.ResponsibilityStatement)
-	gb.lit(inst, pEdition, bib.Instance.EditionStatement)
-	if p := bib.Instance.Provision; p != nil {
+	gb.lit(inst, pRespStmt, in.ResponsibilityStatement)
+	gb.lit(inst, pEdition, in.EditionStatement)
+	if p := in.Provision; p != nil {
 		node := gb.fresh()
 		gb.g.Add(inst, rdf.NewIRI(pProvision), node)
 		gb.typ(node, bfNS+"Publication")
@@ -137,10 +175,10 @@ func (gb *graphBuilder) instance(work, inst rdf.Term, bib *BIBFRAME) {
 		}
 		gb.lit(node, pDate, p.Date)
 	}
-	for _, e := range bib.Instance.Extent {
+	for _, e := range in.Extent {
 		gb.labeled(inst, pExtent, bfNS+"Extent", e)
 	}
-	for _, id := range bib.Instance.Identifiers {
+	for _, id := range in.Identifiers {
 		node := gb.fresh()
 		gb.g.Add(inst, rdf.NewIRI(pIdentifiedBy), node)
 		gb.typ(node, bfNS+id.Class)
@@ -149,10 +187,10 @@ func (gb *graphBuilder) instance(work, inst rdf.Term, bib *BIBFRAME) {
 			gb.labeled(node, pSource, classSource, id.Source)
 		}
 	}
-	for _, u := range bib.Instance.ElectronicLocator {
+	for _, u := range in.ElectronicLocator {
 		gb.g.Add(inst, rdf.NewIRI(pLocator), rdf.NewIRI(u))
 	}
-	gb.adminMetadata(inst, bib.Instance.Admin)
+	gb.adminMetadata(inst, in.Admin)
 }
 
 // adminMetadata renders the bf:AdminMetadata provenance node on the instance: a

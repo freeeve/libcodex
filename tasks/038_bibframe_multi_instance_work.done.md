@@ -50,11 +50,31 @@ Requirements:
 
 ## Acceptance
 
-- [ ] A Work with 2 Instances -> one Work node + two Instance nodes, correct
+- [x] A Work with 2 Instances -> one Work node + two Instance nodes, correct
       hasInstance/instanceOf both ways, distinct instance IRIs.
-- [ ] Independent work/instance bases honored in the node IRIs.
-- [ ] Blank labels unique across all instances; RDFC-1.0 output deterministic.
-- [ ] Existing single-instance tests and golden output unchanged.
+      (`TestWorkInstancesGraphStructure`.)
+- [x] Independent work/instance bases honored in the node IRIs, each sanitized.
+      (`TestWorkInstancesGraphStructure`, `TestWorkInstancesBaseSanitized`.)
+- [x] Blank labels unique across all instances; RDFC-1.0 output deterministic.
+      (`TestWorkInstancesBlankNodesDistinct`, `TestWorkInstancesCanonicalDeterministic`.)
+- [x] Existing single-instance tests and golden output unchanged (the `work()`
+      refactor keeps `bf:hasInstance` the last Work-subject triple, so the
+      single-instance graph is byte-identical; full suite + `TestGolden` pass).
+
+## Resolution
+
+- Added `WorkInstances{Work, []Instance}` and
+  `(*WorkInstances).Graph(workBase string, instanceBases []string) *rdf.Graph`
+  (graph.go): the Work is emitted once, each Instance under its own sanitized base
+  with `bf:hasInstance` / `bf:instanceOf` both ways, all built with one
+  `graphBuilder` so blank labels are unique across the grain.
+- Refactored `graphBuilder.work` to take `*Work` and no longer emit
+  `bf:hasInstance` (the caller emits one per Instance); `instance` now takes
+  `*Instance`. The single-instance `graphFromBIBFRAME` path is byte-identical.
+- Scope: this is the priority `rdf.Graph` / N-Quads path. Multi-instance RDF/XML
+  and JSON-LD output is deferred to **task 053**; decoding a multi-instance
+  document back to MARC (needs an N-records-vs-merge policy decision) is **task
+  054**. `BIBFRAME`, `FromRecord`, and `Graph(base)` are unchanged.
 
 Consumer: libcatalog Phase 1 (`identity/`, `tasks/001`, `tasks/002`).
 
