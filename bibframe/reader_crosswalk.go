@@ -73,6 +73,11 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	for _, s := range labelsOf(g, work, pSummary) {
 		add(codex.NewDataField("520", ' ', ' ', codex.NewSubfield('a', s)))
 	}
+	for _, toc := range literalsOf(g, work, pTableOfContents) {
+		add(codex.NewDataField("505", ' ', ' ', codex.NewSubfield('a', toc)))
+	}
+	fields = append(fields, noteFields(g, work)...)
+	fields = append(fields, noteFields(g, inst)...)
 	for _, u := range locators(g, inst) {
 		add(codex.NewDataField("856", '4', '0', codex.NewSubfield('u', u)))
 	}
@@ -732,6 +737,21 @@ func variantTitleFields(g *rdf.Graph, subject rdf.Term) []codex.Field {
 			subs = append(subs, codex.NewSubfield('p', vt.PartName))
 		}
 		fields = append(fields, codex.NewDataField("246", ' ', ind2ForVariant(vt), subs...))
+	}
+	return fields
+}
+
+// noteFields reverses a subject's bf:note nodes into 5xx fields, choosing the tag
+// from each note's bf:noteType (500 general, 504 bibliography, 546 language).
+func noteFields(g *rdf.Graph, subject rdf.Term) []codex.Field {
+	var fields []codex.Field
+	for _, n := range g.Objects(subject, pNote) {
+		label := literal(g, n, pLabel)
+		if label == "" {
+			continue
+		}
+		tag := tagForNoteType(literal(g, n, pNoteType))
+		fields = append(fields, codex.NewDataField(tag, ' ', ' ', codex.NewSubfield('a', label)))
 	}
 	return fields
 }

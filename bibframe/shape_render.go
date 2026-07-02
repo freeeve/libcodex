@@ -83,6 +83,17 @@ func (s *graphSink) litTyped(pred qname, text, datatype string) {
 	}
 }
 
+func (s *graphSink) litList(pred qname, texts []string) {
+	if len(texts) == 0 {
+		return
+	}
+	subj := s.subj[len(s.subj)-1]
+	p := rdf.NewIRI(pred.fullIRI())
+	for _, t := range texts {
+		s.gb.g.Add(subj, p, rdf.NewLiteral(t, "", ""))
+	}
+}
+
 func (s *graphSink) ref(pred qname, iri iriVal) {
 	s.gb.g.Add(s.subj[len(s.subj)-1], rdf.NewIRI(pred.fullIRI()), s.iriTerm(iri))
 }
@@ -216,6 +227,12 @@ func (s *xmlSink) lit(pred qname, text string) {
 	s.b = append(s.b, ">\n"...)
 }
 
+func (s *xmlSink) litList(pred qname, texts []string) {
+	for _, t := range texts {
+		s.lit(pred, t)
+	}
+}
+
 func (s *xmlSink) litTyped(pred qname, text, datatype string) {
 	s.b = appendIndent(s.b, s.depth)
 	s.b = append(s.b, '<')
@@ -319,6 +336,21 @@ func (s *jsonSink) endNode() { s.b = append(s.b, '}') }
 func (s *jsonSink) lit(pred qname, text string) {
 	s.b = s.key(pred)
 	s.b = appendJSONString(s.b, text)
+}
+
+func (s *jsonSink) litList(pred qname, texts []string) {
+	if len(texts) == 0 {
+		return
+	}
+	s.b = s.key(pred)
+	s.b = append(s.b, '[')
+	for i, t := range texts {
+		if i > 0 {
+			s.b = append(s.b, ',')
+		}
+		s.b = appendJSONString(s.b, t)
+	}
+	s.b = append(s.b, ']')
 }
 
 func (s *jsonSink) litTyped(pred qname, text, datatype string) {

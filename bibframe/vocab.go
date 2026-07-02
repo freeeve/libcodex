@@ -76,6 +76,7 @@ var (
 	qcCarrier                = qname{nsBF, "Carrier", "bf:Carrier", bfNS + "Carrier"}
 	qcGenreForm              = qname{nsBF, "GenreForm", "bf:GenreForm", bfNS + "GenreForm"}
 	qcSummary                = qname{nsBF, "Summary", "bf:Summary", bfNS + "Summary"}
+	qcNote                   = qname{nsBF, "Note", "bf:Note", classNote}
 	qcContribution           = qname{nsBF, "Contribution", "bf:Contribution", bfNS + "Contribution"}
 	qcPrimaryContribution    = qname{nsBFLC, "PrimaryContribution", "bflc:PrimaryContribution", primaryContribution}
 )
@@ -108,6 +109,9 @@ var (
 	qpItemPortion            = qname{nsBF, "itemPortion", "bf:itemPortion", pItemPortion}
 	qpClassEdition           = qname{nsBF, "edition", "bf:edition", pClassEdition}
 	qpSummary                = qname{nsBF, "summary", "bf:summary", pSummary}
+	qpNote                   = qname{nsBF, "note", "bf:note", pNote}
+	qpNoteType               = qname{nsBF, "noteType", "bf:noteType", pNoteType}
+	qpTableOfContents        = qname{nsBF, "tableOfContents", "bf:tableOfContents", pTableOfContents}
 	qpResponsibilityStmt     = qname{nsBF, "responsibilityStatement", "bf:responsibilityStatement", pRespStmt}
 	qpEditionStatement       = qname{nsBF, "editionStatement", "bf:editionStatement", pEdition}
 	qpProvisionActivity      = qname{nsBF, "provisionActivity", "bf:provisionActivity", pProvision}

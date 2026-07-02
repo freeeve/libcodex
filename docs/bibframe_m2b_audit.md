@@ -182,9 +182,14 @@ beyond 520 and the entire 76x-78x linking family are absent.
 
 - MATCH -- 520 -> `bf:summary`; 001 -> `bf:identifiedBy`/`bf:Local`; 005 ->
   `bf:changeDate`; 856 $u -> `bf:electronicLocator` on Instance.
-- GAP (high) -- 5xx note family unimplemented beyond 520: 500 (general, ubiquitous),
-  504 (biblio), 505 (`bf:tableOfContents`), 546 (language note), and the typed
-  `mnotetype/*` bucket. Add `Notes []Note{Type,Label}` on Work/Instance. **[072]**
+- RESOLVED [072] -- common 5xx notes land as `bf:Note` with a round-trippable
+  `bf:noteType`: 500 -> untyped note (Instance), 504 -> `bibliography` (Instance),
+  546 -> `language` (Work), 505 -> `bf:tableOfContents` (Work). `Work.Notes`,
+  `Instance.Notes` (`[]Note{Type,Label}`) and `Work.TableOfContents` model the split;
+  repeated notes and ToC entries serialize as JSON-LD arrays (new `litList` sink)
+  so they cannot collide on one object key. The long tail (508/511/521/524/525/
+  533/534/502/506/540/538, 520 ind1 nuance) stays a tracked checklist in
+  `tasks/072_bibframe_5xx_notes.done.md`.
 - GAP (high, structural) -- 76x-78x linking entries entirely unhandled; m2b emits
   `bf:relation -> bf:Relation` with a relationship-vocab IRI + `bf:associatedResource`
   (per-field minted Work/Instance IRIs), not bare `bf:precededBy`. **[073]**

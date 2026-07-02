@@ -85,6 +85,15 @@ type Work struct {
 	OriginalLangs   []string // languages of the original (041 $h) -> bf:part "original"
 	Classifications []Classification
 	Summary         []string
+	Notes           []Note   // 5xx notes routed to the Work (e.g. 546 language)
+	TableOfContents []string // 505 -> bf:tableOfContents
+}
+
+// Note is a typed 5xx note: a bf:noteType token (empty for a general 500 note) and
+// the note text.
+type Note struct {
+	Type  string // bf:noteType token (e.g. "bibliography", "language"); "" for a general note
+	Label string // the note text
 }
 
 // RelatedWork is a name-title access point (a 1xx/7xx carrying a $t): a related
@@ -111,6 +120,7 @@ type Instance struct {
 	Media                   []RDATerm // RDA media types (337) -> bf:media
 	Carrier                 []RDATerm // RDA carrier types (338) -> bf:carrier
 	Issuance                string    // mode of issuance (leader/07) -> bf:issuance IRI; optional
+	Notes                   []Note    // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
 	Identifiers             []Identifier
 	ElectronicLocator       []string
 	Admin                   *AdminMetadata
@@ -279,6 +289,20 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			g.Instance.Media = append(g.Instance.Media, rdaTerm(f))
 		case "338":
 			g.Instance.Carrier = append(g.Instance.Carrier, rdaTerm(f))
+		case "500", "504", "546":
+			// 500/504 describe the Instance; 546 (language) describes the Work.
+			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
+				n := Note{Type: noteTypeForTag(f.Tag), Label: v}
+				if f.Tag == "546" {
+					g.Work.Notes = append(g.Work.Notes, n)
+				} else {
+					g.Instance.Notes = append(g.Instance.Notes, n)
+				}
+			}
+		case "505":
+			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
+				g.Work.TableOfContents = append(g.Work.TableOfContents, v)
+			}
 		case "520":
 			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
 				g.Work.Summary = append(g.Work.Summary, v)
@@ -1073,6 +1097,32 @@ func ind2ForVariant(vt VariantTitle) byte {
 		return '8'
 	default:
 		return ' '
+	}
+}
+
+// noteTypeForTag maps a 5xx note tag to its bf:noteType token ("" for a general
+// 500 note).
+func noteTypeForTag(tag string) string {
+	switch tag {
+	case "504":
+		return "bibliography"
+	case "546":
+		return "language"
+	default: // 500
+		return ""
+	}
+}
+
+// tagForNoteType inverts noteTypeForTag, mapping a bf:noteType token back to its 5xx
+// tag (500 for a general/unknown note).
+func tagForNoteType(noteType string) string {
+	switch noteType {
+	case "bibliography":
+		return "504"
+	case "language":
+		return "546"
+	default:
+		return "500"
 	}
 }
 

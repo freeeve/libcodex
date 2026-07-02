@@ -40,6 +40,9 @@ func normalize(g *BIBFRAME) *BIBFRAME {
 	sort.Strings(g.Work.Languages)
 	sort.Strings(g.Work.OriginalLangs)
 	sort.Strings(g.Work.Summary)
+	sort.Strings(g.Work.TableOfContents)
+	sort.Slice(g.Work.Notes, func(i, j int) bool { return noteKey(g.Work.Notes[i]) < noteKey(g.Work.Notes[j]) })
+	sort.Slice(g.Instance.Notes, func(i, j int) bool { return noteKey(g.Instance.Notes[i]) < noteKey(g.Instance.Notes[j]) })
 	sort.Strings(g.Instance.Extent)
 	sort.Strings(g.Instance.ElectronicLocator)
 	return g
@@ -48,6 +51,8 @@ func normalize(g *BIBFRAME) *BIBFRAME {
 func titleKey(t Title) string {
 	return t.Type + "|" + t.MainTitle + "|" + t.Subtitle + "|" + t.PartNumber + "|" + t.PartName
 }
+
+func noteKey(n Note) string { return n.Type + "|" + n.Label }
 
 func contKey(c Contribution) string {
 	p := "0"

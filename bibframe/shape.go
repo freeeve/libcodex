@@ -46,12 +46,31 @@ func countryIRIVal(code string) iriVal { return iriVal{countriesVocab, code, ""}
 func issuanceIRIVal(code string) iriVal { return iriVal{issuanceVocab, code, ""} }
 
 // rdaIRIVal builds a term IRI in an RDA vocabulary (content/media/carrier) from a
-// code, or the zero iriVal (a blank node) for an empty code.
+// code. A code that is empty or carries anything but lowercase letters and digits
+// yields the zero iriVal (a blank node), so a malformed 336/337/338 $b cannot mint
+// an unsafe node IRI in the serializers, which write node IRIs unescaped; the term
+// still round-trips through its rdfs:label.
 func rdaIRIVal(vocab, code string) iriVal {
-	if code == "" {
+	if !isRDACode(code) {
 		return iriVal{}
 	}
 	return iriVal{vocab, code, ""}
+}
+
+// isRDACode reports whether code is a well-formed RDA/LoC vocabulary term code: a
+// short run of lowercase letters and digits. RDA content/media/carrier codes are
+// lowercase-letter tokens, so this admits every real code while rejecting the
+// IRI-breaking characters an arbitrary $b could carry.
+func isRDACode(code string) bool {
+	if code == "" || len(code) > 8 {
+		return false
+	}
+	for i := 0; i < len(code); i++ {
+		if c := code[i]; (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // orgIRIVal builds a cataloging-agency IRI in the LoC organizations vocabulary from
@@ -86,6 +105,7 @@ type sink interface {
 	endNode()
 	lit(pred qname, text string)
 	litTyped(pred qname, text, datatype string)
+	litList(pred qname, texts []string)
 	ref(pred qname, iri iriVal)
 	refList(pred qname, iris []string)
 	beginChild(pred qname)
@@ -184,6 +204,27 @@ func emitWorkBody(s sink, w *Work) {
 		}
 		s.endList()
 	}
+	s.litList(qpTableOfContents, w.TableOfContents)
+	emitNotes(s, w.Notes)
+}
+
+// emitNotes emits a bf:note list, each a bf:Note node with the note text as
+// rdfs:label and, for a typed note, its bf:noteType token. A list (not repeated
+// bf:note children) keeps multiple notes distinct as a JSON-LD array.
+func emitNotes(s sink, notes []Note) {
+	if len(notes) == 0 {
+		return
+	}
+	s.beginList(qpNote)
+	for _, n := range notes {
+		s.beginNode(qcNote, iriVal{}, qname{})
+		s.lit(qpLabel, n.Label)
+		if n.Type != "" {
+			s.lit(qpNoteType, n.Type)
+		}
+		s.endNode()
+	}
+	s.endList()
 }
 
 // emitInstance drives an Instance node under instBase, linked bf:instanceOf back to
@@ -227,9 +268,7 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 		}
 		s.endList()
 	}
-	for _, d := range in.Dimensions {
-		s.lit(qpDimensions, d)
-	}
+	s.litList(qpDimensions, in.Dimensions)
 	if len(in.Media) > 0 {
 		s.beginList(qpMedia)
 		for _, m := range in.Media {
@@ -254,6 +293,7 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 	if len(in.ElectronicLocator) > 0 {
 		s.refList(qpElectronicLocator, in.ElectronicLocator)
 	}
+	emitNotes(s, in.Notes)
 	if in.Admin != nil {
 		emitAdmin(s, in.Admin)
 	}
