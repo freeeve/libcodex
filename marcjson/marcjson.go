@@ -1,6 +1,8 @@
 // Package marcjson reads and writes MARC 21 records in the de-facto
 // "MARC-in-JSON" structure (the pymarc/ruby-marc/marc4j layout), implementing
-// codex.RecordReader and codex.RecordWriter using only encoding/json.
+// codex.RecordReader and codex.RecordWriter with a hand-rolled tokenizer (see
+// scan.go) rather than encoding/json, so both directions avoid reflection and
+// most per-token allocation.
 //
 // A record is a JSON object with a "leader" string and an ordered "fields"
 // array. Each field is a single-key object whose key is the 3-character tag: a
@@ -20,7 +22,6 @@ package marcjson
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"iter"
@@ -184,7 +185,7 @@ func controlTag(tag string) bool {
 // accepts a single object, a whitespace-separated stream of objects, or a
 // top-level array of objects.
 type Reader struct {
-	dec     *json.Decoder
+	sc      *scanner
 	started bool
 	inArray bool
 }
@@ -194,39 +195,41 @@ var _ codex.RecordReader = (*Reader)(nil)
 
 // NewReader returns a Reader that reads records from r.
 func NewReader(r io.Reader) *Reader {
-	return &Reader{dec: json.NewDecoder(r)}
+	return &Reader{sc: newScanner(r)}
 }
 
 // Read returns the next record, or io.EOF when the stream is exhausted.
 func (rd *Reader) Read() (*codex.Record, error) {
 	if !rd.started {
 		rd.started = true
-		tok, err := rd.dec.Token()
+		c, err := rd.sc.consume()
 		if err != nil {
 			return nil, err
 		}
-		if d, ok := tok.(json.Delim); ok {
-			switch d {
-			case '[':
-				rd.inArray = true
-			case '{':
-				return rd.readRecordBody() // the first object's brace is already consumed
-			default:
-				return nil, fmt.Errorf("marcjson: unexpected %q at start of stream", d)
-			}
-		} else {
-			return nil, fmt.Errorf("marcjson: expected object or array, got %v", tok)
+		switch c {
+		case '[':
+			rd.inArray = true
+		case '{':
+			return rd.readRecordBody() // the first object's brace is already consumed
+		default:
+			return nil, fmt.Errorf("marcjson: unexpected %q at start of stream", c)
 		}
 	}
-	if rd.inArray && !rd.dec.More() {
-		return nil, io.EOF
+	if rd.inArray {
+		more, err := rd.sc.more(']')
+		if err != nil {
+			return nil, err
+		}
+		if !more {
+			return nil, io.EOF
+		}
 	}
-	tok, err := rd.dec.Token() // expect '{'
+	c, err := rd.sc.consume() // expect '{'
 	if err != nil {
 		return nil, err // io.EOF ends a non-array stream
 	}
-	if d, ok := tok.(json.Delim); !ok || d != '{' {
-		return nil, fmt.Errorf("marcjson: expected record object, got %v", tok)
+	if c != '{' {
+		return nil, fmt.Errorf("marcjson: expected record object, got %q", c)
 	}
 	return rd.readRecordBody()
 }
@@ -235,14 +238,21 @@ func (rd *Reader) Read() (*codex.Record, error) {
 // closing brace, which it consumes.
 func (rd *Reader) readRecordBody() (*codex.Record, error) {
 	rec := codex.NewRecord()
-	for rd.dec.More() {
-		key, err := rd.readKey()
+	for {
+		more, err := rd.sc.more('}')
+		if err != nil {
+			return nil, err
+		}
+		if !more {
+			break
+		}
+		key, err := rd.sc.readString()
 		if err != nil {
 			return nil, err
 		}
 		switch key {
 		case "leader":
-			s, err := rd.readString()
+			s, err := rd.sc.readString()
 			if err != nil {
 				return nil, err
 			}
@@ -254,57 +264,63 @@ func (rd *Reader) readRecordBody() (*codex.Record, error) {
 				return nil, err
 			}
 		default:
-			if err := rd.skipValue(); err != nil {
+			if err := rd.sc.skipValue(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	_, err := rd.dec.Token() // consume '}'
-	return rec, err
+	return rec, rd.sc.expect('}')
 }
 
 // readFields reads the "fields" array, appending each field to rec.
 func (rd *Reader) readFields(rec *codex.Record) error {
-	if err := rd.expect('['); err != nil {
+	if err := rd.sc.expect('['); err != nil {
 		return err
 	}
-	for rd.dec.More() {
+	for {
+		more, err := rd.sc.more(']')
+		if err != nil {
+			return err
+		}
+		if !more {
+			break
+		}
 		f, err := rd.readField()
 		if err != nil {
 			return err
 		}
 		rec.AddField(f)
 	}
-	_, err := rd.dec.Token() // consume ']'
-	return err
+	return rd.sc.expect(']')
 }
 
 // readField reads one single-key field object, consuming its closing brace.
 func (rd *Reader) readField() (codex.Field, error) {
-	if err := rd.expect('{'); err != nil {
+	if err := rd.sc.expect('{'); err != nil {
 		return codex.Field{}, err
 	}
-	tag, err := rd.readKey()
+	tag, err := rd.sc.readString()
 	if err != nil {
 		return codex.Field{}, err
 	}
-	tok, err := rd.dec.Token()
+	c, err := rd.sc.peek() // a string value denotes a control field, '{' a data field
 	if err != nil {
 		return codex.Field{}, err
 	}
 	var f codex.Field
-	switch v := tok.(type) {
-	case string:
-		// A string value denotes a control field; a data-range tag would make the
-		// value vanish on re-encode, so reject the contradiction.
+	switch c {
+	case '"':
+		v, err := rd.sc.readString()
+		if err != nil {
+			return codex.Field{}, err
+		}
+		// A data-range tag would make the value vanish on re-encode, so reject the
+		// contradiction.
 		if !controlTag(tag) {
 			return codex.Field{}, fmt.Errorf("marcjson: field %s has a control-field (string) value but a data-field tag", tag)
 		}
 		f = codex.NewControlField(tag, v)
-	case json.Delim:
-		if v != '{' {
-			return codex.Field{}, fmt.Errorf("marcjson: bad value for field %s", tag)
-		}
+	case '{':
 		if controlTag(tag) {
 			return codex.Field{}, fmt.Errorf("marcjson: field %s has a data-field (object) value but a control-field tag", tag)
 		}
@@ -316,36 +332,52 @@ func (rd *Reader) readField() (codex.Field, error) {
 	}
 	// A well-formed field object has a single key (the tag); tolerate and skip any
 	// extra keys before the closing brace.
-	for rd.dec.More() {
-		if _, err := rd.readKey(); err != nil {
+	for {
+		more, err := rd.sc.more('}')
+		if err != nil {
 			return f, err
 		}
-		if err := rd.skipValue(); err != nil {
+		if !more {
+			break
+		}
+		if _, err := rd.sc.readString(); err != nil {
+			return f, err
+		}
+		if err := rd.sc.skipValue(); err != nil {
 			return f, err
 		}
 	}
-	_, err = rd.dec.Token() // consume the field object's '}'
-	return f, err
+	return f, rd.sc.expect('}')
 }
 
-// readDataField reads a data field's body (ind1/ind2/subfields) after its
-// opening brace, consuming its closing brace.
+// readDataField reads a data field's body (ind1/ind2/subfields), consuming its
+// opening and closing braces.
 func (rd *Reader) readDataField(tag string) (codex.Field, error) {
+	if err := rd.sc.expect('{'); err != nil {
+		return codex.Field{}, err
+	}
 	f := codex.Field{Tag: tag, Ind1: ' ', Ind2: ' '}
-	for rd.dec.More() {
-		key, err := rd.readKey()
+	for {
+		more, err := rd.sc.more('}')
+		if err != nil {
+			return f, err
+		}
+		if !more {
+			break
+		}
+		key, err := rd.sc.readString()
 		if err != nil {
 			return f, err
 		}
 		switch key {
 		case "ind1":
-			s, err := rd.readString()
+			s, err := rd.sc.readString()
 			if err != nil {
 				return f, err
 			}
 			f.Ind1 = indByte(s)
 		case "ind2":
-			s, err := rd.readString()
+			s, err := rd.sc.readString()
 			if err != nil {
 				return f, err
 			}
@@ -355,103 +387,44 @@ func (rd *Reader) readDataField(tag string) (codex.Field, error) {
 				return f, err
 			}
 		default:
-			if err := rd.skipValue(); err != nil {
+			if err := rd.sc.skipValue(); err != nil {
 				return f, err
 			}
 		}
 	}
-	_, err := rd.dec.Token() // consume the data field object's '}'
-	return f, err
+	return f, rd.sc.expect('}')
 }
 
 // readSubfields reads the "subfields" array of single-key {code: value} objects.
 func (rd *Reader) readSubfields(f *codex.Field) error {
-	if err := rd.expect('['); err != nil {
+	if err := rd.sc.expect('['); err != nil {
 		return err
 	}
-	for rd.dec.More() {
-		if err := rd.expect('{'); err != nil {
-			return err
-		}
-		code, err := rd.readKey()
+	for {
+		more, err := rd.sc.more(']')
 		if err != nil {
 			return err
 		}
-		val, err := rd.readString()
+		if !more {
+			break
+		}
+		if err := rd.sc.expect('{'); err != nil {
+			return err
+		}
+		code, err := rd.sc.readString()
+		if err != nil {
+			return err
+		}
+		val, err := rd.sc.readString()
 		if err != nil {
 			return err
 		}
 		f.Subfields = append(f.Subfields, codex.Subfield{Code: codeByte(code), Value: val})
-		if _, err := rd.dec.Token(); err != nil { // consume the subfield's '}'
+		if err := rd.sc.expect('}'); err != nil { // consume the subfield's '}'
 			return err
 		}
 	}
-	_, err := rd.dec.Token() // consume ']'
-	return err
-}
-
-// expect consumes one token and checks it is the given delimiter.
-func (rd *Reader) expect(d json.Delim) error {
-	tok, err := rd.dec.Token()
-	if err != nil {
-		return err
-	}
-	if got, ok := tok.(json.Delim); !ok || got != d {
-		return fmt.Errorf("marcjson: expected %q, got %v", d, tok)
-	}
-	return nil
-}
-
-// readKey reads an object key (a string token).
-func (rd *Reader) readKey() (string, error) {
-	tok, err := rd.dec.Token()
-	if err != nil {
-		return "", err
-	}
-	s, ok := tok.(string)
-	if !ok {
-		return "", fmt.Errorf("marcjson: expected object key, got %v", tok)
-	}
-	return s, nil
-}
-
-// readString reads a string value token.
-func (rd *Reader) readString() (string, error) {
-	tok, err := rd.dec.Token()
-	if err != nil {
-		return "", err
-	}
-	s, ok := tok.(string)
-	if !ok {
-		return "", fmt.Errorf("marcjson: expected string, got %v", tok)
-	}
-	return s, nil
-}
-
-// skipValue reads and discards the next JSON value, including nested containers.
-func (rd *Reader) skipValue() error {
-	tok, err := rd.dec.Token()
-	if err != nil {
-		return err
-	}
-	d, ok := tok.(json.Delim)
-	if !ok || (d != '{' && d != '[') {
-		return nil
-	}
-	for depth := 1; depth > 0; {
-		tok, err := rd.dec.Token()
-		if err != nil {
-			return err
-		}
-		if d, ok := tok.(json.Delim); ok {
-			if d == '{' || d == '[' {
-				depth++
-			} else {
-				depth--
-			}
-		}
-	}
-	return nil
+	return rd.sc.expect(']')
 }
 
 // All returns an iterator over the remaining records, for use as
