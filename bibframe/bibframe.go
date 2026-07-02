@@ -142,10 +142,12 @@ const generatorLabel = "libcodex"
 func FromRecord(r *codex.Record) *BIBFRAME {
 	g := &BIBFRAME{}
 	g.Work.Class = workClass(r.Leader().RecordType())
+	fields := r.Fields()
+	g.presize(fields)
 	var transcribed, uniform Title
 	var provFields []codex.Field
 	var descConventions string
-	for _, f := range r.Fields() {
+	for _, f := range fields {
 		switch f.Tag {
 		case "040":
 			descConventions = trimISBD(f.SubfieldValue('e'))
@@ -268,6 +270,40 @@ func formatMARC005(s string) string {
 }
 
 // ---- crosswalk helpers ----
+
+// presize pre-allocates the multi-valued Work/Instance slices to the number of
+// contributing fields, so the crosswalk pass appends without regrowing them. Only
+// categories with two or more fields are sized -- for one field an append to nil
+// allocates exactly once anyway, and this way a lone empty (skipped) field never
+// forces a wasted allocation. The counting pass is a tag switch, far cheaper than
+// the growslice-and-copy it removes.
+func (g *BIBFRAME) presize(fields []codex.Field) {
+	var contrib, subj, classif, ident int
+	for i := range fields {
+		switch fields[i].Tag {
+		case "100", "110", "111", "700", "710", "711":
+			contrib++
+		case "650", "651", "600", "610", "611":
+			subj++
+		case "050", "082", "072":
+			classif++
+		case "020", "022", "024":
+			ident++
+		}
+	}
+	if contrib >= 2 {
+		g.Work.Contributions = make([]Contribution, 0, contrib)
+	}
+	if subj >= 2 {
+		g.Work.Subjects = make([]Subject, 0, subj)
+	}
+	if classif >= 2 {
+		g.Work.Classifications = make([]Classification, 0, classif)
+	}
+	if ident >= 2 {
+		g.Instance.Identifiers = make([]Identifier, 0, ident)
+	}
+}
 
 func (g *BIBFRAME) appendContribution(f codex.Field, class string, primary bool) {
 	label := trimISBD(f.SubfieldValue('a'))
