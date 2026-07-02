@@ -94,6 +94,8 @@ var (
 	qpLanguage               = qname{nsBF, "language", "bf:language", pLanguage}
 	qpClassification         = qname{nsBF, "classification", "bf:classification", pClassif}
 	qpClassificationPortion  = qname{nsBF, "classificationPortion", "bf:classificationPortion", pClassPortion}
+	qpItemPortion            = qname{nsBF, "itemPortion", "bf:itemPortion", pItemPortion}
+	qpClassEdition           = qname{nsBF, "edition", "bf:edition", pClassEdition}
 	qpSummary                = qname{nsBF, "summary", "bf:summary", pSummary}
 	qpResponsibilityStmt     = qname{nsBF, "responsibilityStatement", "bf:responsibilityStatement", pRespStmt}
 	qpEditionStatement       = qname{nsBF, "editionStatement", "bf:editionStatement", pEdition}

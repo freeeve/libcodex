@@ -127,9 +127,11 @@ type Subject struct {
 
 // Classification is a call number with its BIBFRAME class.
 type Classification struct {
-	Class  string // "ClassificationLcc", "ClassificationDdc" or "Classification"
-	Value  string
-	Source string // classification scheme (bf:source), e.g. "bisacsh"; optional
+	Class       string // "ClassificationLcc", "ClassificationDdc" or "Classification"
+	Value       string // classification portion ($a)
+	ItemPortion string // item/cutter portion (bf:itemPortion, $b); optional
+	Edition     string // Dewey edition (bf:edition): "full" or "abridged"; optional
+	Source      string // classification scheme (bf:source), e.g. "bisacsh"; optional
 }
 
 // Identifier is a typed identifier carried by the Instance.
@@ -237,19 +239,21 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 		case "611":
 			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Meeting", subjectSource(f))
 		case "050":
-			g.appendClassification(joinSub(f, "ab", " "), "ClassificationLcc", "")
+			g.appendCallNumber(f, "ClassificationLcc", "", "")
 		case "082":
-			g.appendClassification(trimISBD(f.SubfieldValue('a')), "ClassificationDdc", "")
+			g.appendCallNumber(f, "ClassificationDdc", trimISBD(f.SubfieldValue('2')), deweyEdition(f.Ind1))
 		case "072":
 			// Subject category code (e.g. BISAC): a source-qualified classification.
 			g.appendClassification(trimISBD(f.SubfieldValue('a')), "Classification", trimISBD(f.SubfieldValue('2')))
 		case "084":
 			// Other classification number (e.g. BISAC in MARC Express): repeated $a
-			// codes qualified by the $2 scheme, mirroring the 072 source handling.
-			source := trimISBD(f.SubfieldValue('2'))
-			for _, sf := range f.Subfields {
-				if sf.Code == 'a' {
-					g.appendClassification(trimISBD(sf.Value), "Classification", source)
+			// codes qualified by the $2 scheme, with $b as the item portion.
+			source, item := trimISBD(f.SubfieldValue('2')), trimISBD(f.SubfieldValue('b'))
+			for _, a := range f.SubfieldValues('a') {
+				if v := trimISBD(a); v != "" {
+					g.Work.Classifications = append(g.Work.Classifications, Classification{
+						Class: "Classification", Value: v, ItemPortion: item, Source: source,
+					})
 				}
 			}
 		case "010":
@@ -572,6 +576,35 @@ func (g *BIBFRAME) appendClassification(value, class, source string) {
 	}
 }
 
+// appendCallNumber records a call-number classification from a 050/082 field: $a is
+// the classification portion, $b the item (cutter) portion, plus an optional scheme
+// source and Dewey edition.
+func (g *BIBFRAME) appendCallNumber(f codex.Field, class, source, edition string) {
+	value := trimISBD(f.SubfieldValue('a'))
+	if value == "" {
+		return
+	}
+	g.Work.Classifications = append(g.Work.Classifications, Classification{
+		Class:       class,
+		Value:       value,
+		ItemPortion: trimISBD(f.SubfieldValue('b')),
+		Source:      source,
+		Edition:     edition,
+	})
+}
+
+// deweyEdition maps an 082 first indicator (type of edition) to the bf:edition
+// value: 0 -> full, 1 -> abridged, else none.
+func deweyEdition(ind1 byte) string {
+	switch ind1 {
+	case '0':
+		return "full"
+	case '1':
+		return "abridged"
+	}
+	return ""
+}
+
 // scheme024ByInd1 maps a 024 first indicator (0-4) to its bf identifier class,
 // following marc2bibframe2. Indicator '7' resolves the class from $2 via
 // scheme024ByCode; other indicators fall back to the generic bf:Identifier.
@@ -770,18 +803,6 @@ func extent(f codex.Field) string {
 		}
 	}
 	return strings.Join(parts, " ")
-}
-
-func joinSub(f codex.Field, codes, sep string) string {
-	var parts []string
-	for _, sf := range f.Subfields {
-		if strings.IndexByte(codes, sf.Code) >= 0 {
-			if v := trimISBD(sf.Value); v != "" {
-				parts = append(parts, v)
-			}
-		}
-	}
-	return strings.Join(parts, sep)
 }
 
 // workClass maps leader byte 6 (type of record) to a BIBFRAME content class

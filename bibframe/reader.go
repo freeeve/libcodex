@@ -32,6 +32,8 @@ const (
 	pLanguage     = bfNS + "language"
 	pClassif      = bfNS + "classification"
 	pClassPortion = bfNS + "classificationPortion"
+	pItemPortion  = bfNS + "itemPortion"
+	pClassEdition = bfNS + "edition"
 	pSummary      = bfNS + "summary"
 	pHasInstance  = bfNS + "hasInstance"
 	pInstanceOf   = bfNS + "instanceOf"

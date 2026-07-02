@@ -285,6 +285,12 @@ func emitLanguage(s sink, code string) {
 func emitClassification(s sink, c Classification) {
 	s.beginNode(bfName(c.Class), iriVal{}, qname{})
 	s.lit(qpClassificationPortion, c.Value)
+	if c.ItemPortion != "" {
+		s.lit(qpItemPortion, c.ItemPortion)
+	}
+	if c.Edition != "" {
+		s.lit(qpClassEdition, c.Edition)
+	}
 	if c.Source != "" {
 		s.beginChild(qpSource)
 		emitLabeled(s, qcSource, c.Source)

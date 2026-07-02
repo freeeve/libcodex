@@ -408,13 +408,18 @@ func classificationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		if value == "" {
 			continue
 		}
+		item := literal(g, c, pItemPortion)
 		switch typeExcept(g, c, "") {
 		case "ClassificationLcc":
-			fields = append(fields, codex.NewDataField("050", ' ', '4', codex.NewSubfield('a', value)))
+			fields = append(fields, codex.NewDataField("050", ' ', '4', callNumberSubs(value, item)...))
 		case "ClassificationDdc":
-			fields = append(fields, codex.NewDataField("082", ' ', '4', codex.NewSubfield('a', value)))
+			subs := callNumberSubs(value, item)
+			if src := sourceLabel(g, c); src != "" {
+				subs = append(subs, codex.NewSubfield('2', src))
+			}
+			fields = append(fields, codex.NewDataField("082", deweyInd1(literal(g, c, pClassEdition)), '4', subs...))
 		case "Classification":
-			subs := []codex.Subfield{codex.NewSubfield('a', value)}
+			subs := callNumberSubs(value, item)
 			if src := sourceLabel(g, c); src != "" {
 				subs = append(subs, codex.NewSubfield('2', src))
 			}
@@ -422,6 +427,26 @@ func classificationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		}
 	}
 	return fields
+}
+
+// callNumberSubs renders a classification portion and optional item portion as $a/$b.
+func callNumberSubs(value, item string) []codex.Subfield {
+	subs := []codex.Subfield{codex.NewSubfield('a', value)}
+	if item != "" {
+		subs = append(subs, codex.NewSubfield('b', item))
+	}
+	return subs
+}
+
+// deweyInd1 inverts deweyEdition: a bf:edition value back to the 082 first indicator.
+func deweyInd1(edition string) byte {
+	switch edition {
+	case "full":
+		return '0'
+	case "abridged":
+		return '1'
+	}
+	return ' '
 }
 
 // sourceLabel returns the rdfs:label of a node's bf:source scheme node, or "".

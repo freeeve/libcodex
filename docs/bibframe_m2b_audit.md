@@ -107,15 +107,24 @@ ISBN qualifier (058) is faithful; gaps are the secondary signals -- status,
   ignored; all 024 flattened to `bf:Identifier`. Reverse hardcodes ind1='8'. **[064]**
 - GAP (med/high) -- no forward 010 -> `bf:Lccn` producer at all (reverse maps
   Lccn->010, so nothing round-trips in). **[064]**
-- DIVERGENCE (med) -- 037 flattened to `bf:Identifier` with $b as `bf:source`;
-  m2b builds `bf:acquisitionSource -> bf:AcquisitionSource` (StockNumber + agent).
-  Defensible but mislabels the agency as the scheme. **[065]**
-- DIVERGENCE (med) -- 072 mapped to `bf:Classification`; m2b treats it as a
-  `bf:subject`/`bf:Topic` category. Reconsider. **[065]**
-- GAP (med) -- 050 $b -> `bf:itemPortion` (we `joinSub("ab")` into one portion);
-  050 ind2/ind1 -> `bf:assigner`/`bf:status` dropped. **[065]**
-- GAP (low) -- 082 $b/ind1/$2/assigner, 084 $b/$q, 020 $c price, 022 $l/$m,
-  bf:source as label vs dereferenceable IRI. **[065]**
+- RESOLVED [065] -- 050/082/084 $b now split into `bf:itemPortion` (was merged
+  into the portion); 082 carries its Dewey $2 as `bf:source` and its edition
+  (ind1 0/1 -> full/abridged) as `bf:edition`. Reverse restores $a/$b/$2 and the
+  082 edition indicator. `joinSub` retired.
+- DIVERGENCE (med), kept [065] -- 037 stays flat (`bf:Identifier` with $b as
+  `bf:source`); m2b builds `bf:acquisitionSource -> bf:AcquisitionSource`
+  (StockNumber + agent). Modeling the acquisition-source node (new class + reverse)
+  is deferred: the flat form preserves the number and agency and round-trips; the
+  only loss is the agency being labeled a scheme, which is cosmetic here.
+- DIVERGENCE (med), kept [065] -- 072 stays a source-qualified `bf:Classification`;
+  m2b routes it to a `bf:subject`/`bf:Topic` category with `bf:code`. Moving it to
+  the subject side would need subject-path plumbing (and a `bf:code` on Topic) for a
+  category code that our flat, `--`-joined subject model does not otherwise carry;
+  the classification form already preserves the $a code and $2 scheme and
+  round-trips. Left as a deliberate divergence.
+- GAP (low), deferred [065] -- 050 ind1/ind2 -> `bf:assigner`/`bf:status`, 082
+  ind2/$q assigner, 084 $q, 020 $c price, 022 $l/$m, and bf:source as a
+  dereferenceable IRI (vs the current label) remain unhandled; all low-frequency.
 
 ## 5. Provision / Physical / Language / Leader typing
 

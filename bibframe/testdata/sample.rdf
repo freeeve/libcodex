@@ -111,7 +111,8 @@
     </bf:language>
     <bf:classification>
       <bf:ClassificationLcc>
-        <bf:classificationPortion>PS3556 .E446</bf:classificationPortion>
+        <bf:classificationPortion>PS3556</bf:classificationPortion>
+        <bf:itemPortion>.E446</bf:itemPortion>
       </bf:ClassificationLcc>
     </bf:classification>
     <bf:classification>
