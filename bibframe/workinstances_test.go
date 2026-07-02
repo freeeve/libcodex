@@ -229,6 +229,53 @@ func TestWorkInstancesEncoderLengthMismatch(t *testing.T) {
 	}
 }
 
+// TestDecodeMultiInstance checks a one-Work/two-Instance grain decodes to one
+// MARC record per Instance (policy A): each record carries the shared Work fields
+// plus its own Instance fields. It exercises both the graph (N-Triples) path and
+// the RDF/XML encoder.
+func TestDecodeMultiInstance(t *testing.T) {
+	wi := sampleWorkInstances()
+	wb, ibs := "work-1", []string{"inst-a", "inst-b"}
+	xml, err := wi.RDFXML(wb, ibs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"ntriples", wi.Graph(wb, ibs).NTriples()},
+		{"rdfxml", xml},
+	} {
+		recs, err := Decode(tc.data)
+		if err != nil {
+			t.Fatalf("%s: Decode: %v", tc.name, err)
+		}
+		if len(recs) != 2 {
+			t.Fatalf("%s: decoded %d records, want 2 (one per Instance)", tc.name, len(recs))
+		}
+		titles, isbns := map[string]bool{}, map[string]bool{}
+		for _, rec := range recs {
+			// Shared Work fields appear on every record.
+			if a := rec.SubfieldValue("100", 'a'); a != "Author, An" {
+				t.Errorf("%s: shared 100$a = %q, want 'Author, An'", tc.name, a)
+			}
+			if s := rec.SubfieldValue("650", 'a'); s != "Something" {
+				t.Errorf("%s: shared 650$a = %q, want 'Something'", tc.name, s)
+			}
+			titles[rec.SubfieldValue("245", 'a')] = true
+			isbns[rec.SubfieldValue("020", 'a')] = true
+		}
+		// The per-Instance fields distinguish the two records.
+		if !titles["First Edition"] || !titles["Second Edition"] {
+			t.Errorf("%s: per-instance 245$a titles = %v", tc.name, titles)
+		}
+		if !isbns["0000000001"] || !isbns["0000000002"] {
+			t.Errorf("%s: per-instance 020$a ISBNs = %v", tc.name, isbns)
+		}
+	}
+}
+
 // mainTitleOf returns the bf:mainTitle of subject's first bf:title node.
 func mainTitleOf(g *rdf.Graph, subject rdf.Term) string {
 	node, ok := g.Object(subject, pTitle)

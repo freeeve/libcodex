@@ -87,25 +87,49 @@ func Decode(data []byte) ([]*codex.Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	backref := instanceBackrefs(g)
+	byWork := instancesByWork(g)
 	var out []*codex.Record
+	// One record per Work+Instance pair (policy A): each Instance yields its own
+	// MARC record carrying the shared Work fields plus that Instance's fields, the
+	// closest fit to how manifestation-level catalogs hold records. A Work with no
+	// Instance still yields a Work-only record.
 	for _, work := range g.SubjectsOfType(classWork) {
-		out = append(out, recordFromWork(g, work, backref))
+		insts := byWork[work]
+		if len(insts) == 0 {
+			out = append(out, recordFromWorkInstance(g, work, rdf.Term{}, false))
+			continue
+		}
+		for _, inst := range insts {
+			out = append(out, recordFromWorkInstance(g, work, inst, true))
+		}
 	}
 	return out, nil
 }
 
-// instanceBackrefs maps each Work to an Instance that names it with bf:instanceOf,
-// built in one pass over the triples. It lets recordFromWork resolve a Work that
-// lacks bf:hasInstance in O(1) instead of scanning every Instance per Work, so
-// Decode of an aggregated document scales linearly rather than quadratically.
-func instanceBackrefs(g *rdf.Graph) map[rdf.Term]rdf.Term {
-	m := map[rdf.Term]rdf.Term{}
+// instancesByWork maps each Work to the Instances that realize it, unioning the
+// bf:hasInstance (Work->Instance) and bf:instanceOf (Instance->Work) links in one
+// pass over the triples, deduplicated and in document order. It lets Decode emit
+// one record per Instance without scanning every Instance per Work, so an
+// aggregated document scales linearly rather than quadratically.
+func instancesByWork(g *rdf.Graph) map[rdf.Term][]rdf.Term {
+	m := map[rdf.Term][]rdf.Term{}
+	seen := map[[2]rdf.Term]bool{}
+	link := func(work, inst rdf.Term) {
+		key := [2]rdf.Term{work, inst}
+		if !seen[key] {
+			seen[key] = true
+			m[work] = append(m[work], inst)
+		}
+	}
 	for _, t := range g.Triples {
-		if t.P.Kind == rdf.IRI && t.P.Value == pInstanceOf {
-			if _, seen := m[t.O]; !seen { // first Instance wins, matching document order
-				m[t.O] = t.S
-			}
+		if t.P.Kind != rdf.IRI {
+			continue
+		}
+		switch t.P.Value {
+		case pHasInstance:
+			link(t.S, t.O)
+		case pInstanceOf:
+			link(t.O, t.S)
 		}
 	}
 	return m
@@ -212,8 +236,9 @@ func hasKeyword(s []byte, kw string) bool {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
-// recordFromWork builds a MARC record from one Work node and the Instance it
-// links to, assembling fields in ascending tag order.
+// recordFromWorkInstance builds a MARC record from one Work node paired with one
+// of its Instances (inst/hasInst; hasInst is false for a Work with no Instance),
+// assembling fields in ascending tag order.
 // ---- entry points ----
 
 // Reader reads BIBFRAME records from a stream. A BIBFRAME document is a single

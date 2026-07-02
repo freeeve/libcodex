@@ -24,7 +24,12 @@ obvious MARC form. Pick the policy:
   belong to which Instance.
 
 Recommendation: **A** (one record per pair), matching the forward grain's intent
-and libcatalog's manifestation-level identity model. Confirm before coding.
+and libcatalog's manifestation-level identity model.
+
+**Decision: A (one record per Work+Instance pair).** Chosen on the task's own
+recommendation; can be revisited if a consumer needs the merged form. A Work with
+no Instance still yields a Work-only record, and single-Instance decode is
+unchanged.
 
 ## Change (once the policy is chosen)
 
@@ -36,9 +41,20 @@ and libcatalog's manifestation-level identity model. Confirm before coding.
 
 ## Acceptance
 
-- [ ] Policy A or B chosen and recorded here.
-- [ ] `Decode` of a `WorkInstances.Graph` document with 2 Instances yields the
-      chosen record shape; round-trip test added.
-- [ ] Existing single-instance decode tests and `FuzzDecode` unchanged/passing.
+- [x] Policy A chosen and recorded above.
+- [x] `Decode` of a `WorkInstances.Graph` (and `WorkInstances.RDFXML`) document
+      with 2 Instances yields one record per Instance, each with the shared Work
+      fields plus its own (`TestDecodeMultiInstance`).
+- [x] Existing single-instance decode tests and `FuzzDecode` unchanged/passing.
 
 Depends on: 038 (done). Cross-references: 048 problem 2.
+
+## Resolution
+
+`instanceBackrefs` (map[Work]Instance, first-wins) is replaced by
+`instancesByWork` (map[Work][]Instance), which unions the bf:hasInstance and
+bf:instanceOf links in one pass, deduplicated and in document order. `Decode`
+iterates a Work's Instances and emits one record per Instance via the renamed
+`recordFromWorkInstance(g, work, inst, hasInst)`; a Work with zero Instances
+emits a Work-only record. Single-Instance decode is byte-for-byte unchanged (one
+Work + one Instance still yields exactly one record built from the same pair).

@@ -8,14 +8,9 @@ import (
 	"github.com/freeeve/libcodex/rdf"
 )
 
-func recordFromWork(g *rdf.Graph, work rdf.Term, backref map[rdf.Term]rdf.Term) *codex.Record {
+func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *codex.Record {
 	rec := codex.NewRecord()
 	rec.SetLeader(leaderForClass(typeExcept(g, work, "Work")))
-
-	inst, hasInst := g.Object(work, pHasInstance)
-	if !hasInst {
-		inst, hasInst = backref[work]
-	}
 
 	var fields []codex.Field
 	add := func(f codex.Field) { fields = append(fields, f) }
