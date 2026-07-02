@@ -93,6 +93,9 @@ func emitWorkBody(s sink, w *Work) {
 		}
 		s.endList()
 	}
+	for _, rw := range w.RelatedWorks {
+		emitRelatedWork(s, rw)
+	}
 	if len(w.Subjects) > 0 {
 		s.beginList(qpSubject)
 		for _, sub := range w.Subjects {
@@ -240,6 +243,23 @@ func emitContribution(s sink, c Contribution) {
 		emitRole(s, r)
 	}
 	s.endNode()
+}
+
+// emitRelatedWork emits a bf:relatedTo -> bf:Work name-title node: the linking name
+// as the related work's creator contribution, and the referenced work's title.
+func emitRelatedWork(s sink, rw RelatedWork) {
+	s.beginChild(qpRelatedTo)
+	s.beginNode(qcWork, iriVal{}, qname{})
+	if rw.Name != "" {
+		s.beginChild(qpContribution)
+		emitContribution(s, Contribution{Primary: rw.Primary, Class: rw.Class, Label: rw.Name})
+		s.endChild()
+	}
+	s.beginChild(qpTitle)
+	emitTitle(s, rw.Title)
+	s.endChild()
+	s.endNode()
+	s.endChild()
 }
 
 // emitRole emits a bf:role node: an IRI-typed bf:Role for a relator IRI (labeled

@@ -41,6 +41,7 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	}
 
 	fields = append(fields, contribs...)
+	fields = append(fields, relatedWorkFields(g, work)...)
 	fields = append(fields, subjectFields(g, work)...)
 	fields = append(fields, identifierFields(g, inst)...)
 	fields = append(fields, classificationFields(g, work)...)
@@ -111,6 +112,38 @@ func contributions(g *rdf.Graph, work rdf.Term) ([]codex.Field, bool) {
 		primary = primary || isPrimary
 	}
 	return fields, primary
+}
+
+// relatedWorkFields reverses bf:relatedTo name-title nodes into 1xx/7xx fields
+// carrying the creator name in $a and the related work's title in $t. The 1xx vs
+// 7xx tag and the first indicator follow the related work's creator (primary
+// contribution -> 1xx, agent class -> tag/ind1), inverting emitRelatedWork.
+func relatedWorkFields(g *rdf.Graph, work rdf.Term) []codex.Field {
+	var fields []codex.Field
+	for _, rw := range g.Objects(work, pRelatedTo) {
+		var name, class string
+		primary := false
+		if c, ok := g.Object(rw, pContribution); ok {
+			if agent, ok := g.Object(c, pAgent); ok {
+				name = literal(g, agent, pLabel)
+				class = agentClass(g, agent)
+			}
+			primary = g.HasType(c, primaryContribution) || g.HasType(c, bfPrimaryContribution)
+		}
+		title := firstTitle(g, rw).MainTitle
+		if name == "" && title == "" {
+			continue
+		}
+		var subs []codex.Subfield
+		if name != "" {
+			subs = append(subs, codex.NewSubfield('a', name))
+		}
+		if title != "" {
+			subs = append(subs, codex.NewSubfield('t', title))
+		}
+		fields = append(fields, codex.NewDataField(contribTag(class, primary), ind1ForClass(class), ' ', subs...))
+	}
+	return fields
 }
 
 // roleSubfields reverses a contribution's bf:role nodes: an IRI role becomes $4 (the

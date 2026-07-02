@@ -61,11 +61,23 @@ type Work struct {
 	Class           string // bf class refining bf:Work (e.g. "Text"), or ""
 	Titles          []Title
 	Contributions   []Contribution
+	RelatedWorks    []RelatedWork
 	Subjects        []Subject
 	GenreForms      []string
 	Languages       []string // ISO 639-2 codes
 	Classifications []Classification
 	Summary         []string
+}
+
+// RelatedWork is a name-title access point (a 1xx/7xx carrying a $t): a related
+// bf:Work, reached by bf:relatedTo, that pairs the linking name (its creator) with
+// the referenced work's title. This is the flat, label-oriented stand-in for m2b's
+// Hub-routed name-title relation.
+type RelatedWork struct {
+	Primary bool   // from a 1xx name-title main entry vs a 7xx added entry
+	Class   string // creator agent class: Person/Family/Organization/Jurisdiction/Meeting
+	Name    string // creator name (the subfields before $t)
+	Title   Title  // the related work's title ($t)
 }
 
 // Instance is a particular publication of the Work (bf:Instance).
@@ -368,6 +380,12 @@ func (g *BIBFRAME) appendContribution(f codex.Field, class string, primary bool)
 	case "Meeting":
 		labelCodes, roleSub = "acdengq", 'j'
 	}
+	// A $t makes this a name-title access point pointing at a related work, not a
+	// contributor to this work.
+	if f.SubfieldValue('t') != "" {
+		g.appendRelatedWork(f, class, labelCodes, primary)
+		return
+	}
 	label := agentLabel(f, labelCodes)
 	if label == "" {
 		return
@@ -380,11 +398,31 @@ func (g *BIBFRAME) appendContribution(f codex.Field, class string, primary bool)
 	})
 }
 
-// agentLabel joins, in field order, the values of the name subfields named in
-// codes (one space between them) and trims a trailing ISBD mark.
+// appendRelatedWork records a name-title field ($t present) as a related bf:Work:
+// the subfields before $t form the creator name, $t the related work's title.
+func (g *BIBFRAME) appendRelatedWork(f codex.Field, class, labelCodes string, primary bool) {
+	name := agentLabel(f, labelCodes)
+	title := trimISBD(f.SubfieldValue('t'))
+	if name == "" && title == "" {
+		return
+	}
+	g.Work.RelatedWorks = append(g.Work.RelatedWorks, RelatedWork{
+		Primary: primary,
+		Class:   agentSubclass(class, f.Ind1),
+		Name:    name,
+		Title:   Title{MainTitle: title},
+	})
+}
+
+// agentLabel joins, in field order, the values of the name subfields named in codes
+// (one space between them) up to the first $t (which starts the title portion of a
+// name-title field), then trims a trailing ISBD mark.
 func agentLabel(f codex.Field, codes string) string {
 	var parts []string
 	for _, s := range f.Subfields {
+		if s.Code == 't' {
+			break
+		}
 		if strings.IndexByte(codes, s.Code) >= 0 {
 			if v := strings.TrimSpace(s.Value); v != "" {
 				parts = append(parts, v)

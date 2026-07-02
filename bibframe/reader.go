@@ -24,6 +24,7 @@ const (
 	pPartNumber   = bfNS + "partNumber"
 	pPartName     = bfNS + "partName"
 	pContribution = bfNS + "contribution"
+	pRelatedTo    = bfNS + "relatedTo"
 	pAgent        = bfNS + "agent"
 	pRole         = bfNS + "role"
 	pSubject      = bfNS + "subject"
@@ -95,12 +96,16 @@ func Decode(data []byte) ([]*codex.Record, error) {
 		return nil, err
 	}
 	byWork := instancesByWork(g)
+	related := relatedWorkSet(g)
 	var out []*codex.Record
 	// One record per Work+Instance pair (policy A): each Instance yields its own
 	// MARC record carrying the shared Work fields plus that Instance's fields, the
 	// closest fit to how manifestation-level catalogs hold records. A Work with no
 	// Instance still yields a Work-only record.
 	for _, work := range g.SubjectsOfType(classWork) {
+		if related[work] {
+			continue // a related bf:Work (name-title target) is a field of its parent, not a record
+		}
 		insts := byWork[work]
 		if len(insts) == 0 {
 			out = append(out, recordFromWorkInstance(g, work, rdf.Term{}, false))
@@ -111,6 +116,19 @@ func Decode(data []byte) ([]*codex.Record, error) {
 		}
 	}
 	return out, nil
+}
+
+// relatedWorkSet collects the bf:Work nodes that are the object of a bf:relatedTo
+// link, i.e. name-title targets nested inside another Work. They are reconstructed
+// as 1xx/7xx fields of their parent, so Decode must not also emit them as records.
+func relatedWorkSet(g *rdf.Graph) map[rdf.Term]bool {
+	m := map[rdf.Term]bool{}
+	for _, t := range g.Triples {
+		if t.P.Kind == rdf.IRI && t.P.Value == pRelatedTo {
+			m[t.O] = true
+		}
+	}
+	return m
 }
 
 // instancesByWork maps each Work to the Instances that realize it, unioning the

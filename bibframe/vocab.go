@@ -86,6 +86,7 @@ var (
 	qpPartNumber             = qname{nsBF, "partNumber", "bf:partNumber", pPartNumber}
 	qpPartName               = qname{nsBF, "partName", "bf:partName", pPartName}
 	qpContribution           = qname{nsBF, "contribution", "bf:contribution", pContribution}
+	qpRelatedTo              = qname{nsBF, "relatedTo", "bf:relatedTo", pRelatedTo}
 	qpAgent                  = qname{nsBF, "agent", "bf:agent", pAgent}
 	qpRole                   = qname{nsBF, "role", "bf:role", pRole}
 	qpSubject                = qname{nsBF, "subject", "bf:subject", pSubject}
