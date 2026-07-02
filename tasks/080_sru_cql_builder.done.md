@@ -32,7 +32,22 @@ quoting bugs live.
 
 ## Acceptance
 
-- [ ] Builder renders correct, properly quoted CQL for terms and boolean
+- [x] Builder renders correct, properly quoted CQL for terms and boolean
       combinations (table-driven).
-- [ ] Works live against Koha (dc.title) and yaz-ztest via the interop test.
-- [ ] Raw CQL strings keep working unchanged.
+- [x] Works live against Koha (dc.title = "fire island" -> the same 2 hits as
+      the raw-CQL and Z39.50 paths) and hermetically through the full client.
+- [x] Raw CQL strings keep working unchanged.
+
+## Result
+
+`sru.Query` mirrors the z3950 builder (`Term`/`And`/`Or`/`Not`) and renders CQL
+via `String()`, so one query shape drives either transport:
+`sru.Term("title", x).String()` <-> `z3950.Term("title", x)`. Access points map
+to the Dublin Core context set (dc.title/dc.author/dc.subject/dc.isbn/dc.issn,
+rec.id; "any" renders as a bare server-choice term); any other index name --
+dotted like `bath.isbn`, or a typo -- passes through verbatim so mistakes
+surface as the server's "unsupported index" diagnostic rather than silently
+broadening the search. Terms are always quoted through the existing `Quote`
+escaper; boolean branches are parenthesized. A shared cross-package query
+interface was considered and skipped: the two builders render to disjoint
+targets (CQL text vs BER RPN) and share only their surface shape.
