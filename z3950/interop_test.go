@@ -55,7 +55,8 @@ func startYazZtest(t *testing.T) string {
 // set through the Reader.
 func TestYazZtestInterop(t *testing.T) {
 	c := NewClient(startYazZtest(t) + "/Default")
-	c.PageSize = 5 // force paging
+	c.PageSize = 5                         // force paging
+	c.User, c.Password = "interop", "test" // yaz-ztest accepts any idPass; proves the field parses
 	ctx := context.Background()
 
 	conn, err := c.Connect(ctx)

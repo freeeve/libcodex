@@ -34,6 +34,15 @@ type Client struct {
 	Databases []string // databases to search
 	Syntax    string   // preferred record syntax: "marc21" (default), "unimarc", "xml", "sutrs"
 	PageSize  int      // records per Present; <=0 uses 10
+
+	// Authentication, sent as idAuthentication in the Initialize request. User,
+	// Password and Group select the structured idPass form; AuthOpen sends the
+	// single-string open form instead, for the rare server that only accepts it.
+	// All empty means anonymous (the field is omitted).
+	User     string
+	Password string
+	Group    string
+	AuthOpen string
 }
 
 // NewClient returns a Client for a target in host:port/database form (the
@@ -135,7 +144,7 @@ func (c *Client) Connect(ctx context.Context) (*Conn, error) {
 		return nil, err
 	}
 	conn := &Conn{c: c, nc: nc, syntax: syntax}
-	resp, err := conn.roundTrip(ctx, encodeInitRequest())
+	resp, err := conn.roundTrip(ctx, encodeInitRequest(c))
 	if err != nil {
 		nc.Close()
 		return nil, fmt.Errorf("z3950: initialize: %w", err)

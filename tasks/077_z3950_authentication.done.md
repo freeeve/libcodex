@@ -35,7 +35,22 @@ use, and it is one optional field in one APDU.
 
 ## Acceptance
 
-- [ ] idPass and open forms encoded correctly (fake-server assertions on order
+- [x] idPass and open forms encoded correctly (fake-server assertions on order
       and content); anonymous behavior unchanged when unset.
-- [ ] yaz-ztest interop still green with credentials set.
-- [ ] Passwords absent from all error strings.
+- [x] yaz-ztest interop still green with credentials set.
+- [x] Passwords absent from all error strings.
+
+## Result
+
+- `Client.User/Password/Group` select the idPass form; `Client.AuthOpen` the
+  open VisibleString form; all empty omits idAuthentication (anonymous),
+  byte-identical to the pre-auth encoding.
+- `appendAuth` (apdu.go) emits idAuthentication [7] as an explicit tag around
+  the CHOICE, positioned between exceptionalRecordSize [6] and implementationId
+  [110]; `TestInitAuthentication` asserts the full field order
+  (3,4,5,6,7,110,111) so the order-sensitivity bug class from 075 is pinned.
+- The fake server verifies decoded credentials and rejects mismatches;
+  `TestConnectWithCredentials` covers accept, reject, and that the error string
+  never echoes the password.
+- yaz-ztest interop now always sends idPass, proving the field parses in YAZ's
+  ODR.

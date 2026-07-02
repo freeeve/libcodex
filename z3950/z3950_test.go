@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"testing"
 
 	codex "github.com/freeeve/libcodex"
@@ -94,8 +95,12 @@ func encodePresentResponseT(records [][]byte, next int) []byte {
 
 // fakeServer answers Initialize/Search/Present from canned data: hits is the
 // reported result count, pages the NamePlusRecord payloads by 1-based position.
+// When wantUser/wantPass are set, Initialize is accepted only for matching
+// idPass credentials.
 type fakeServer struct {
 	initOK     bool
+	wantUser   string
+	wantPass   string
 	hits       int
 	searchDiag *Diagnostic
 	records    [][]byte // one encoded NamePlusRecord per result-set position
@@ -149,7 +154,12 @@ func (s *fakeServer) serve(conn net.Conn) {
 		}
 		switch v.tag {
 		case pduInitRequest:
-			conn.Write(encodeInitResponseT(s.initOK))
+			ok := s.initOK
+			if s.wantUser != "" {
+				user, pass := initCredentials(v)
+				ok = ok && user == s.wantUser && pass == s.wantPass
+			}
+			conn.Write(encodeInitResponseT(ok))
 		case pduSearchRequest:
 			conn.Write(encodeSearchResponseT(s.hits, s.searchDiag))
 		case pduPresentRequest:
@@ -164,6 +174,30 @@ func (s *fakeServer) serve(conn net.Conn) {
 			return
 		}
 	}
+}
+
+// initCredentials extracts idPass user/password from an InitializeRequest.
+func initCredentials(v berValue) (user, pass string) {
+	fields, _ := v.children()
+	for _, f := range fields {
+		if f.class != classContext || f.tag != 7 {
+			continue
+		}
+		inner, err := f.children()
+		if err != nil || len(inner) != 1 || !inner[0].constructed {
+			return "", ""
+		}
+		members, _ := inner[0].children()
+		for _, m := range members {
+			switch m.tag {
+			case 1:
+				user = m.stringVal()
+			case 2:
+				pass = m.stringVal()
+			}
+		}
+	}
+	return user, pass
 }
 
 // presentRange extracts resultSetStartPoint and numberOfRecordsRequested from a
@@ -305,6 +339,107 @@ func TestInitRejected(t *testing.T) {
 	c := NewClient(srv.start(t) + "/biblios")
 	if _, err := c.Connect(context.Background()); err == nil {
 		t.Fatal("Connect should fail when the server rejects initialization")
+	}
+}
+
+// initAuth extracts the idAuthentication [7] payload from an encoded
+// InitializeRequest: the (group, user, password) of the idPass form, or the
+// open-form string in user.
+func initAuth(t *testing.T, pdu []byte) (group, user, pass string, present bool, tags []uint32) {
+	t.Helper()
+	v, _, err := berParse(pdu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields, err := v.children()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range fields {
+		tags = append(tags, f.tag)
+		if f.class != classContext || f.tag != 7 {
+			continue
+		}
+		present = true
+		inner, err := f.children()
+		if err != nil || len(inner) != 1 {
+			t.Fatalf("idAuthentication children: %v", err)
+		}
+		switch ch := inner[0]; {
+		case ch.class == classUniversal && ch.tag == tagVisibleString: // open
+			user = ch.stringVal()
+		case ch.class == classUniversal && ch.tag == tagSequence: // idPass
+			members, err := ch.children()
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range members {
+				switch m.tag {
+				case 0:
+					group = m.stringVal()
+				case 1:
+					user = m.stringVal()
+				case 2:
+					pass = m.stringVal()
+				}
+			}
+		}
+	}
+	return group, user, pass, present, tags
+}
+
+// TestInitAuthentication covers the idPass and open forms, the anonymous
+// omission, and the SEQUENCE field order around idAuthentication [7].
+func TestInitAuthentication(t *testing.T) {
+	// idPass with all three members.
+	_, user, pass, present, tags := initAuth(t, encodeInitRequest(&Client{User: "alice", Password: "s3cret", Group: "staff"}))
+	if !present || user != "alice" || pass != "s3cret" {
+		t.Errorf("idPass = user %q pass %q (present %v)", user, pass, present)
+	}
+	if group, _, _, _, _ := initAuth(t, encodeInitRequest(&Client{User: "u", Group: "staff"})); group != "staff" {
+		t.Errorf("group = %q", group)
+	}
+	// Field order: idAuthentication [7] between exceptionalRecordSize [6] and
+	// implementationId [110] -- BER SEQUENCEs are order-sensitive.
+	want := []uint32{3, 4, 5, 6, 7, 110, 111}
+	if fmt.Sprint(tags) != fmt.Sprint(want) {
+		t.Errorf("field order = %v, want %v", tags, want)
+	}
+
+	// Open form.
+	if _, user, _, present, _ := initAuth(t, encodeInitRequest(&Client{AuthOpen: "alice/s3cret"})); !present || user != "alice/s3cret" {
+		t.Errorf("open form = %q (present %v)", user, present)
+	}
+
+	// Anonymous omits the field.
+	if _, _, _, present, _ := initAuth(t, encodeInitRequest(&Client{})); present {
+		t.Error("anonymous Initialize must omit idAuthentication")
+	}
+}
+
+// TestConnectWithCredentials wires credentials through Connect against a fake
+// server that verifies them, and checks a rejection reads as such without
+// echoing the password.
+func TestConnectWithCredentials(t *testing.T) {
+	srv := &fakeServer{initOK: true, wantUser: "alice", wantPass: "s3cret", hits: 0}
+	addr := srv.start(t)
+
+	c := NewClient(addr + "/biblios")
+	c.User, c.Password = "alice", "s3cret"
+	conn, err := c.Connect(context.Background())
+	if err != nil {
+		t.Fatalf("Connect with valid credentials: %v", err)
+	}
+	conn.Close()
+
+	bad := NewClient(addr + "/biblios")
+	bad.User, bad.Password = "alice", "wrong"
+	_, err = bad.Connect(context.Background())
+	if err == nil {
+		t.Fatal("Connect with bad credentials should fail")
+	}
+	if strings.Contains(err.Error(), "wrong") {
+		t.Errorf("error must not echo the password: %q", err)
 	}
 }
 

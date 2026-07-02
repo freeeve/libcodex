@@ -75,16 +75,45 @@ func syntaxOID(name string) ([]uint32, error) {
 // ---- requests ----
 
 // encodeInitRequest renders an InitializeRequest offering protocol versions 1-3
-// and the search + present options, with generous message sizes.
-func encodeInitRequest() []byte {
+// and the search + present options, with generous message sizes and the client's
+// credentials when set. idAuthentication [7] sits between exceptionalRecordSize
+// [6] and implementationId [110] -- the SEQUENCE is order-sensitive.
+func encodeInitRequest(c *Client) []byte {
 	var body []byte
 	body = appendBits(body, classContext, 3, 0, 1, 2) // protocolVersion: 1, 2, 3
 	body = appendBits(body, classContext, 4, 0, 1)    // options: search, present
 	body = appendInt(body, classContext, 5, 1<<20)    // preferredMessageSize
 	body = appendInt(body, classContext, 6, 1<<24)    // exceptionalRecordSize
+	body = appendAuth(body, c)
 	body = appendString(body, classContext, 110, "libcodex")
 	body = appendString(body, classContext, 111, "libcodex z3950")
 	return appendElem(nil, classContext, true, pduInitRequest, body)
+}
+
+// appendAuth appends idAuthentication [7], an explicit tag around the
+// IdAuthentication CHOICE: the idPass SEQUENCE (groupId [0] / userId [1] /
+// password [2]) when structured credentials are set, or the open VisibleString
+// form. Anonymous sessions omit the field entirely.
+func appendAuth(dst []byte, c *Client) []byte {
+	switch {
+	case c.User != "" || c.Password != "" || c.Group != "":
+		var idPass []byte
+		if c.Group != "" {
+			idPass = appendString(idPass, classContext, 0, c.Group)
+		}
+		if c.User != "" {
+			idPass = appendString(idPass, classContext, 1, c.User)
+		}
+		if c.Password != "" {
+			idPass = appendString(idPass, classContext, 2, c.Password)
+		}
+		seq := appendElem(nil, classUniversal, true, tagSequence, idPass)
+		return appendElem(dst, classContext, true, 7, seq)
+	case c.AuthOpen != "":
+		open := appendString(nil, classUniversal, tagVisibleString, c.AuthOpen)
+		return appendElem(dst, classContext, true, 7, open)
+	}
+	return dst
 }
 
 // encodeSearchRequest renders a SearchRequest for the given databases and RPN

@@ -107,7 +107,7 @@ func TestBerIndefiniteLength(t *testing.T) {
 // TestBerIncomplete checks that truncated elements report errIncomplete rather
 // than a hard error, so the transport keeps reading.
 func TestBerIncomplete(t *testing.T) {
-	full := encodeInitRequest()
+	full := encodeInitRequest(&Client{})
 	for n := 1; n < len(full); n++ {
 		if _, err := berSize(full[:n]); err != errIncomplete {
 			t.Fatalf("prefix %d/%d: err = %v, want errIncomplete", n, len(full), err)
@@ -121,7 +121,7 @@ func TestBerIncomplete(t *testing.T) {
 // FuzzBerParse asserts the BER parser never panics and never over-reads on
 // arbitrary bytes.
 func FuzzBerParse(f *testing.F) {
-	f.Add(encodeInitRequest())
+	f.Add(encodeInitRequest(&Client{}))
 	f.Add(encodePresentRequest(1, 10, oidMARC21))
 	f.Add([]byte{0xbf, 0x87, 0x68, 0x80, 0x00, 0x00})
 	f.Fuzz(func(t *testing.T, data []byte) {
