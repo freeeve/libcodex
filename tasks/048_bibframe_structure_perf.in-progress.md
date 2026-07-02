@@ -83,6 +83,13 @@ Landed the concrete, output-preserving structural fixes:
 - **P7:** split `bibframe.go` -> `bibframe.go` + `bibframe_writer.go`, and
   `reader.go` -> `reader.go` + `reader_crosswalk.go`; all four under 500 lines.
 
+**Update (task 053):** the multi-instance RDF/XML and JSON-LD work extracted
+shared body helpers (`appendWorkBodyXML`/`appendWorkHeadJSONLD`,
+`appendInstanceNodeXML`/`appendInstanceNodeJSONLD`), so the Work/Instance node
+shape is now written once per format rather than twice (single- and
+multi-instance). This shrinks -- but does not close -- P1: the three formats are
+still parallel emitters.
+
 **P1 (unify the three emitters) is deferred.** The rdf package serializes only
 Turtle/N-Triples/N-Quads, not RDF/XML or JSON-LD, so unification means either
 adding two generic graph serializers or extracting a byte-faithful shared node-
