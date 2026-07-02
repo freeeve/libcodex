@@ -89,6 +89,30 @@ func TestYazZtestInterop(t *testing.T) {
 	if len(all) != res.Count {
 		t.Errorf("paged %d records, server reports %d hits", len(all), res.Count)
 	}
+
+	// OPAC record syntax: the embedded bib decodes and holdings carry a
+	// location and call number (yaz-ztest serves canned holdings).
+	oc := NewClient(c.Address + "/Default")
+	oc.Syntax = "opac"
+	oconn, err := oc.Connect(ctx)
+	if err != nil {
+		t.Fatalf("Connect (opac): %v", err)
+	}
+	defer oconn.Close()
+	if _, err := oconn.Search(ctx, Term("any", "computer")); err != nil {
+		t.Fatalf("Search (opac): %v", err)
+	}
+	recs2, err := oconn.Present(ctx, 1, 1)
+	if err != nil || len(recs2) != 1 {
+		t.Fatalf("Present (opac): %v (%d records)", err, len(recs2))
+	}
+	opac := recs2[0]
+	if dec, err := opac.Decode(); err != nil || dec.SubfieldValue("245", 'a') == "" {
+		t.Errorf("opac bib decode: %v", err)
+	}
+	if len(opac.Holdings) == 0 || opac.Holdings[0].CallNumber == "" || opac.Holdings[0].LocalLocation == "" {
+		t.Errorf("opac holdings = %+v", opac.Holdings)
+	}
 }
 
 // TestLiveTarget is an opt-in smoke test against a real Z39.50 target, e.g.

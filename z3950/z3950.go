@@ -66,11 +66,37 @@ func (c *Client) pageSize() int {
 }
 
 // Record is one retrieved record: its record syntax, the raw payload, or a
-// surrogate diagnostic when the server could not deliver this record.
+// surrogate diagnostic when the server could not deliver this record. An OPAC
+// record is unwrapped on arrival: Syntax/Data carry its embedded bibliographic
+// record (so Decode works transparently) and Holdings carries its holdings.
 type Record struct {
-	Syntax string      // "marc21", "unimarc", "xml", "sutrs", "opac", or a dotted OID
-	Data   []byte      // raw record payload in its syntax
-	Diag   *Diagnostic // set instead of Data for a surrogate diagnostic
+	Syntax   string      // "marc21", "unimarc", "xml", "sutrs", "opac", or a dotted OID
+	Data     []byte      // raw record payload in its syntax
+	Diag     *Diagnostic // set instead of Data for a surrogate diagnostic
+	Holdings []Holding   // holdings data from an OPAC record; nil otherwise
+}
+
+// Holding is one holdings statement from an OPAC record: where a copy lives and
+// how it circulates. Members the server omits are empty; unknown members are
+// skipped, never a parse failure.
+type Holding struct {
+	NUCCode          string // holding institution (MARC organization code)
+	LocalLocation    string
+	ShelvingLocation string
+	CallNumber       string
+	CopyNumber       string
+	PublicNote       string
+	EnumAndChron     string // enumeration/chronology (volume, year)
+	Circulation      []Circulation
+}
+
+// Circulation is one circulation record of a holding.
+type Circulation struct {
+	AvailableNow     bool
+	AvailabilityDate string
+	ItemID           string
+	Renewable        bool
+	OnHold           bool
 }
 
 // Decode parses the record into a *codex.Record for the MARC syntaxes: MARC21

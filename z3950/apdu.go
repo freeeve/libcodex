@@ -68,6 +68,8 @@ func syntaxOID(name string) ([]uint32, error) {
 		return oidXML, nil
 	case "sutrs":
 		return oidSUTRS, nil
+	case "opac":
+		return oidOPAC, nil
 	}
 	return nil, fmt.Errorf("z3950: unknown record syntax %q", name)
 }
@@ -389,7 +391,7 @@ func parseNamePlusRecord(v berValue) (Record, error) {
 
 // parseExternal unwraps an EXTERNAL: the direct-reference OID names the record
 // syntax and the encoding choice carries the payload (octet-aligned [1] for MARC,
-// single-ASN1-type [0] for SUTRS text).
+// single-ASN1-type [0] for SUTRS text and the structured OPAC record).
 func parseExternal(v berValue) (Record, error) {
 	if v.class != classUniversal || v.tag != tagExternal {
 		return Record{}, fmt.Errorf("z3950: expected EXTERNAL, got class %#x tag %d", v.class, v.tag)
@@ -399,6 +401,7 @@ func parseExternal(v berValue) (Record, error) {
 		return Record{}, err
 	}
 	rec := Record{}
+	var structured *berValue // single-ASN1-type payload, kept for OPAC
 	for _, f := range fields {
 		switch {
 		case f.class == classUniversal && f.tag == tagOID:
@@ -412,6 +415,7 @@ func parseExternal(v berValue) (Record, error) {
 		case f.class == classContext && f.tag == 0: // single-ASN1-type
 			if f.constructed {
 				if inner, err := f.children(); err == nil && len(inner) == 1 {
+					structured = &inner[0]
 					rec.Data = inner[0].content
 					continue
 				}
@@ -419,10 +423,132 @@ func parseExternal(v berValue) (Record, error) {
 			rec.Data = f.content
 		}
 	}
+	if rec.Syntax == "opac" && structured != nil {
+		return parseOPAC(*structured)
+	}
 	if rec.Syntax == "" && rec.Data == nil {
 		return Record{}, fmt.Errorf("z3950: EXTERNAL without payload")
 	}
 	return rec, nil
+}
+
+// parseOPAC unwraps an OPACRecord: the embedded bibliographicRecord [1]
+// EXTERNAL becomes the Record's Syntax/Data (so Decode works transparently) and
+// holdingsData [2] becomes its Holdings. Members this client does not model are
+// skipped, never a failure.
+func parseOPAC(root berValue) (Record, error) {
+	rec := Record{Syntax: "opac"}
+	fields, err := root.children()
+	if err != nil {
+		return Record{}, err
+	}
+	for _, f := range fields {
+		if f.class != classContext {
+			continue
+		}
+		switch f.tag {
+		case 1: // bibliographicRecord: an EXTERNAL, explicitly or implicitly tagged
+			if ext, ok := externalIn(f); ok {
+				if bib, err := parseExternal(ext); err == nil {
+					rec.Syntax, rec.Data = bib.Syntax, bib.Data
+				}
+			}
+		case 2: // holdingsData: SEQUENCE OF HoldingsRecord
+			items, err := f.children()
+			if err != nil {
+				continue
+			}
+			for _, h := range items {
+				// HoldingsRecord CHOICE: [2] holdingsAndCirc is the structured
+				// form; [1] (a MARC holdings EXTERNAL) is skipped.
+				if h.class == classContext && h.tag == 2 {
+					rec.Holdings = append(rec.Holdings, parseHolding(h))
+				}
+			}
+		}
+	}
+	return rec, nil
+}
+
+// externalIn resolves a context-tagged EXTERNAL that servers emit either
+// explicitly (the tag wraps a universal EXTERNAL element) or implicitly (the
+// tag replaces it, leaving the EXTERNAL's content).
+func externalIn(v berValue) (berValue, bool) {
+	if !v.constructed {
+		return berValue{}, false
+	}
+	if kids, err := v.children(); err == nil && len(kids) == 1 &&
+		kids[0].class == classUniversal && kids[0].tag == tagExternal {
+		return kids[0], true
+	}
+	return berValue{class: classUniversal, tag: tagExternal, constructed: true, content: v.content}, true
+}
+
+// parseHolding decodes HoldingsAndCircData, keeping the commonly populated
+// members and every circulation record.
+func parseHolding(v berValue) Holding {
+	h := Holding{}
+	fields, err := v.children()
+	if err != nil {
+		return h
+	}
+	for _, f := range fields {
+		if f.class != classContext {
+			continue
+		}
+		switch f.tag {
+		case 8:
+			h.NUCCode = f.stringVal()
+		case 9:
+			h.LocalLocation = f.stringVal()
+		case 10:
+			h.ShelvingLocation = f.stringVal()
+		case 11:
+			h.CallNumber = f.stringVal()
+		case 13:
+			h.CopyNumber = f.stringVal()
+		case 14:
+			h.PublicNote = f.stringVal()
+		case 17:
+			h.EnumAndChron = f.stringVal()
+		case 19: // circulationData: SEQUENCE OF CircRecord
+			items, err := f.children()
+			if err != nil {
+				continue
+			}
+			for _, c := range items {
+				h.Circulation = append(h.Circulation, parseCirculation(c))
+			}
+		}
+	}
+	return h
+}
+
+// parseCirculation decodes one CircRecord.
+func parseCirculation(v berValue) Circulation {
+	c := Circulation{}
+	fields, err := v.children()
+	if err != nil {
+		return c
+	}
+	for _, f := range fields {
+		if f.class != classContext {
+			continue
+		}
+		switch f.tag {
+		case 1:
+			c.AvailableNow = f.boolVal()
+		case 2:
+			c.AvailabilityDate = f.stringVal()
+		case 5:
+			c.ItemID = f.stringVal()
+		case 6:
+			c.Renewable = f.boolVal()
+		case 7:
+			c.OnHold = f.boolVal()
+		}
+	}
+	return c
 }
 
 // parseDiagRec handles the DiagRec CHOICE, of which only defaultFormat (a plain

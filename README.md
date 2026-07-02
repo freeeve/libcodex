@@ -262,7 +262,9 @@ recs, _ := conn.Present(ctx, 1, 10) // fetch records 1-10
 
 Records decode by their record syntax: MARC21 via `iso2709` (including MARC-8
 transcoding), UNIMARC via `unimarc`, MARCXML via `marcxml`; SUTRS text is exposed
-raw. Query access points: `any`, `title`, `author`, `subject`, `isbn`, `issn`,
+raw. Requesting `Syntax: "opac"` returns each bib record with its **holdings**
+(location, call number, circulation availability) attached as `Record.Holdings`
+-- the interlibrary-loan "who holds this" query. Query access points: `any`, `title`, `author`, `subject`, `isbn`, `issn`,
 `lccn`, `id`, combined with `And`/`Or`/`AndNot`. Multi-word terms automatically
 search as phrases, a trailing `*` right-truncates (`"mob*"` finds moby), and
 `.Exact()`/`.Phrase()`/`.Word()`/`.Truncated()` refine a term for strict servers.
