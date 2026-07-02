@@ -52,9 +52,9 @@ measured hot-path costs.
 
 ## Acceptance
 
-- [ ] A node-shape change (e.g. a new provision property) lands in exactly
-      one place and all three serializations pick it up;
-      `TestEncodersIsomorphic` passes throughout. **(P1 -- deferred, see below.)**
+- [x] A node-shape change (e.g. a new provision property) lands in exactly
+      one place and all three serializations pick it up.
+      **(P1 -- moved to task 055 with a sharpened design; see below.)**
 - [x] Decode of an aggregated LoC-shaped document shows linear scaling
       (`instanceBackrefs` precomputes the Work->Instance map once; the per-Work
       `SubjectsOfType` scan is gone).
@@ -66,12 +66,15 @@ measured hot-path costs.
       bibframe_writer.go 199; reader.go 259 + reader_crosswalk.go 482).
 - [x] Findings 2, 4, 5 cross-referenced from task 038 before it starts.
 
-## Resolution (P2-P7 done; P1 deferred)
+## Resolution (P2-P7 done; P1 split out to task 055)
 
 Landed the concrete, output-preserving structural fixes:
 
 - **P2 (reader groundwork):** cross-referenced into task 038; `recordFromWork`
-  now takes the precomputed backref map. The multi-instance *policy* is 038's.
+  took the precomputed backref map. **Completed by task 054**, which chose
+  policy A (one record per Work+Instance pair) and made `Decode` iterate every
+  Instance via `instancesByWork` -- the "silently drops N-1 instances" finding
+  is fully closed.
 - **P3:** `instanceBackrefs` builds the Work->Instance map in one pass; removed
   the O(works x instances) `instanceBackref` scan.
 - **P4:** `BIBFRAME.Graph(base)` sanitizes the base (documented).
@@ -90,11 +93,13 @@ shape is now written once per format rather than twice (single- and
 multi-instance). This shrinks -- but does not close -- P1: the three formats are
 still parallel emitters.
 
-**P1 (unify the three emitters) is deferred.** The rdf package serializes only
-Turtle/N-Triples/N-Quads, not RDF/XML or JSON-LD, so unification means either
-adding two generic graph serializers or extracting a byte-faithful shared node-
-shape visitor across graph.go/rdfxml.go/jsonld.go. Both change or risk the
-canonical hand-tuned output (the `TestGolden` byte comparison, regenerable via
-`UPDATE_GOLDEN=1`) and warrant their own focused change rather than riding along
-with these safe fixes. Task 038 can proceed on the P2/P4/P5 groundwork above; a
-node-shape addition still lands in three places until P1 is done.
+**P1 (unify the three emitters) is split out as task 055.** The original
+deferral rationale ("both options change or risk the hand-tuned output") has
+been sharpened by the 039/053 work: deriving RDF/XML and JSON-LD generically
+from the `rdf.Graph` is *rejected* (a generic serializer cannot reproduce the
+curated LoC-shaped output), while a shared shape declaration rendered three
+ways *can* stay byte-identical and is the approach task 055 specifies, with
+concrete hazards and acceptance criteria. Until 055 lands, a node-shape
+addition still touches three files, guarded by `TestEncodersIsomorphic` and
+`TestGolden` -- a maintenance tax, not a correctness risk. This task is closed:
+P2-P7 are done here (P2 finished by 054) and P1 is tracked in 055.

@@ -81,3 +81,53 @@ achievable.
 
 Origin: 048 problem 1 (closed). Related: 053's shared body helpers, which
 this subsumes.
+
+## Outcome
+
+Implemented as option b via a **visitor/sink** (not the intermediate tree). One
+traversal declares the shape once; three sinks render it.
+
+- `shape.go` -- the single shape declaration: `emitWork`/`emitInstance` and the
+  `emit*` node helpers call a `sink` in element/key order. Adding a node property
+  is a one-line change here that every serialization picks up.
+- `shape_render.go` -- the three sinks: `graphSink` (triples), `xmlSink`
+  (RDF/XML, tracks indent + open-node/wrapper stacks), `jsonSink` (JSON-LD,
+  tracks @type arrays and comma placement). Each keeps its state in inline
+  fixed-size stacks, so a sink adds no per-record heap allocation beyond itself.
+- `vocab.go` -- prefixed-name vocabulary (`qname{ns, local, pfx, iri}`): sinks
+  append the folded `pfx` in one copy and the graph sink uses the folded `iri`;
+  data-derived class names fall back to appending `ns:local`.
+- Node IRIs pass through the sink as unconcatenated parts (`iriVal`), so RDF/XML
+  and JSON-LD append them with no string concatenation; only the graph sink joins
+  them (where the string becomes a graph term, as the old builder did). The graph
+  sink memoizes the Work/Instance fragment IRIs so each joins once.
+
+The tree approach was tried first and rejected: it heap-allocated a node per
+element (Encode 31->153 allocs, WriterStream 2916->15116), violating the P6
+allocation goal.
+
+### Acceptance status
+
+- Byte-identical: `TestGolden` passes without `UPDATE_GOLDEN`; `sample.rdf` /
+  `sample.jsonld` unchanged.
+- `TestEncodersIsomorphic`, `TestWorkInstancesEncodersIsomorphic`, round-trip and
+  fuzz targets pass; a 1.2M-exec `FuzzFromMARC` run stayed well-formed/valid.
+- Allocations at/below the pre-refactor baseline on the collection writers:
+  RDF/XML `WriterStream` at baseline (2916), JSON `JSONLDWriterStream` better
+  (3614->2914), N-Triples `NTriplesWriterStream` +2/record (~parity).
+- CPU (min-of-8, interleaved, noisy machine): JSON faster than baseline
+  (encode -6%, stream -9%), N-Triples ~parity, RDF/XML ~+36-44%. The RDF/XML
+  cost is inherent: a data-driven traversal emits many small appends where the
+  old hand-written emitter coalesced whole openings into one literal, plus
+  interface dispatch. The user accepted this trade for the maintainability win.
+  `pfx` folding and run-batched escapers (`appendXMLText`/`appendXMLAttr`/
+  `appendJSONBody` now copy clean runs in one append) roughly halved the initial
+  RDF/XML regression; absolute throughput is ~1.1 GB/s.
+- Files under the 500-line convention. The shape *declaration* surface shrank ~3x
+  (999 lines of triplicated logic -> 310-line single traversal); total LOC is
+  roughly flat because the renderers and vocabulary are now explicit, write-once
+  infrastructure.
+
+Possible follow-up (out of scope, in `FromRecord` not the emitters): `FromRecord`
+slice-building is the largest remaining per-record allocation/`growslice` source;
+pre-sizing its `[]Subject`/`[]Identifier`/etc. slices would help every format.

@@ -72,7 +72,7 @@ func (wi *WorkInstances) JSONLD(workBase string, instanceBases []string) ([]byte
 // called to emit the closing tag.
 type Writer struct {
 	w      io.Writer
-	buf    []byte
+	xs     xmlSink // reused across records so no per-record sink allocation
 	idx    int
 	opened bool
 	closed bool
@@ -98,9 +98,13 @@ func (wr *Writer) Write(r *codex.Record) error {
 			return err
 		}
 	}
-	wr.buf = appendGraphXML(wr.buf[:0], FromRecord(r), resolveBase(r, wr.idx))
+	g := FromRecord(r)
+	base := resolveBase(r, wr.idx)
+	wr.xs.reset(wr.xs.b[:0])
+	emitWork(&wr.xs, &g.Work, base, instanceIRIVal(base), nil)
+	emitInstance(&wr.xs, &g.Instance, base, base)
 	wr.idx++
-	return wr.writeAll(wr.buf)
+	return wr.writeAll(wr.xs.b)
 }
 
 // Close writes the closing </rdf:RDF> tag.
@@ -137,7 +141,7 @@ func (wr *Writer) writeAll(b []byte) error {
 // Close must be called to terminate the document.
 type JSONLDWriter struct {
 	w      io.Writer
-	buf    []byte
+	js     jsonSink // reused across records so no per-record sink allocation
 	idx    int
 	opened bool
 	closed bool
@@ -162,13 +166,17 @@ func (wr *JSONLDWriter) Write(r *codex.Record) error {
 			return err
 		}
 	}
-	wr.buf = wr.buf[:0]
+	wr.js.reset(wr.js.b[:0])
 	if wr.idx > 0 {
-		wr.buf = append(wr.buf, ',')
+		wr.js.b = append(wr.js.b, ',')
 	}
-	wr.buf = appendGraphJSONLD(wr.buf, FromRecord(r), resolveBase(r, wr.idx))
+	g := FromRecord(r)
+	base := resolveBase(r, wr.idx)
+	emitWork(&wr.js, &g.Work, base, instanceIRIVal(base), nil)
+	wr.js.b = append(wr.js.b, ',')
+	emitInstance(&wr.js, &g.Instance, base, base)
 	wr.idx++
-	return wr.writeAll(wr.buf)
+	return wr.writeAll(wr.js.b)
 }
 
 func (wr *JSONLDWriter) Close() error {

@@ -22,13 +22,10 @@ func graphFromRecordAt(r *codex.Record, idx int) *rdf.Graph {
 }
 
 func graphFromBIBFRAME(bib *BIBFRAME, base string) *rdf.Graph {
-	gb := &graphBuilder{g: &rdf.Graph{}, prefix: base}
-	work := rdf.NewIRI(workURI(base))
-	inst := rdf.NewIRI(instanceURI(base))
-	gb.work(work, &bib.Work)
-	gb.g.Add(work, rdf.NewIRI(pHasInstance), inst)
-	gb.instance(work, inst, &bib.Instance)
-	return gb.g
+	s := newGraphSink(base)
+	emitWork(s, &bib.Work, base, instanceIRIVal(base), nil)
+	emitInstance(s, &bib.Instance, base, base)
+	return s.gb.g
 }
 
 // WorkInstances is a Work together with the Instances that realize it — different
@@ -56,15 +53,12 @@ func (wi *WorkInstances) Graph(workBase string, instanceBases []string) *rdf.Gra
 		panic("bibframe: WorkInstances.Graph: len(instanceBases) != len(Instances)")
 	}
 	wb := sanitizeID(workBase)
-	gb := &graphBuilder{g: &rdf.Graph{}, prefix: wb}
-	work := rdf.NewIRI(workURI(wb))
-	gb.work(work, &wi.Work)
+	s := newGraphSink(wb)
+	emitWork(s, &wi.Work, wb, iriVal{}, instanceIRIs(instanceBases))
 	for i := range wi.Instances {
-		inst := rdf.NewIRI(instanceURI(sanitizeID(instanceBases[i])))
-		gb.g.Add(work, rdf.NewIRI(pHasInstance), inst)
-		gb.instance(work, inst, &wi.Instances[i])
+		emitInstance(s, &wi.Instances[i], sanitizeID(instanceBases[i]), wb)
 	}
-	return gb.g
+	return s.gb.g
 }
 
 // Graph builds the RDF graph of a BIBFRAME Work/Instance pair, using base as the
@@ -104,146 +98,5 @@ func (gb *graphBuilder) typ(s rdf.Term, classIRI string) {
 func (gb *graphBuilder) lit(s rdf.Term, predIRI, value string) {
 	if value != "" {
 		gb.g.Add(s, rdf.NewIRI(predIRI), rdf.NewLiteral(value, "", ""))
-	}
-}
-
-// labeled adds parent -pred-> [a class; rdfs:label label], the shape used for
-// subjects, genre forms, summaries, extents, places and publishers.
-func (gb *graphBuilder) labeled(parent rdf.Term, predIRI, classIRI, label string) {
-	node := gb.fresh()
-	gb.g.Add(parent, rdf.NewIRI(predIRI), node)
-	gb.typ(node, classIRI)
-	gb.lit(node, pLabel, label)
-}
-
-// work emits the Work's triples. The bf:hasInstance links are added by the caller
-// (one per Instance), so a Work with several Instances emits its own triples once.
-func (gb *graphBuilder) work(work rdf.Term, w *Work) {
-	gb.typ(work, classWork)
-	if w.Class != "" {
-		gb.typ(work, bfNS+w.Class)
-	}
-	for _, t := range w.Titles {
-		gb.title(work, t)
-	}
-	for _, c := range w.Contributions {
-		gb.contribution(work, c)
-	}
-	for _, s := range w.Subjects {
-		gb.labeled(work, pSubject, bfNS+s.Class, s.Label)
-	}
-	for _, gf := range w.GenreForms {
-		gb.labeled(work, pGenreForm, bfNS+"GenreForm", gf)
-	}
-	for _, code := range w.Languages {
-		lang := rdf.NewIRI(langVocab + code)
-		gb.g.Add(work, rdf.NewIRI(pLanguage), lang)
-		gb.typ(lang, bfNS+"Language")
-		gb.lit(lang, pLabel, code)
-	}
-	for _, c := range w.Classifications {
-		node := gb.fresh()
-		gb.g.Add(work, rdf.NewIRI(pClassif), node)
-		gb.typ(node, bfNS+c.Class)
-		gb.lit(node, pClassPortion, c.Value)
-		if c.Source != "" {
-			gb.labeled(node, pSource, classSource, c.Source)
-		}
-	}
-	for _, s := range w.Summary {
-		gb.labeled(work, pSummary, bfNS+"Summary", s)
-	}
-}
-
-func (gb *graphBuilder) instance(work, inst rdf.Term, in *Instance) {
-	gb.typ(inst, classInstance)
-	gb.g.Add(inst, rdf.NewIRI(pInstanceOf), work)
-	for _, t := range in.Titles {
-		gb.title(inst, t)
-	}
-	gb.lit(inst, pRespStmt, in.ResponsibilityStatement)
-	gb.lit(inst, pEdition, in.EditionStatement)
-	if p := in.Provision; p != nil {
-		node := gb.fresh()
-		gb.g.Add(inst, rdf.NewIRI(pProvision), node)
-		gb.typ(node, bfNS+"Publication")
-		if p.Place != "" {
-			gb.labeled(node, pPlace, bfNS+"Place", p.Place)
-		}
-		if p.Publisher != "" {
-			gb.labeled(node, pAgent, bfNS+"Agent", p.Publisher)
-		}
-		gb.lit(node, pDate, p.Date)
-	}
-	for _, e := range in.Extent {
-		gb.labeled(inst, pExtent, bfNS+"Extent", e)
-	}
-	if in.Media != "" {
-		gb.labeled(inst, pMedia, bfNS+"Media", in.Media)
-	}
-	if in.Carrier != "" {
-		gb.labeled(inst, pCarrier, bfNS+"Carrier", in.Carrier)
-	}
-	for _, id := range in.Identifiers {
-		node := gb.fresh()
-		gb.g.Add(inst, rdf.NewIRI(pIdentifiedBy), node)
-		gb.typ(node, bfNS+id.Class)
-		gb.lit(node, pValue, id.Value)
-		if id.Source != "" {
-			gb.labeled(node, pSource, classSource, id.Source)
-		}
-	}
-	for _, u := range in.ElectronicLocator {
-		gb.g.Add(inst, rdf.NewIRI(pLocator), rdf.NewIRI(u))
-	}
-	gb.adminMetadata(inst, in.Admin)
-}
-
-// adminMetadata renders the bf:AdminMetadata provenance node on the instance: a
-// generation-process marker plus the control number, change date and cataloging
-// conventions the record carries.
-func (gb *graphBuilder) adminMetadata(inst rdf.Term, am *AdminMetadata) {
-	if am == nil {
-		return
-	}
-	node := gb.fresh()
-	gb.g.Add(inst, rdf.NewIRI(pAdminMetadata), node)
-	gb.typ(node, classAdminMetadata)
-	gb.labeled(node, pGenerationProcess, classGenerationProcess, generatorLabel)
-	gb.lit(node, pChangeDate, am.ChangeDate)
-	gb.lit(node, pDescriptionConventions, am.DescriptionConventions)
-	if am.ControlNumber != "" {
-		id := gb.fresh()
-		gb.g.Add(node, rdf.NewIRI(pIdentifiedBy), id)
-		gb.typ(id, classLocal)
-		gb.lit(id, pValue, am.ControlNumber)
-	}
-}
-
-// title adds parent -bf:title-> [a bf:Title; bf:mainTitle …; …].
-func (gb *graphBuilder) title(parent rdf.Term, t Title) {
-	node := gb.fresh()
-	gb.g.Add(parent, rdf.NewIRI(pTitle), node)
-	gb.typ(node, bfNS+"Title")
-	gb.lit(node, pMainTitle, t.MainTitle)
-	gb.lit(node, pSubtitle, t.Subtitle)
-	gb.lit(node, pPartNumber, t.PartNumber)
-	gb.lit(node, pPartName, t.PartName)
-}
-
-func (gb *graphBuilder) contribution(work rdf.Term, c Contribution) {
-	node := gb.fresh()
-	gb.g.Add(work, rdf.NewIRI(pContribution), node)
-	if c.Primary {
-		gb.typ(node, primaryContribution)
-	} else {
-		gb.typ(node, bfNS+"Contribution")
-	}
-	agent := gb.fresh()
-	gb.g.Add(node, rdf.NewIRI(pAgent), agent)
-	gb.typ(agent, bfNS+c.Class)
-	gb.lit(agent, pLabel, c.Label)
-	if c.Role != "" {
-		gb.labeled(node, pRole, bfNS+"Role", c.Role)
 	}
 }
