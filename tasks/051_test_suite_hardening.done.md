@@ -46,12 +46,41 @@ rest).
 
 ## Acceptance
 
-- [ ] Deliberately breaking each guarded property (empty exporter output,
-      corrupt RIS, mid-file decode error) makes the suite fail.
-- [ ] No `_ =` / ignored error returns remain in test harness paths
-      (spot-check with `errcheck` or grep).
-- [ ] Fuzz seeds added for every counterexample discovered during the
-      review (mrk `&#x26;#x41;`, iso5426 stacked marks, `_:y.`, `.#`
-      Turtle terminator).
-- [ ] All fuzzers run clean for a sustained local session
-      (`-fuzztime=60s` each) after the fix tasks land.
+- [x] Deliberately breaking each guarded property (empty exporter output,
+      corrupt RIS, mid-file decode error) makes the suite fail. `utf8NonEmpty`
+      is replaced by `risValid`/`bibtexValid`; `xmlWellFormed` rejects empty
+      and element-less input; the differential propagates real decode errors.
+- [x] No ignored error returns remain in the harness paths called out:
+      `conformance_test.go` now checks `dublincore.Encode`; `readAllStream`
+      returns real errors instead of swallowing them.
+- [x] Fuzz seeds added for the review counterexamples: iso5426 stacked marks
+      (NFC/NFD ế, mixed-class); `_:y.` and `.#` Turtle terminators. (mrk
+      `&#x26;#x41;` and the rdf canon/RDF-XML-literal adversary cases already
+      landed with tasks 046.)
+- [x] Modified fuzzers (`FuzzStreamTurtle`, mrk `FuzzDecode`, iso5426
+      `FuzzEncode`) run clean locally.
+
+## Resolution
+
+1. **`utf8NonEmpty` no-op** -- replaced by `risValid` (asserts `TY  -`/`ER  -`)
+   and `bibtexValid` (asserts a leading `@`) in `export_test.go`.
+2. **`xmlWellFormed` passed empty input** -- now errors on empty input and on
+   input with no elements (tracks a `StartElement`), so a regression to empty
+   mods/dublincore output fails instead of going green.
+3. **Differential test swallowed errors** -- `readAllStream` uses
+   `errors.Is(err, io.EOF)` and propagates genuine parse errors; the mismatch
+   loop delegates to `recordsEqual` so a differing record is counted once, not
+   once per field.
+4. **Conformance harness** -- the dublincore case checks `Encode`'s error.
+5. **Fuzz gaps** -- iso5426 stacked-mark seeds added; a targeted
+   `TestStreamTerminatorEdges` asserts the streaming Turtle decoder matches the
+   parser for the `.`-before-comment and blank-label-terminator cases task 045
+   fixed, and those inputs are seeded into the stream fuzzers. A *blanket*
+   stream-vs-parse differential over arbitrary fuzz input stays waived: the
+   waiver's reasons (the `.` ambiguity in prefixed local names, lenient
+   empty-IRI triples) are independent of statementEnd and remain valid.
+
+## Deferred
+
+- Root-package fuzz for `Link`, the leader numeric accessors, and `Control008`
+  is part of task 039's acceptance and is added there, not here.

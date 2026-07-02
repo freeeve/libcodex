@@ -18,6 +18,10 @@ func seedStream(f *testing.F) {
 	f.Add([]byte(sampleJSONLD))
 	f.Add([]byte("@prefix ex: <http://e/> .\nex:s ex:p \"x\" , \"y\" ; ex:q [ ex:r ( 1 2.5 true ) ] .\n"))
 	f.Add([]byte("@prefix : <#> .\n[] :x :y .\n"))
+	// Statement-terminator edge cases from the review: a "." immediately followed
+	// by a comment, and a "." right after a blank-node label (task 045).
+	f.Add([]byte("<http://ex/s> <http://ex/p> <http://ex/o>.#comment\n"))
+	f.Add([]byte("_:a <http://ex/p> _:y.\n"))
 	for _, glob := range []string{"*.ttl", "*.nt"} {
 		paths, _ := filepath.Glob(filepath.Join("testdata", "w3c", glob))
 		for _, p := range paths {

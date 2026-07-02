@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
@@ -36,8 +38,8 @@ func TestExportConvertersCanonical(t *testing.T) {
 		{"mods", func(w io.Writer) codex.RecordWriter { return mods.NewWriter(w) }, xmlWellFormed},
 		{"dublincore-xml", func(w io.Writer) codex.RecordWriter { return dublincore.NewWriter(w) }, xmlWellFormed},
 		{"dublincore-json", func(w io.Writer) codex.RecordWriter { return dublincore.NewJSONWriter(w) }, jsonValid},
-		{"citation-ris", func(w io.Writer) codex.RecordWriter { return citation.NewRISWriter(w) }, utf8NonEmpty},
-		{"citation-bibtex", func(w io.Writer) codex.RecordWriter { return citation.NewBibTeXWriter(w) }, utf8NonEmpty},
+		{"citation-ris", func(w io.Writer) codex.RecordWriter { return citation.NewRISWriter(w) }, risValid},
+		{"citation-bibtex", func(w io.Writer) codex.RecordWriter { return citation.NewBibTeXWriter(w) }, bibtexValid},
 		{"bibframe-rdfxml", func(w io.Writer) codex.RecordWriter { return bibframe.NewWriter(w) }, xmlWellFormed},
 		{"bibframe-jsonld", func(w io.Writer) codex.RecordWriter { return bibframe.NewJSONLDWriter(w) }, jsonValid},
 		{"schemaorg", func(w io.Writer) codex.RecordWriter { return schemaorg.NewWriter(w) }, jsonValid},
@@ -66,15 +68,28 @@ func TestExportConvertersCanonical(t *testing.T) {
 	}
 }
 
+// xmlWellFormed reports an error if b is not well-formed XML, or if it contains
+// no element at all -- so a regression to empty exporter output fails the test
+// instead of passing (io.EOF on the first token would otherwise read as "valid").
 func xmlWellFormed(b []byte) error {
+	if len(b) == 0 {
+		return fmt.Errorf("empty XML output")
+	}
+	seen := false
 	dec := xml.NewDecoder(bytes.NewReader(b))
 	for {
-		_, err := dec.Token()
+		tok, err := dec.Token()
 		if err == io.EOF {
+			if !seen {
+				return fmt.Errorf("XML output has no elements")
+			}
 			return nil
 		}
 		if err != nil {
 			return err
+		}
+		if _, ok := tok.(xml.StartElement); ok {
+			seen = true
 		}
 	}
 }
@@ -84,4 +99,19 @@ func jsonValid(b []byte) error {
 	return json.Unmarshal(b, &v)
 }
 
-func utf8NonEmpty(b []byte) error { return nil }
+// risValid checks the RIS type and end-of-record markers are present.
+func risValid(b []byte) error {
+	s := string(b)
+	if !strings.Contains(s, "TY  -") || !strings.Contains(s, "ER  -") {
+		return fmt.Errorf("RIS output missing TY/ER markers")
+	}
+	return nil
+}
+
+// bibtexValid checks the output begins with a BibTeX entry.
+func bibtexValid(b []byte) error {
+	if !strings.HasPrefix(strings.TrimSpace(string(b)), "@") {
+		return fmt.Errorf("BibTeX output does not start with @")
+	}
+	return nil
+}

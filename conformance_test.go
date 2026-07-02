@@ -55,7 +55,10 @@ func TestXMLSchemaConformance(t *testing.T) {
 		}},
 		{"dublincore", "oai_dc.xsd", func() []byte {
 			// oai_dc.xsd validates a single dc element, not the collection wrapper.
-			out, _ := dublincore.Encode(recs[0])
+			out, err := dublincore.Encode(recs[0])
+			if err != nil {
+				t.Fatal(err)
+			}
 			return append([]byte(`<?xml version="1.0" encoding="UTF-8"?>`+"\n"), out...)
 		}},
 	}

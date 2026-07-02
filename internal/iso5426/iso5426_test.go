@@ -124,6 +124,12 @@ func FuzzEncode(f *testing.F) {
 	f.Add("Müller café naïve")
 	f.Add("Škoda Œuvre città")
 	f.Add("plain ascii")
+	// Stacked combining marks exercise the mark-order path where task 040's
+	// swap bug lived: NFC ế, its NFD form (e + circumflex + acute), and a base
+	// carrying two different-class marks (u + dot-below + circumflex).
+	f.Add("\u1ebf")
+	f.Add("e\u0302\u0301")
+	f.Add("u\u0323\u0302")
 	f.Fuzz(func(t *testing.T, s string) {
 		if !utf8.ValidString(s) {
 			return

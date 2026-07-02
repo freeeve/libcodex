@@ -138,6 +138,26 @@ func TestStreamTerminatorNoWhitespace(t *testing.T) {
 	}
 }
 
+// TestStreamTerminatorEdges confirms the byte-level statement splitter frames a
+// "." terminator the same way the full grammar does when the "." is immediately
+// followed by a comment ("#") or directly follows a blank-node label -- the
+// cases that kept FuzzStreamTurtle from asserting its differential before task
+// 045 fixed statementEnd.
+func TestStreamTerminatorEdges(t *testing.T) {
+	for _, doc := range []string{
+		"<http://ex/s> <http://ex/p> <http://ex/o>.#comment\n",
+		"_:a <http://ex/p> _:y.\n",
+		"_:a <http://ex/p> _:y.#c\n",
+	} {
+		g, err := ParseTurtle([]byte(doc))
+		if err != nil {
+			t.Fatalf("ParseTurtle(%q): %v", doc, err)
+		}
+		streamed := drain(NewDecoder(bytes.NewReader([]byte(doc)), Turtle))
+		sameTriples(t, "turtle "+doc, streamed, g.Triples)
+	}
+}
+
 // TestTurtleBareBlankPropertyList checks that a blankNodePropertyList used as a
 // statement subject with no trailing predicate-object list -- "[ a :C ] ." -- is
 // accepted, per the Turtle grammar where that predicate-object list is optional.
