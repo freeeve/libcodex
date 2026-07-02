@@ -238,8 +238,34 @@ rec, _ := resp.Records[0].Decode() // MARCXML -> *codex.Record
 
 MARCXML records decode to `*codex.Record`; records in other schemas (MODS, Dublin
 Core) are returned as raw XML in `Record.Data` (those crosswalks are export-only).
-The client targets SRU 1.1/1.2. Fetching over the older, binary Z39.50 protocol is
-tracked as future work.
+The client targets SRU 1.1/1.2.
+
+## Fetching records over Z39.50 (`z3950`)
+
+For the many targets that predate SRU — legacy OPACs and classic ILS installs —
+the `z3950` client speaks the original [Z39.50](https://www.loc.gov/z3950/agency/)
+protocol (ISO 23950): BER-encoded APDUs over TCP, implemented from the published
+standard in pure Go. It runs Initialize/Search/Present sessions with Type-1 RPN
+queries over the bib-1 attribute set, built with a small query builder:
+
+```go
+c := z3950.NewClient("lx2.loc.gov:210/LCDB") // host:port/database
+rd := c.NewReader(ctx, z3950.Term("title", "moby dick"))
+codex.Convert(rd, marcjson.NewWriter(os.Stdout)) // same pipeline as sru
+
+// Or session-level control:
+conn, _ := c.Connect(ctx)
+defer conn.Close()
+res, _ := conn.Search(ctx, z3950.And(z3950.Term("author", "melville"), z3950.Term("any", "whale")))
+recs, _ := conn.Present(ctx, 1, 10) // fetch records 1-10
+```
+
+Records decode by their record syntax: MARC21 via `iso2709` (including MARC-8
+transcoding), UNIMARC via `unimarc`, MARCXML via `marcxml`; SUTRS text is exposed
+raw. Query access points: `any`, `title`, `author`, `subject`, `isbn`, `issn`,
+`lccn`, `id`, combined with `And`/`Or`/`AndNot`. Interop is tested against YAZ's
+`yaz-ztest` (skipped when YAZ is not installed) and, opt-in via
+`Z3950_LIVE_TARGET`, any live target.
 
 ## Reading UNIMARC
 
