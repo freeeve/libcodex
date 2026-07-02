@@ -2,7 +2,9 @@ package bibframe
 
 import (
 	"bytes"
+	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/freeeve/libcodex/rdf"
@@ -159,6 +161,71 @@ func TestWorkInstancesBaseSanitized(t *testing.T) {
 	}
 	if insts := g.SubjectsOfType(classInstance); len(insts) != 1 || insts[0] != rdf.NewIRI("#instyInstance") {
 		t.Errorf("Instance subject = %v, want #instyInstance (sanitized)", insts)
+	}
+}
+
+// TestWorkInstancesEncodersIsomorphic checks the RDF/XML and JSON-LD multi-
+// instance encoders each parse back to a graph isomorphic to WorkInstances.Graph.
+func TestWorkInstancesEncodersIsomorphic(t *testing.T) {
+	wi := sampleWorkInstances()
+	wb, ibs := "work-1", []string{"inst-a", "inst-b"}
+	want := canonGraph(wi.Graph(wb, ibs))
+
+	x, err := wi.RDFXML(wb, ibs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := wi.JSONLD(wb, ibs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gx, err := rdf.ParseRDFXML(x)
+	if err != nil {
+		t.Fatalf("parse RDF/XML: %v\n%s", err, x)
+	}
+	gj, err := rdf.ParseJSONLD(j)
+	if err != nil {
+		t.Fatalf("parse JSON-LD: %v\n%s", err, j)
+	}
+	for name, g := range map[string]*rdf.Graph{"rdfxml": gx, "jsonld": gj} {
+		if got := canonGraph(g); !reflect.DeepEqual(want, got) {
+			t.Errorf("%s differs from WorkInstances.Graph:\n want %s\n got  %s",
+				name, strings.Join(want, "\n  "), strings.Join(got, "\n  "))
+		}
+	}
+}
+
+// TestWorkInstancesEncodersZeroInstances checks a zero-Instance Work encodes to
+// the same graph as its Graph form (a lone Work node, no bf:hasInstance).
+func TestWorkInstancesEncodersZeroInstances(t *testing.T) {
+	wi := &WorkInstances{Work: Work{Class: "Text", Titles: []Title{{MainTitle: "Lonely"}}}}
+	want := canonGraph(wi.Graph("solo", nil))
+	x, err := wi.RDFXML("solo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := wi.JSONLD("solo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gx, _ := rdf.ParseRDFXML(x)
+	gj, _ := rdf.ParseJSONLD(j)
+	for name, g := range map[string]*rdf.Graph{"rdfxml": gx, "jsonld": gj} {
+		if got := canonGraph(g); !reflect.DeepEqual(want, got) {
+			t.Errorf("%s zero-instance differs from Graph:\n want %v\n got  %v", name, want, got)
+		}
+	}
+}
+
+// TestWorkInstancesEncoderLengthMismatch checks both encoders error (rather than
+// panic) when instanceBases does not match the Instances.
+func TestWorkInstancesEncoderLengthMismatch(t *testing.T) {
+	wi := &WorkInstances{Instances: []Instance{{}, {}}}
+	if _, err := wi.RDFXML("w", []string{"only-one"}); err == nil {
+		t.Error("RDFXML: expected length-mismatch error")
+	}
+	if _, err := wi.JSONLD("w", []string{"only-one"}); err == nil {
+		t.Error("JSONLD: expected length-mismatch error")
 	}
 }
 

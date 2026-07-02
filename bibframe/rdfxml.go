@@ -19,66 +19,98 @@ func appendGraphXML(b []byte, g *BIBFRAME, base string) []byte {
 
 func appendWorkXML(b []byte, g *BIBFRAME, base string) []byte {
 	b = openNode(b, "bf:Work", workURI(base))
-	if g.Work.Class != "" {
-		b = typeRef(b, g.Work.Class)
-	}
-	for _, t := range g.Work.Titles {
-		b = appendTitleXML(b, t)
-	}
-	for _, c := range g.Work.Contributions {
-		b = appendContributionXML(b, c)
-	}
-	for _, s := range g.Work.Subjects {
-		b = labeledXML(b, "bf:subject", "bf:"+s.Class, s.Label)
-	}
-	for _, gf := range g.Work.GenreForms {
-		b = labeledXML(b, "bf:genreForm", "bf:GenreForm", gf)
-	}
-	for _, lang := range g.Work.Languages {
-		b = appendLanguageXML(b, lang)
-	}
-	for _, c := range g.Work.Classifications {
-		b = appendClassificationXML(b, c)
-	}
-	for _, s := range g.Work.Summary {
-		b = labeledXML(b, "bf:summary", "bf:Summary", s)
-	}
+	b = appendWorkBodyXML(b, &g.Work)
 	b = resourceRef(b, "    ", "bf:hasInstance", instanceURI(base))
 	return append(b, "  </bf:Work>\n"...)
 }
 
-func appendInstanceXML(b []byte, g *BIBFRAME, base string) []byte {
-	b = openNode(b, "bf:Instance", instanceURI(base))
-	b = resourceRef(b, "    ", "bf:instanceOf", workURI(base))
-	for _, t := range g.Instance.Titles {
+// appendWorkBodyXML emits the Work's child properties (everything inside the
+// bf:Work element except the opening tag and the bf:hasInstance links), shared by
+// the single-pair and multi-instance encoders.
+func appendWorkBodyXML(b []byte, w *Work) []byte {
+	if w.Class != "" {
+		b = typeRef(b, w.Class)
+	}
+	for _, t := range w.Titles {
 		b = appendTitleXML(b, t)
 	}
-	if g.Instance.ResponsibilityStatement != "" {
-		b = leafXML(b, "    ", "bf:responsibilityStatement", g.Instance.ResponsibilityStatement)
+	for _, c := range w.Contributions {
+		b = appendContributionXML(b, c)
 	}
-	if g.Instance.EditionStatement != "" {
-		b = leafXML(b, "    ", "bf:editionStatement", g.Instance.EditionStatement)
+	for _, s := range w.Subjects {
+		b = labeledXML(b, "bf:subject", "bf:"+s.Class, s.Label)
 	}
-	if p := g.Instance.Provision; p != nil {
+	for _, gf := range w.GenreForms {
+		b = labeledXML(b, "bf:genreForm", "bf:GenreForm", gf)
+	}
+	for _, lang := range w.Languages {
+		b = appendLanguageXML(b, lang)
+	}
+	for _, c := range w.Classifications {
+		b = appendClassificationXML(b, c)
+	}
+	for _, s := range w.Summary {
+		b = labeledXML(b, "bf:summary", "bf:Summary", s)
+	}
+	return b
+}
+
+func appendInstanceXML(b []byte, g *BIBFRAME, base string) []byte {
+	return appendInstanceNodeXML(b, &g.Instance, base, base)
+}
+
+// appendInstanceNodeXML emits one bf:Instance node under instBase, linked
+// bf:instanceOf back to workBase. The two bases are independent so a Work with
+// several Instances can give each Instance its own IRI.
+func appendInstanceNodeXML(b []byte, in *Instance, instBase, workBase string) []byte {
+	b = openNode(b, "bf:Instance", instanceURI(instBase))
+	b = resourceRef(b, "    ", "bf:instanceOf", workURI(workBase))
+	for _, t := range in.Titles {
+		b = appendTitleXML(b, t)
+	}
+	if in.ResponsibilityStatement != "" {
+		b = leafXML(b, "    ", "bf:responsibilityStatement", in.ResponsibilityStatement)
+	}
+	if in.EditionStatement != "" {
+		b = leafXML(b, "    ", "bf:editionStatement", in.EditionStatement)
+	}
+	if p := in.Provision; p != nil {
 		b = appendProvisionXML(b, p)
 	}
-	for _, e := range g.Instance.Extent {
+	for _, e := range in.Extent {
 		b = labeledXML(b, "bf:extent", "bf:Extent", e)
 	}
-	if g.Instance.Media != "" {
-		b = labeledXML(b, "bf:media", "bf:Media", g.Instance.Media)
+	if in.Media != "" {
+		b = labeledXML(b, "bf:media", "bf:Media", in.Media)
 	}
-	if g.Instance.Carrier != "" {
-		b = labeledXML(b, "bf:carrier", "bf:Carrier", g.Instance.Carrier)
+	if in.Carrier != "" {
+		b = labeledXML(b, "bf:carrier", "bf:Carrier", in.Carrier)
 	}
-	for _, id := range g.Instance.Identifiers {
+	for _, id := range in.Identifiers {
 		b = appendIdentifierXML(b, id)
 	}
-	for _, u := range g.Instance.ElectronicLocator {
+	for _, u := range in.ElectronicLocator {
 		b = resourceRef(b, "    ", "bf:electronicLocator", u)
 	}
-	b = appendAdminMetadataXML(b, g.Instance.Admin)
+	b = appendAdminMetadataXML(b, in.Admin)
 	return append(b, "  </bf:Instance>\n"...)
+}
+
+// appendWorkInstancesXML emits a Work with N Instances: the Work node once with
+// one bf:hasInstance per Instance, then each Instance under its own IRI. It
+// mirrors WorkInstances.Graph, so the two denote the same graph.
+func appendWorkInstancesXML(b []byte, wi *WorkInstances, workBase string, instanceBases []string) []byte {
+	wb := sanitizeID(workBase)
+	b = openNode(b, "bf:Work", workURI(wb))
+	b = appendWorkBodyXML(b, &wi.Work)
+	for _, ib := range instanceBases {
+		b = resourceRef(b, "    ", "bf:hasInstance", instanceURI(sanitizeID(ib)))
+	}
+	b = append(b, "  </bf:Work>\n"...)
+	for i := range wi.Instances {
+		b = appendInstanceNodeXML(b, &wi.Instances[i], sanitizeID(instanceBases[i]), wb)
+	}
+	return b
 }
 
 // appendAdminMetadataXML renders the bf:AdminMetadata node, mirroring the graph

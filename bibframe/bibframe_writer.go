@@ -1,6 +1,7 @@
 package bibframe
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -27,6 +28,41 @@ func EncodeJSONLD(r *codex.Record) ([]byte, error) {
 	b = append(b, jsonldContext...)
 	b = append(b, `,"@graph":[`...)
 	b = appendGraphJSONLD(b, FromRecord(r), resolveBase(r, 0))
+	return append(b, "]}"...), nil
+}
+
+// RDFXML serializes a Work with N Instances to a standalone BIBFRAME RDF/XML
+// document: the Work at #<workBase>Work with one bf:hasInstance per Instance, and
+// each Instance at #<instanceBases[i]>Instance linked bf:instanceOf back. Every
+// base is sanitized like BIBFRAME.Graph. The result parses to a graph isomorphic
+// to WorkInstances.Graph(workBase, instanceBases). It errors if instanceBases
+// does not match wi.Instances in length. N-Triples, Turtle and N-Quads come from
+// the Graph method's serializers.
+func (wi *WorkInstances) RDFXML(workBase string, instanceBases []string) ([]byte, error) {
+	if len(instanceBases) != len(wi.Instances) {
+		return nil, fmt.Errorf("bibframe: WorkInstances.RDFXML: %d instanceBases for %d Instances", len(instanceBases), len(wi.Instances))
+	}
+	b := make([]byte, 0, 4096)
+	b = append(b, xmlHeader...)
+	b = append(b, '\n')
+	b = append(b, rdfOpen...)
+	b = append(b, '\n')
+	b = appendWorkInstancesXML(b, wi, workBase, instanceBases)
+	b = append(b, rdfClose...)
+	return append(b, '\n'), nil
+}
+
+// JSONLD serializes a Work with N Instances to a standalone BIBFRAME JSON-LD
+// document, the JSON-LD counterpart of RDFXML with the same graph shape and
+// length contract.
+func (wi *WorkInstances) JSONLD(workBase string, instanceBases []string) ([]byte, error) {
+	if len(instanceBases) != len(wi.Instances) {
+		return nil, fmt.Errorf("bibframe: WorkInstances.JSONLD: %d instanceBases for %d Instances", len(instanceBases), len(wi.Instances))
+	}
+	b := make([]byte, 0, 2048)
+	b = append(b, jsonldContext...)
+	b = append(b, `,"@graph":[`...)
+	b = appendWorkInstancesJSONLD(b, wi, workBase, instanceBases)
 	return append(b, "]}"...), nil
 }
 

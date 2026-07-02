@@ -20,18 +20,28 @@ func appendGraphJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 }
 
 func appendWorkJSONLD(b []byte, g *BIBFRAME, base string) []byte {
+	b = appendWorkHeadJSONLD(b, &g.Work, base)
+	b = append(b, `,"bf:hasInstance":{"@id":`...)
+	b = appendJSONString(b, instanceURI(base))
+	return append(b, "}}"...)
+}
+
+// appendWorkHeadJSONLD opens the Work object and emits its @type and child
+// properties up to (but not including) bf:hasInstance and the closing brace,
+// shared by the single-pair and multi-instance encoders.
+func appendWorkHeadJSONLD(b []byte, w *Work, workBase string) []byte {
 	b = append(b, `{"@id":`...)
-	b = appendJSONString(b, workURI(base))
-	if g.Work.Class != "" {
+	b = appendJSONString(b, workURI(workBase))
+	if w.Class != "" {
 		b = append(b, `,"@type":["bf:Work","bf:`...)
-		b = append(b, g.Work.Class...)
+		b = append(b, w.Class...)
 		b = append(b, `"]`...)
 	} else {
 		b = append(b, `,"@type":"bf:Work"`...)
 	}
-	if len(g.Work.Titles) > 0 {
+	if len(w.Titles) > 0 {
 		b = append(b, `,"bf:title":[`...)
-		for i, t := range g.Work.Titles {
+		for i, t := range w.Titles {
 			if i > 0 {
 				b = append(b, ',')
 			}
@@ -39,9 +49,9 @@ func appendWorkJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
-	if len(g.Work.Contributions) > 0 {
+	if len(w.Contributions) > 0 {
 		b = append(b, `,"bf:contribution":[`...)
-		for i, c := range g.Work.Contributions {
+		for i, c := range w.Contributions {
 			if i > 0 {
 				b = append(b, ',')
 			}
@@ -49,11 +59,11 @@ func appendWorkJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
-	b = labeledArrayJSON(b, "bf:subject", subjectClasses(g.Work.Subjects), subjectLabels(g.Work.Subjects))
-	b = simpleLabeledArrayJSON(b, "bf:genreForm", "bf:GenreForm", g.Work.GenreForms)
-	if len(g.Work.Languages) > 0 {
+	b = labeledArrayJSON(b, "bf:subject", subjectClasses(w.Subjects), subjectLabels(w.Subjects))
+	b = simpleLabeledArrayJSON(b, "bf:genreForm", "bf:GenreForm", w.GenreForms)
+	if len(w.Languages) > 0 {
 		b = append(b, `,"bf:language":[`...)
-		for i, code := range g.Work.Languages {
+		for i, code := range w.Languages {
 			if i > 0 {
 				b = append(b, ',')
 			}
@@ -66,9 +76,9 @@ func appendWorkJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
-	if len(g.Work.Classifications) > 0 {
+	if len(w.Classifications) > 0 {
 		b = append(b, `,"bf:classification":[`...)
-		for i, c := range g.Work.Classifications {
+		for i, c := range w.Classifications {
 			if i > 0 {
 				b = append(b, ',')
 			}
@@ -84,21 +94,24 @@ func appendWorkJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
-	b = simpleLabeledArrayJSON(b, "bf:summary", "bf:Summary", g.Work.Summary)
-	b = append(b, `,"bf:hasInstance":{"@id":`...)
-	b = appendJSONString(b, instanceURI(base))
-	return append(b, "}}"...)
+	return simpleLabeledArrayJSON(b, "bf:summary", "bf:Summary", w.Summary)
 }
 
 func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
+	return appendInstanceNodeJSONLD(b, &g.Instance, base, base)
+}
+
+// appendInstanceNodeJSONLD emits one bf:Instance node object under instBase,
+// linked bf:instanceOf back to workBase.
+func appendInstanceNodeJSONLD(b []byte, in *Instance, instBase, workBase string) []byte {
 	b = append(b, `{"@id":`...)
-	b = appendJSONString(b, instanceURI(base))
+	b = appendJSONString(b, instanceURI(instBase))
 	b = append(b, `,"@type":"bf:Instance","bf:instanceOf":{"@id":`...)
-	b = appendJSONString(b, workURI(base))
+	b = appendJSONString(b, workURI(workBase))
 	b = append(b, '}')
-	if len(g.Instance.Titles) > 0 {
+	if len(in.Titles) > 0 {
 		b = append(b, `,"bf:title":[`...)
-		for i, t := range g.Instance.Titles {
+		for i, t := range in.Titles {
 			if i > 0 {
 				b = append(b, ',')
 			}
@@ -106,15 +119,15 @@ func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
-	if g.Instance.ResponsibilityStatement != "" {
+	if in.ResponsibilityStatement != "" {
 		b = append(b, `,"bf:responsibilityStatement":`...)
-		b = appendJSONString(b, g.Instance.ResponsibilityStatement)
+		b = appendJSONString(b, in.ResponsibilityStatement)
 	}
-	if g.Instance.EditionStatement != "" {
+	if in.EditionStatement != "" {
 		b = append(b, `,"bf:editionStatement":`...)
-		b = appendJSONString(b, g.Instance.EditionStatement)
+		b = appendJSONString(b, in.EditionStatement)
 	}
-	if p := g.Instance.Provision; p != nil {
+	if p := in.Provision; p != nil {
 		b = append(b, `,"bf:provisionActivity":{"@type":"bf:Publication"`...)
 		if p.Place != "" {
 			b = append(b, `,"bf:place":`...)
@@ -130,18 +143,18 @@ func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, '}')
 	}
-	b = simpleLabeledArrayJSON(b, "bf:extent", "bf:Extent", g.Instance.Extent)
-	if g.Instance.Media != "" {
+	b = simpleLabeledArrayJSON(b, "bf:extent", "bf:Extent", in.Extent)
+	if in.Media != "" {
 		b = append(b, `,"bf:media":`...)
-		b = appendLabeledJSON(b, "bf:Media", g.Instance.Media)
+		b = appendLabeledJSON(b, "bf:Media", in.Media)
 	}
-	if g.Instance.Carrier != "" {
+	if in.Carrier != "" {
 		b = append(b, `,"bf:carrier":`...)
-		b = appendLabeledJSON(b, "bf:Carrier", g.Instance.Carrier)
+		b = appendLabeledJSON(b, "bf:Carrier", in.Carrier)
 	}
-	if len(g.Instance.Identifiers) > 0 {
+	if len(in.Identifiers) > 0 {
 		b = append(b, `,"bf:identifiedBy":[`...)
-		for i, id := range g.Instance.Identifiers {
+		for i, id := range in.Identifiers {
 			if i > 0 {
 				b = append(b, ',')
 			}
@@ -157,9 +170,9 @@ func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
-	if len(g.Instance.ElectronicLocator) > 0 {
+	if len(in.ElectronicLocator) > 0 {
 		b = append(b, `,"bf:electronicLocator":[`...)
-		for i, u := range g.Instance.ElectronicLocator {
+		for i, u := range in.ElectronicLocator {
 			if i > 0 {
 				b = append(b, ',')
 			}
@@ -169,8 +182,33 @@ func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		}
 		b = append(b, ']')
 	}
-	b = appendAdminMetadataJSON(b, g.Instance.Admin)
+	b = appendAdminMetadataJSON(b, in.Admin)
 	return append(b, '}')
+}
+
+// appendWorkInstancesJSONLD emits a Work node with one bf:hasInstance per
+// Instance, then each Instance node object, mirroring WorkInstances.Graph.
+func appendWorkInstancesJSONLD(b []byte, wi *WorkInstances, workBase string, instanceBases []string) []byte {
+	wb := sanitizeID(workBase)
+	b = appendWorkHeadJSONLD(b, &wi.Work, wb)
+	if len(instanceBases) > 0 {
+		b = append(b, `,"bf:hasInstance":[`...)
+		for i, ib := range instanceBases {
+			if i > 0 {
+				b = append(b, ',')
+			}
+			b = append(b, `{"@id":`...)
+			b = appendJSONString(b, instanceURI(sanitizeID(ib)))
+			b = append(b, '}')
+		}
+		b = append(b, ']')
+	}
+	b = append(b, '}') // close the Work object
+	for i := range wi.Instances {
+		b = append(b, ',')
+		b = appendInstanceNodeJSONLD(b, &wi.Instances[i], sanitizeID(instanceBases[i]), wb)
+	}
+	return b
 }
 
 // appendAdminMetadataJSON renders the bf:AdminMetadata node, mirroring the graph

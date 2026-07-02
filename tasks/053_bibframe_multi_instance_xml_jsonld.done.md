@@ -40,9 +40,29 @@ If 048-P1 is scheduled, prefer doing it there and closing this task as subsumed.
 
 ## Acceptance
 
-- [ ] RDF/XML and JSON-LD of a 2-instance grain each parse to a graph isomorphic
-      to the N-Quads path's graph.
-- [ ] Existing single-instance golden output byte-unchanged.
-- [ ] If 048-P1 lands first, this is closed as subsumed with a pointer.
+- [x] RDF/XML and JSON-LD of a 2-instance grain each parse to a graph isomorphic
+      to `WorkInstances.Graph` (`TestWorkInstancesEncodersIsomorphic`); the
+      zero-instance case matches too (`TestWorkInstancesEncodersZeroInstances`).
+- [x] Existing single-instance golden output byte-unchanged (`TestGolden`,
+      `TestEncodersIsomorphic` still pass after the refactor).
+- [x] 048-P1 was deferred, so this is implemented directly (not subsumed).
 
 Depends on: 038 (done). Related: 048 problem 1.
+
+## Resolution
+
+Added `(*WorkInstances) RDFXML(workBase, instanceBases)` and `.JSONLD(...)`,
+the RDF/XML and JSON-LD counterparts of `WorkInstances.Graph` (N-Triples,
+Turtle and N-Quads already come from `Graph`). Both emit the Work node once with
+one `bf:hasInstance` per Instance and each Instance under its own sanitized IRI
+with `bf:instanceOf` back, and return an error (rather than panicking) on a
+length mismatch.
+
+To avoid a third copy of the node shape, the single-pair emitters were refactored
+to share body helpers: `appendWorkBodyXML`/`appendWorkHeadJSONLD` (the Work's
+child properties without the hasInstance link) and
+`appendInstanceNodeXML`/`appendInstanceNodeJSONLD` (one Instance under an
+independent instance/work base). The single-pair `Encode`/`EncodeJSONLD` call
+these in the same order, so their output is byte-identical (golden unchanged).
+This does not close 048-P1 -- the three emitters are still parallel -- but it
+shrinks the duplicated surface a future unification would fold together.
