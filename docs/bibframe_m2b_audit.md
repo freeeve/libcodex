@@ -153,10 +153,13 @@ Instance, language + content class on Work) but consistently simplified: every
 - RESOLVED [067] -- 300 extent is $a(+$b/$f/$g); $c is routed to `bf:dimensions`
   (round-tripped to 300 $c) rather than inflating the extent. $e still dropped
   (deferred, low-frequency).
-- DIVERGENCE (low/med) -- `bf:Language` node stamps `rdfs:label`=3-letter code; m2b
-  emits a bare `bf:language` resource (or `bf:code`/`bf:part`), never label=code. **[068]**
-- GAP (low) -- 041 reads $a only; $h (translated-from) -> `bf:accompaniedBy` work
-  dropped; no `bf:code`/`bf:part` shape. **[068]**
+- RESOLVED [068] -- `bf:Language` now carries `bf:code` (the three-letter code) and
+  the vocabulary IRI, never `rdfs:label`=code. Reverse `langCode` still reads
+  bf:code / IRI / (legacy) label, so LoC input keeps decoding.
+- RESOLVED [068] -- 041 $h (language of the original) -> `Work.OriginalLangs`,
+  emitted as a `bf:Language` with `bf:part` "original" and reversed back to 041 $h.
+  041 $b (summary language) still unhandled (deferred, low-frequency); full
+  bf:accompaniedBy related work remains out of scope (Hub model).
 - MATCH -- leader/06 -> Work content class (Text/NotatedMusic/...).
 - DIVERGENCE (low/med) -- leader/06 i/j collapsed to `Audio`; m2b -> NonMusicAudio
   / MusicAudio. q -> nothing (m2b `bf:Hub`); no secondary `bf:Manuscript` type. **[070]**

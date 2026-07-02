@@ -30,6 +30,24 @@ only 041 $a; $h (translated-from) -> `bf:accompaniedBy` work is dropped.
 
 ## Acceptance
 
-- [ ] Language node no longer uses `rdfs:label`=code; uses IRI (+ `bf:code`).
-- [ ] 041 $h no longer silently dropped.
-- [ ] Reverse still reconstructs 008/041; goldens regenerated; suite + fuzz green.
+- [x] Language node no longer uses `rdfs:label`=code; uses IRI (+ `bf:code`).
+- [x] 041 $h no longer silently dropped.
+- [x] Reverse still reconstructs 008/041; goldens regenerated; suite + fuzz green.
+
+## Result
+
+`emitLanguage` now stamps `bf:code` (the three-letter code) instead of
+`rdfs:label`=code, keeping the LoC languages IRI. `addLanguages` reads 041 $h into a
+new `Work.OriginalLangs`, emitted as a `bf:Language` with `bf:part` "original".
+Reverse `languageField` splits language nodes by `bf:part`: "original" -> 041 $h,
+else 041 $a; `langCode` is unchanged (it already preferred bf:code / the IRI local
+name over any label, so LoC input with human labels still decodes). `normalize`
+sorts `OriginalLangs` for stable round-trip comparison.
+
+Goldens: the sample's eng/fre language nodes drop `rdfs:label` for `bf:code`;
+regenerated both serializations. Tests: `language_shape_test.go` (node shape +
+bf:part original, plus $a/$h round-trip in both serializations). Suite +
+FuzzFromMARC + FuzzDecode green.
+
+Deferred (documented): 041 $b summary language and a full bf:accompaniedBy related
+work for the original (Hub territory).

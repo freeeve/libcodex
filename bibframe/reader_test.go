@@ -38,6 +38,7 @@ func normalize(g *BIBFRAME) *BIBFRAME {
 	})
 	sort.Strings(g.Work.GenreForms)
 	sort.Strings(g.Work.Languages)
+	sort.Strings(g.Work.OriginalLangs)
 	sort.Strings(g.Work.Summary)
 	sort.Strings(g.Instance.Extent)
 	sort.Strings(g.Instance.ElectronicLocator)

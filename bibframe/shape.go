@@ -130,10 +130,13 @@ func emitWorkBody(s sink, w *Work) {
 		}
 		s.endList()
 	}
-	if len(w.Languages) > 0 {
+	if len(w.Languages) > 0 || len(w.OriginalLangs) > 0 {
 		s.beginList(qpLanguage)
 		for _, code := range w.Languages {
-			emitLanguage(s, code)
+			emitLanguage(s, code, "")
+		}
+		for _, code := range w.OriginalLangs {
+			emitLanguage(s, code, "original")
 		}
 		s.endList()
 	}
@@ -322,10 +325,14 @@ func emitRole(s sink, r Role) {
 }
 
 // emitLanguage emits a bf:Language IRI node in the LoC languages vocabulary,
-// labeled with its three-letter code.
-func emitLanguage(s sink, code string) {
+// carrying its three-letter code as bf:code (not a human rdfs:label) and, for a
+// non-content language, a bf:part role (e.g. "original" for a 041 $h original).
+func emitLanguage(s sink, code, part string) {
 	s.beginNode(qcLanguage, langIRIVal(code), qname{})
-	s.lit(qpLabel, code)
+	s.lit(qpCode, code)
+	if part != "" {
+		s.lit(qpPart, part)
+	}
 	s.endNode()
 }
 

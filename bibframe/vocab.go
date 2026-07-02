@@ -95,6 +95,8 @@ var (
 	qpSubject                = qname{nsBF, "subject", "bf:subject", pSubject}
 	qpGenreForm              = qname{nsBF, "genreForm", "bf:genreForm", pGenreForm}
 	qpLanguage               = qname{nsBF, "language", "bf:language", pLanguage}
+	qpCode                   = qname{nsBF, "code", "bf:code", pCode}
+	qpPart                   = qname{nsBF, "part", "bf:part", pPart}
 	qpClassification         = qname{nsBF, "classification", "bf:classification", pClassif}
 	qpClassificationPortion  = qname{nsBF, "classificationPortion", "bf:classificationPortion", pClassPortion}
 	qpItemPortion            = qname{nsBF, "itemPortion", "bf:itemPortion", pItemPortion}

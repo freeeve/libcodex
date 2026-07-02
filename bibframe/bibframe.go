@@ -73,7 +73,8 @@ type Work struct {
 	RelatedWorks    []RelatedWork
 	Subjects        []Subject
 	GenreForms      []string
-	Languages       []string // ISO 639-2 codes
+	Languages       []string // content languages: ISO 639-2 codes from 008/35-37 and 041 $a
+	OriginalLangs   []string // languages of the original (041 $h) -> bf:part "original"
 	Classifications []Classification
 	Summary         []string
 }
@@ -728,19 +729,24 @@ func splitParenthetical(s string) (value, qualifier string) {
 }
 
 func (g *BIBFRAME) addLanguages(r *codex.Record) {
-	// Languages number a handful at most, so a linear dedup over the accumulator
+	// Languages number a handful at most, so a linear dedup over each accumulator
 	// avoids allocating a set.
-	add := func(code string) {
-		if code = strings.TrimSpace(code); isLangCode(code) && !slices.Contains(g.Work.Languages, code) {
-			g.Work.Languages = append(g.Work.Languages, code)
+	addTo := func(dst *[]string, code string) {
+		if code = strings.TrimSpace(code); isLangCode(code) && !slices.Contains(*dst, code) {
+			*dst = append(*dst, code)
 		}
 	}
 	if c := r.ControlField("008"); len(c) >= 38 {
-		add(c[35:38])
+		addTo(&g.Work.Languages, c[35:38])
 	}
 	for _, code := range r.SubfieldValues("041", 'a') {
 		for i := 0; i+3 <= len(code); i += 3 {
-			add(code[i : i+3])
+			addTo(&g.Work.Languages, code[i:i+3])
+		}
+	}
+	for _, code := range r.SubfieldValues("041", 'h') { // language of the original
+		for i := 0; i+3 <= len(code); i += 3 {
+			addTo(&g.Work.OriginalLangs, code[i:i+3])
 		}
 	}
 }

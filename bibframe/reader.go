@@ -51,6 +51,7 @@ const (
 	pIdentifiedBy = bfNS + "identifiedBy"
 	pLocator      = bfNS + "electronicLocator"
 	pCode         = bfNS + "code"
+	pPart         = bfNS + "part"
 
 	// Administrative metadata (bf:AdminMetadata) — provenance about the record's
 	// description and the process that generated the RDF.

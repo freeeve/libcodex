@@ -106,12 +106,12 @@
     </bf:genreForm>
     <bf:language>
       <bf:Language rdf:about="http://id.loc.gov/vocabulary/languages/eng">
-        <rdfs:label>eng</rdfs:label>
+        <bf:code>eng</bf:code>
       </bf:Language>
     </bf:language>
     <bf:language>
       <bf:Language rdf:about="http://id.loc.gov/vocabulary/languages/fre">
-        <rdfs:label>fre</rdfs:label>
+        <bf:code>fre</bf:code>
       </bf:Language>
     </bf:language>
     <bf:classification>

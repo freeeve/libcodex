@@ -549,12 +549,19 @@ func sourceLabel(g *rdf.Graph, node rdf.Term) string {
 
 // languageField reverses bf:language into a single 041 with one $a per code.
 func languageField(g *rdf.Graph, work rdf.Term) []codex.Field {
-	var subs []codex.Subfield
+	var subs, orig []codex.Subfield
 	for _, l := range g.Objects(work, pLanguage) {
-		if code := langCode(g, l); code != "" {
+		code := langCode(g, l)
+		if code == "" {
+			continue
+		}
+		if literal(g, l, pPart) == "original" { // 041 $h -- language of the original
+			orig = append(orig, codex.NewSubfield('h', code))
+		} else {
 			subs = append(subs, codex.NewSubfield('a', code))
 		}
 	}
+	subs = append(subs, orig...)
 	if len(subs) == 0 {
 		return nil
 	}
