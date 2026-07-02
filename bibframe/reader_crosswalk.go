@@ -239,18 +239,57 @@ func identifierFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
 		source := sourceLabel(g, id)
 		qualifier := literal(g, id, pQualifier)
 		status := statusLabel(g, id)
-		switch typeExcept(g, id, "") {
+		switch class := typeExcept(g, id, ""); class {
 		case "Isbn":
 			fields = append(fields, identifierField("020", ' ', ' ', value, source, qualifier, status))
 		case "Issn":
 			fields = append(fields, identifierField("022", ' ', ' ', value, source, qualifier, status))
 		case "Lccn":
-			fields = append(fields, codex.NewDataField("010", ' ', ' ', codex.NewSubfield('a', strings.TrimSpace(value))))
+			code := byte('a')
+			if status == statusCancInv {
+				code = 'z'
+			}
+			fields = append(fields, codex.NewDataField("010", ' ', ' ', codex.NewSubfield(code, strings.TrimSpace(value))))
 		default:
-			fields = append(fields, identifierField("024", '8', ' ', value, source, qualifier, status))
+			fields = append(fields, identifier024Field(class, value, source, qualifier, status))
 		}
 	}
 	return fields
+}
+
+// ind1ByScheme024 and codeByScheme024 invert the forward 024 scheme maps so the
+// reverse crosswalk can restore a typed identifier to its 024 indicator / $2.
+var ind1ByScheme024 = func() map[string]byte {
+	m := make(map[string]byte, len(scheme024ByInd1))
+	for k, v := range scheme024ByInd1 {
+		m[v] = k
+	}
+	return m
+}()
+
+var codeByScheme024 = func() map[string]string {
+	m := make(map[string]string, len(scheme024ByCode))
+	for k, v := range scheme024ByCode {
+		m[v] = k
+	}
+	return m
+}()
+
+// identifier024Field reverses a typed identifier back into an 024: ind1 0-4 for the
+// standard schemes, ind1='7' with the $2 scheme code for the others, and ind1='8'
+// (or '7' when a source was recorded) for a generic identifier.
+func identifier024Field(class, value, source, qualifier, status string) codex.Field {
+	if ind1, ok := ind1ByScheme024[class]; ok {
+		return identifierField("024", ind1, ' ', value, "", qualifier, status)
+	}
+	if code, ok := codeByScheme024[class]; ok {
+		return identifierField("024", '7', ' ', value, code, qualifier, status)
+	}
+	ind1 := byte('8')
+	if source != "" {
+		ind1 = '7'
+	}
+	return identifierField("024", ind1, ' ', value, source, qualifier, status)
 }
 
 // statusLabel returns the rdfs:label of an identifier's bf:status node, or "".

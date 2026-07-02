@@ -230,12 +230,22 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 					g.appendClassification(trimISBD(sf.Value), "Classification", source)
 				}
 			}
+		case "010":
+			// Library of Congress Control Number: $a valid, $z canceled/invalid.
+			// LCCNs carry positional leading spaces, so trim all surrounding space.
+			g.appendIdentifier("Lccn", strings.TrimSpace(f.SubfieldValue('a')), "", "", "")
+			for _, sf := range f.Subfields {
+				if sf.Code == 'z' {
+					g.appendIdentifier("Lccn", strings.TrimSpace(sf.Value), "", "", statusCancInv)
+				}
+			}
 		case "020":
-			g.appendIdentifiers(f, 'a', "Isbn", true)
+			g.appendIdentifiers(f, 'a', "Isbn", trimISBD(f.SubfieldValue('2')), true)
 		case "022":
-			g.appendIdentifiers(f, 'a', "Issn", false)
+			g.appendIdentifiers(f, 'a', "Issn", trimISBD(f.SubfieldValue('2')), false)
 		case "024":
-			g.appendIdentifiers(f, 'a', "Identifier", false)
+			class, source := identifier024(f)
+			g.appendIdentifiers(f, 'a', class, source, false)
 		case "037":
 			// Source of acquisition (e.g. the OverDrive Reserve ID): the $a value,
 			// with the supplying scheme ($2) or agency ($b) kept as the identifier
@@ -318,7 +328,7 @@ func (g *BIBFRAME) presize(fields []codex.Field) {
 			subj++
 		case "050", "082", "072", "084":
 			classif++
-		case "020", "022", "024", "037":
+		case "010", "020", "022", "024", "037":
 			ident++
 		}
 	}
@@ -400,12 +410,44 @@ func (g *BIBFRAME) appendClassification(value, class, source string) {
 	}
 }
 
-// appendIdentifiers records one Instance identifier per matching subfield. When
-// qualified is set (ISBN/ISMN-style fields), a trailing parenthetical on the value
-// and any $q subfield are split into the identifier's bf:qualifier, matching
-// marc2bibframe2's handling of 020 qualifying information.
-func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class string, qualified bool) {
-	source := trimISBD(f.SubfieldValue('2')) // $2 names the identifier scheme (bf:source)
+// scheme024ByInd1 maps a 024 first indicator (0-4) to its bf identifier class,
+// following marc2bibframe2. Indicator '7' resolves the class from $2 via
+// scheme024ByCode; other indicators fall back to the generic bf:Identifier.
+var scheme024ByInd1 = map[byte]string{'0': "Isrc", '1': "Upc", '2': "Ismn", '3': "Ean", '4': "Sici"}
+
+// scheme024ByCode maps a 024 $2 scheme code (used when ind1='7') to its bf
+// identifier class, following marc2bibframe2's 024 handling.
+var scheme024ByCode = map[string]string{
+	"ansi": "Ansi", "doi": "Doi", "gtin-14": "Gtin14Number", "hdl": "Hdl",
+	"isan": "Isan", "isni": "Isni", "iso": "Iso", "istc": "Istc", "iswc": "Iswc",
+	"matrix-number": "MatrixNumber", "music-plate": "MusicPlate",
+	"music-publisher": "MusicPublisherNumber", "stock-number": "StockNumber",
+	"urn": "Urn", "videorecording-identifier": "VideoRecordingNumber",
+}
+
+// identifier024 resolves a 024 field to its bf identifier class and bf:source: the
+// class comes from ind1 (0-4) or, for ind1='7', from the $2 scheme code; an
+// unrecognized ind1='7' scheme is kept as a generic identifier with $2 as source.
+func identifier024(f codex.Field) (class, source string) {
+	if c, ok := scheme024ByInd1[f.Ind1]; ok {
+		return c, ""
+	}
+	if f.Ind1 == '7' {
+		s := trimISBD(f.SubfieldValue('2'))
+		if c, ok := scheme024ByCode[s]; ok {
+			return c, ""
+		}
+		return "Identifier", s
+	}
+	return "Identifier", "" // ind1 '8' or blank: unspecified standard number
+}
+
+// appendIdentifiers records one Instance identifier per matching subfield, with the
+// given class and bf:source. When qualified is set (ISBN-style fields), a trailing
+// parenthetical on the value and any $q subfield are split into the identifier's
+// bf:qualifier; a canceled ($z) or incorrect ISSN ($y) number is kept flagged
+// bf:status -- all matching marc2bibframe2.
+func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class, source string, qualified bool) {
 	qualifier := ""
 	if qualified {
 		qualifier = trimISBD(f.SubfieldValue('q'))
