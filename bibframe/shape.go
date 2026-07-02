@@ -87,7 +87,7 @@ func emitWorkBody(s sink, w *Work) {
 	if len(w.Subjects) > 0 {
 		s.beginList(qpSubject)
 		for _, sub := range w.Subjects {
-			emitLabeled(s, bfName(sub.Class), sub.Label)
+			emitSubject(s, sub)
 		}
 		s.endList()
 	}
@@ -199,6 +199,20 @@ func emitTitle(s sink, t Title) {
 func emitLabeled(s sink, class qname, label string) {
 	s.beginNode(class, iriVal{}, qname{})
 	s.lit(qpLabel, label)
+	s.endNode()
+}
+
+// emitSubject emits a bf:subject access point: the typed heading with its label
+// and, when known, the controlling thesaurus as bf:source (mirroring the
+// classification source node).
+func emitSubject(s sink, sub Subject) {
+	s.beginNode(bfName(sub.Class), iriVal{}, qname{})
+	s.lit(qpLabel, sub.Label)
+	if sub.Source != "" {
+		s.beginChild(qpSource)
+		emitLabeled(s, qcSource, sub.Source)
+		s.endChild()
+	}
 	s.endNode()
 }
 

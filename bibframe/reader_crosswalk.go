@@ -161,31 +161,70 @@ func subjectFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		if label == "" {
 			continue
 		}
+		ind2, sub2 := subjectInd2(sourceLabel(g, s))
 		switch typeExcept(g, s, "") {
 		case "Topic":
-			fields = append(fields, headingField("650", label))
+			fields = append(fields, headingField("650", label, ind2, sub2))
 		case "Place":
-			fields = append(fields, headingField("651", label))
+			fields = append(fields, headingField("651", label, ind2, sub2))
 		case "Person":
-			fields = append(fields, codex.NewDataField("600", '1', '0', codex.NewSubfield('a', label)))
+			fields = append(fields, nameHeadingField("600", '1', ind2, label, sub2))
 		case "Organization":
-			fields = append(fields, codex.NewDataField("610", '2', '0', codex.NewSubfield('a', label)))
+			fields = append(fields, nameHeadingField("610", '2', ind2, label, sub2))
 		case "Meeting":
-			fields = append(fields, codex.NewDataField("611", '2', '0', codex.NewSubfield('a', label)))
+			fields = append(fields, nameHeadingField("611", '2', ind2, label, sub2))
 		}
 	}
 	return fields
 }
 
+// subjectInd2 reverses a subject bf:source code into a 6xx second indicator, plus
+// a $2 value when the code is not one of the numeric-indicator thesauri (or the
+// source is unknown, which maps to ind2='7' with the code in $2).
+func subjectInd2(source string) (ind2 byte, sub2 string) {
+	switch source {
+	case "":
+		return ' ', "" // no thesaurus recorded
+	case "lcsh":
+		return '0', ""
+	case "lcshac":
+		return '1', ""
+	case "mesh":
+		return '2', ""
+	case "nal":
+		return '3', ""
+	case "cash":
+		return '5', ""
+	case "rvm":
+		return '6', ""
+	default:
+		return '7', source
+	}
+}
+
 // headingField builds a 650/651 from a "--"-subdivided label: the first portion
-// is $a, each remaining portion a general subdivision $x.
-func headingField(tag, label string) codex.Field {
+// is $a, each remaining portion a general subdivision $x, with the thesaurus in
+// $2 when the second indicator defers to it.
+func headingField(tag, label string, ind2 byte, sub2 string) codex.Field {
 	parts := strings.Split(label, "--")
 	subs := []codex.Subfield{codex.NewSubfield('a', parts[0])}
 	for _, p := range parts[1:] {
 		subs = append(subs, codex.NewSubfield('x', p))
 	}
-	return codex.NewDataField(tag, ' ', '0', subs...)
+	if sub2 != "" {
+		subs = append(subs, codex.NewSubfield('2', sub2))
+	}
+	return codex.NewDataField(tag, ' ', ind2, subs...)
+}
+
+// nameHeadingField builds a 600/610/611 name subject from its label, carrying the
+// thesaurus in $2 when the second indicator defers to it.
+func nameHeadingField(tag string, ind1, ind2 byte, label, sub2 string) codex.Field {
+	subs := []codex.Subfield{codex.NewSubfield('a', label)}
+	if sub2 != "" {
+		subs = append(subs, codex.NewSubfield('2', sub2))
+	}
+	return codex.NewDataField(tag, ind1, ind2, subs...)
 }
 
 // identifierFields reverses bf:identifiedBy into 020/022/024, restoring the

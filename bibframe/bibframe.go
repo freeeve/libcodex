@@ -98,8 +98,9 @@ type Contribution struct {
 
 // Subject is a topical, geographic or name access point on the Work.
 type Subject struct {
-	Class string // "Topic", "Place", "Person", "Organization" or "Meeting"
-	Label string
+	Class  string // "Topic", "Place", "Person", "Organization" or "Meeting"
+	Label  string
+	Source string // subject thesaurus code (bf:source), e.g. "lcsh", "mesh"; optional
 }
 
 // Classification is a call number with its BIBFRAME class.
@@ -189,19 +190,23 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 				g.Work.Summary = append(g.Work.Summary, v)
 			}
 		case "650":
-			g.appendSubject(subdivided(f), "Topic")
+			g.appendSubject(subdivided(f), "Topic", subjectSource(f))
 		case "651":
-			g.appendSubject(subdivided(f), "Place")
+			g.appendSubject(subdivided(f), "Place", subjectSource(f))
 		case "655":
-			if v := trimISBD(f.SubfieldValue('a')); v != "" {
+			// A subdivided 655 is a topical subject in m2b; a plain genre term
+			// stays a bf:genreForm (which our model carries as a bare label).
+			if hasSubdivision(f) {
+				g.appendSubject(subdivided(f), "Topic", subjectSource(f))
+			} else if v := trimISBD(f.SubfieldValue('a')); v != "" {
 				g.Work.GenreForms = append(g.Work.GenreForms, v)
 			}
 		case "600":
-			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Person")
+			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Person", subjectSource(f))
 		case "610":
-			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Organization")
+			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Organization", subjectSource(f))
 		case "611":
-			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Meeting")
+			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Meeting", subjectSource(f))
 		case "050":
 			g.appendClassification(joinSub(f, "ab", " "), "ClassificationLcc", "")
 		case "082":
@@ -338,10 +343,48 @@ func (g *BIBFRAME) appendContribution(f codex.Field, class string, primary bool)
 	})
 }
 
-func (g *BIBFRAME) appendSubject(label, class string) {
+func (g *BIBFRAME) appendSubject(label, class, source string) {
 	if label != "" {
-		g.Work.Subjects = append(g.Work.Subjects, Subject{Class: class, Label: label})
+		g.Work.Subjects = append(g.Work.Subjects, Subject{Class: class, Label: label, Source: source})
 	}
+}
+
+// subjectThesaurusByInd2 maps a 6xx second indicator to the conventional $2
+// thesaurus code that names the controlled vocabulary, following marc2bibframe2's
+// subjectThesaurus mapping. Indicator '4' (source unspecified) and '7' (source in
+// $2) are handled by subjectSource reading $2 directly.
+var subjectThesaurusByInd2 = map[byte]string{
+	'0': "lcsh",   // Library of Congress Subject Headings
+	'1': "lcshac", // LCSH for children's literature
+	'2': "mesh",   // Medical Subject Headings
+	'3': "nal",    // National Agricultural Library
+	'5': "cash",   // Canadian Subject Headings
+	'6': "rvm",    // Répertoire de vedettes-matière
+}
+
+// subjectSource returns the thesaurus code (bf:source) for a 6xx field: a
+// conventional code from the second indicator, or the $2 value when the indicator
+// defers to it (ind2 '4' or '7').
+func subjectSource(f codex.Field) string {
+	if code, ok := subjectThesaurusByInd2[f.Ind2]; ok {
+		return code
+	}
+	return trimISBD(f.SubfieldValue('2'))
+}
+
+// hasSubdivision reports whether a 6xx field carries a $x/$y/$z/$v subdivision,
+// which turns a 655 genre heading into a topical subject (matching m2b, where a
+// subdivided 655 is a bf:subject rather than a bf:genreForm).
+func hasSubdivision(f codex.Field) bool {
+	for _, sf := range f.Subfields {
+		switch sf.Code {
+		case 'x', 'y', 'z', 'v':
+			if strings.TrimRight(sf.Value, " ") != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (g *BIBFRAME) appendClassification(value, class, source string) {

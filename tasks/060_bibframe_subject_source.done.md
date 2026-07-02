@@ -34,6 +34,26 @@ adds only the cheap, faithful signals on top of the flat model.
 
 ## Acceptance
 
-- [ ] Subjects carry `bf:source` derived from ind2/$2; round-trips through ind2.
-- [ ] Subdivided 655 becomes a subject, not a flat genreForm.
-- [ ] New/updated golden + round-trip test; full suite + fuzz green.
+- [x] Subjects carry `bf:source` derived from ind2/$2; round-trips through ind2.
+- [x] Subdivided 655 becomes a subject, not a flat genreForm.
+- [x] New/updated golden + round-trip test; full suite + fuzz green.
+
+## Result
+
+Added `Subject.Source`, populated from the 6xx second indicator via
+`subjectThesaurusByInd2` (0->lcsh, 1->lcshac, 2->mesh, 3->nal, 5->cash, 6->rvm) or
+$2 for ind2 4/7 (`subjectSource`). A subdivided 655 (`hasSubdivision`) now routes to
+a Topic subject with its scheme instead of a flat genreForm; a plain 655 stays a
+genreForm (genreForm sources deferred -- would require widening `GenreForms` from
+`[]string`, and the sample 655 has no $2). `emitSubject` emits `bf:source` like the
+classification node; the reverse path (`subjectInd2`, `headingField`,
+`nameHeadingField`) restores ind2 (numeric schemes) or ind2='7' + $2 (named
+schemes), defaulting to a blank ind2 when no source was recorded.
+
+Goldens regenerated: five sample subjects gained an lcsh `bf:source` (ind2=0);
+genreForm unchanged. Tests: `subject_source_test.go` (source from ind2/$2, 655
+reroute, ind2/$2 round-trip); retargeted `TestSourceOmittedWhenEmpty` at a
+purpose-built unsourced record (its old premise that the sample has no sources no
+longer holds). Full suite + FuzzFromMARC/FuzzDecode green.
+
+Kept the flat `--` label model (no ComplexSubject) per the audit's stated posture.

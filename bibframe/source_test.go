@@ -56,10 +56,17 @@ func TestSourceEmitted(t *testing.T) {
 	}
 }
 
-// TestSourceOmittedWhenEmpty checks that a record without a scheme emits no
-// bf:Source node (no empty nodes).
+// TestSourceOmittedWhenEmpty checks that a record whose access points carry no
+// scheme emits no bf:Source node: an 020/050 without $2 and a 650 with a blank
+// second indicator (no thesaurus).
 func TestSourceOmittedWhenEmpty(t *testing.T) {
-	g, _ := rdf.ParseNTriples(mustEncodeNT(t, sample())) // sample() has no $2 sources
+	rec := codex.NewRecord().
+		AddField(codex.NewControlField("001", "x")).
+		AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "T"))).
+		AddField(codex.NewDataField("020", ' ', ' ', codex.NewSubfield('a', "0786803525"))).
+		AddField(codex.NewDataField("050", ' ', '0', codex.NewSubfield('a', "PS3556"))).
+		AddField(codex.NewDataField("650", ' ', ' ', codex.NewSubfield('a', "Lesbians")))
+	g, _ := rdf.ParseNTriples(mustEncodeNT(t, rec))
 	if n := len(g.SubjectsOfType(classSource)); n != 0 {
 		t.Errorf("unsourced record emitted %d bf:Source nodes, want 0", n)
 	}

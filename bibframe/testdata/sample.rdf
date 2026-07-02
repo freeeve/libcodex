@@ -47,26 +47,51 @@
     <bf:subject>
       <bf:Topic>
         <rdfs:label>Lesbians--Fiction</rdfs:label>
+        <bf:source>
+          <bf:Source>
+            <rdfs:label>lcsh</rdfs:label>
+          </bf:Source>
+        </bf:source>
       </bf:Topic>
     </bf:subject>
     <bf:subject>
       <bf:Place>
         <rdfs:label>New York (State)</rdfs:label>
+        <bf:source>
+          <bf:Source>
+            <rdfs:label>lcsh</rdfs:label>
+          </bf:Source>
+        </bf:source>
       </bf:Place>
     </bf:subject>
     <bf:subject>
       <bf:Person>
         <rdfs:label>Feinberg, Leslie</rdfs:label>
+        <bf:source>
+          <bf:Source>
+            <rdfs:label>lcsh</rdfs:label>
+          </bf:Source>
+        </bf:source>
       </bf:Person>
     </bf:subject>
     <bf:subject>
       <bf:Organization>
         <rdfs:label>Firebrand Books</rdfs:label>
+        <bf:source>
+          <bf:Source>
+            <rdfs:label>lcsh</rdfs:label>
+          </bf:Source>
+        </bf:source>
       </bf:Organization>
     </bf:subject>
     <bf:subject>
       <bf:Meeting>
         <rdfs:label>Some Conference</rdfs:label>
+        <bf:source>
+          <bf:Source>
+            <rdfs:label>lcsh</rdfs:label>
+          </bf:Source>
+        </bf:source>
       </bf:Meeting>
     </bf:subject>
     <bf:genreForm>
