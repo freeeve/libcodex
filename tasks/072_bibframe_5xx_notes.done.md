@@ -76,14 +76,15 @@ Landed the common note tags with a round-trippable `bf:noteType` vocabulary:
 Common note tags landed (500/504/505/546). Still dropped:
 
 - [ ] 508 (creation/production credits) -> `bf:noteType`/`bf:CreditsNote`.
-- [ ] 511 (participant/performer) -> `bf:noteType "performerNote"`.
+- [x] 511 (participant/performer) -> `bf:noteType "performers"` (Work). [081]
 - [ ] 520 ind1 nuance -- currently always `bf:summary`; m2b splits abstract/review.
-- [ ] 521 (target audience) -> `bf:intendedAudience`.
+- [x] 521 (target audience) -> `bf:noteType "audience"` (Work; typed note rather than `bf:intendedAudience`, keeping the flat model). [081]
 - [ ] 524 (preferred citation) -> `bf:citation`/note.
-- [ ] 525 (supplement note), 533/534 (reproduction/original version notes).
+- [x] 533 -> `bf:noteType "reproduction"` (Instance; label joins every subfield). [081]
+- [ ] 525 (supplement note), 534 (original version note).
 - [ ] 502 (dissertation) -> `bf:dissertation`.
 - [ ] 506/540 (access/use policy) -> `bf:usageAndAccessPolicy`.
-- [ ] 538 (system requirements) -> `bf:systemRequirement`.
+- [x] 538 -> `bf:noteType "systemDetails"` (Instance; typed note rather than `bf:systemRequirement`). [081]
 - [ ] 856 ind2 refinement: ind2=2 -> `bf:supplementaryContent`, ToC $3/$a ->
       `bf:tableOfContents`, rather than always `bf:electronicLocator` (separate,
       small; not started).

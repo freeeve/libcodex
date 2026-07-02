@@ -118,6 +118,9 @@ var (
 	qpTableOfContents        = qname{nsBF, "tableOfContents", "bf:tableOfContents", pTableOfContents}
 	qpResponsibilityStmt     = qname{nsBF, "responsibilityStatement", "bf:responsibilityStatement", pRespStmt}
 	qpEditionStatement       = qname{nsBF, "editionStatement", "bf:editionStatement", pEdition}
+	qpSeriesStatement        = qname{nsBF, "seriesStatement", "bf:seriesStatement", pSeriesStatement}
+	qpDuration               = qname{nsBF, "duration", "bf:duration", pDuration}
+	qpDigitalCharacteristic  = qname{nsBF, "digitalCharacteristic", "bf:digitalCharacteristic", pDigitalCharacteristic}
 	qpProvisionActivity      = qname{nsBF, "provisionActivity", "bf:provisionActivity", pProvision}
 	qpCopyrightDate          = qname{nsBF, "copyrightDate", "bf:copyrightDate", pCopyright}
 	qpSimplePlace            = qname{nsBFLC, "simplePlace", "bflc:simplePlace", pSimplePlace}

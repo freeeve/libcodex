@@ -46,6 +46,12 @@ func normalize(g *BIBFRAME) *BIBFRAME {
 	sort.Slice(g.Work.Relations, func(i, j int) bool { return relationKey(g.Work.Relations[i]) < relationKey(g.Work.Relations[j]) })
 	sort.Strings(g.Instance.Extent)
 	sort.Strings(g.Instance.ElectronicLocator)
+	sort.Strings(g.Instance.SeriesStatements)
+	sort.Strings(g.Instance.Duration)
+	sort.Slice(g.Instance.DigitalCharacteristics, func(i, j int) bool {
+		a, b := g.Instance.DigitalCharacteristics[i], g.Instance.DigitalCharacteristics[j]
+		return a.Class+"|"+a.Label < b.Class+"|"+b.Label
+	})
 	return g
 }
 
@@ -56,7 +62,7 @@ func titleKey(t Title) string {
 func noteKey(n Note) string { return n.Type + "|" + n.Label }
 
 func relationKey(r Relation) string {
-	return r.Relationship + "|" + r.Name + "|" + r.Title + "|" + r.ISSN
+	return r.Relationship + "|" + r.Name + "|" + r.Title + "|" + r.ISSN + "|" + r.ISBN
 }
 
 func contKey(c Contribution) string {

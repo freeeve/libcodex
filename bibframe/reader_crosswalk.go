@@ -56,6 +56,15 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	if ed := literal(g, inst, pEdition); ed != "" {
 		add(codex.NewDataField("250", ' ', ' ', codex.NewSubfield('a', ed)))
 	}
+	for _, stmt := range literalsOf(g, inst, pSeriesStatement) {
+		add(seriesField(stmt))
+	}
+	if f := durationField(g, inst); f != nil {
+		add(*f)
+	}
+	if f := digitalCharacteristicsField(g, inst); f != nil {
+		add(*f)
+	}
 	for _, f := range provisionFields(g, inst) {
 		add(f)
 	}
@@ -179,8 +188,12 @@ func relationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		if title := firstTitle(g, res).MainTitle; title != "" {
 			subs = append(subs, codex.NewSubfield('t', title))
 		}
-		if issn := associatedISSN(g, res); issn != "" {
+		issn, isbn := associatedIdentifiers(g, res)
+		if issn != "" {
 			subs = append(subs, codex.NewSubfield('x', issn))
+		}
+		if isbn != "" {
+			subs = append(subs, codex.NewSubfield('z', isbn))
 		}
 		if len(subs) == 0 {
 			continue
@@ -188,6 +201,56 @@ func relationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		fields = append(fields, codex.NewDataField(tag, ' ', ind2, subs...))
 	}
 	return fields
+}
+
+// seriesField reverses one bf:seriesStatement literal into a 490, splitting the
+// volume designation back out of the statement.
+func seriesField(stmt string) codex.Field {
+	title, volume := splitSeriesStatement(stmt)
+	subs := []codex.Subfield{codex.NewSubfield('a', title)}
+	if volume != "" {
+		subs = append(subs, codex.NewSubfield('v', volume))
+	}
+	return codex.NewDataField("490", '0', ' ', subs...)
+}
+
+// durationField reverses the Instance's bf:duration literals into one 306 with a
+// repeated $a, or nil when there are none.
+func durationField(g *rdf.Graph, inst rdf.Term) *codex.Field {
+	durations := literalsOf(g, inst, pDuration)
+	if len(durations) == 0 {
+		return nil
+	}
+	var subs []codex.Subfield
+	for _, d := range durations {
+		subs = append(subs, codex.NewSubfield('a', d))
+	}
+	f := codex.NewDataField("306", ' ', ' ', subs...)
+	return &f
+}
+
+// digitalCharacteristicsField reverses the Instance's bf:digitalCharacteristic
+// nodes into one 347: FileType labels as $a, EncodingFormat labels as $b, or nil
+// when there are none.
+func digitalCharacteristicsField(g *rdf.Graph, inst rdf.Term) *codex.Field {
+	var subs []codex.Subfield
+	for _, dc := range g.Objects(inst, pDigitalCharacteristic) {
+		label := literal(g, dc, pLabel)
+		if label == "" {
+			continue
+		}
+		switch typeExcept(g, dc, "") {
+		case "FileType":
+			subs = append(subs, codex.NewSubfield('a', label))
+		case "EncodingFormat":
+			subs = append(subs, codex.NewSubfield('b', label))
+		}
+	}
+	if len(subs) == 0 {
+		return nil
+	}
+	f := codex.NewDataField("347", ' ', ' ', subs...)
+	return &f
 }
 
 // relationshipCode returns a bf:Relation node's relationship code: the local name of
@@ -214,15 +277,26 @@ func associatedName(g *rdf.Graph, res rdf.Term) string {
 	return ""
 }
 
-// associatedISSN returns the first bf:identifiedBy value of a bf:associatedResource
-// Work (the linked resource's ISSN), or "".
-func associatedISSN(g *rdf.Graph, res rdf.Term) string {
+// associatedIdentifiers returns the ISSN and ISBN of a bf:associatedResource
+// Work's identifiers, routed by identifier class ("" when absent).
+func associatedIdentifiers(g *rdf.Graph, res rdf.Term) (issn, isbn string) {
 	for _, id := range g.Objects(res, pIdentifiedBy) {
-		if v := literal(g, id, pValue); v != "" {
-			return v
+		v := literal(g, id, pValue)
+		if v == "" {
+			continue
+		}
+		switch typeExcept(g, id, "") {
+		case "Isbn":
+			if isbn == "" {
+				isbn = v
+			}
+		default: // Issn (and the pre-081 untyped shape)
+			if issn == "" {
+				issn = v
+			}
 		}
 	}
-	return ""
+	return issn, isbn
 }
 
 // roleSubfields reverses a contribution's bf:role nodes: an IRI role becomes $4 (the

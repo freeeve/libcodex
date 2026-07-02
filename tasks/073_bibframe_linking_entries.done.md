@@ -89,5 +89,5 @@ Common tags landed (773/776/780/785). Still dropped:
 - [ ] 770/772 (supplement / parent of supplement), 774 (constituent unit),
       775 (other edition), 777 (issued with).
 - [ ] 786 (data source), 787 (generic relationship).
-- [ ] 490/8xx series -> `bf:hasSeries` (separate; series statement, not a 76x link).
+- [x] 490 -> `bf:seriesStatement` on the Instance (statement form; 8xx traced series -> `bf:hasSeries` still open). [081]
 - [ ] 773 `$g`/`$q` enumeration -> `bf:part` on the associated resource.

@@ -156,11 +156,19 @@ func emitWorkBody(s sink, w *Work) {
 		}
 		s.endList()
 	}
-	for _, rw := range w.RelatedWorks {
-		emitRelatedWork(s, rw)
+	if len(w.RelatedWorks) > 0 {
+		s.beginList(qpRelatedTo)
+		for _, rw := range w.RelatedWorks {
+			emitRelatedWork(s, rw)
+		}
+		s.endList()
 	}
-	for _, rel := range w.Relations {
-		emitRelation(s, rel)
+	if len(w.Relations) > 0 {
+		s.beginList(qpRelation)
+		for _, rel := range w.Relations {
+			emitRelation(s, rel)
+		}
+		s.endList()
 	}
 	if len(w.Subjects) > 0 {
 		s.beginList(qpSubject)
@@ -254,6 +262,7 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 	if in.EditionStatement != "" {
 		s.lit(qpEditionStatement, in.EditionStatement)
 	}
+	s.litList(qpSeriesStatement, in.SeriesStatements)
 	if len(in.Provisions) > 0 {
 		s.beginList(qpProvisionActivity)
 		for i := range in.Provisions {
@@ -272,6 +281,14 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 		s.endList()
 	}
 	s.litList(qpDimensions, in.Dimensions)
+	s.litList(qpDuration, in.Duration)
+	if len(in.DigitalCharacteristics) > 0 {
+		s.beginList(qpDigitalCharacteristic)
+		for _, dc := range in.DigitalCharacteristics {
+			emitLabeled(s, qname{ns: nsBFLC, local: dc.Class}, dc.Label)
+		}
+		s.endList()
+	}
 	if len(in.Media) > 0 {
 		s.beginList(qpMedia)
 		for _, m := range in.Media {
@@ -388,10 +405,10 @@ func emitContribution(s sink, c Contribution) {
 	s.endNode()
 }
 
-// emitRelatedWork emits a bf:relatedTo -> bf:Work name-title node: the linking name
-// as the related work's creator contribution, and the referenced work's title.
+// emitRelatedWork emits one bf:Work name-title node (the caller wraps the
+// repeated bf:relatedTo children in a list): the linking name as the related
+// work's creator contribution, and the referenced work's title.
 func emitRelatedWork(s sink, rw RelatedWork) {
-	s.beginChild(qpRelatedTo)
 	s.beginNode(qcWork, iriVal{}, qname{})
 	if rw.Name != "" {
 		s.beginChild(qpContribution)
@@ -402,7 +419,6 @@ func emitRelatedWork(s sink, rw RelatedWork) {
 	emitTitle(s, rw.Title)
 	s.endChild()
 	s.endNode()
-	s.endChild()
 }
 
 // relationshipIRIVal builds a bf:relationship IRI in the LoC relationship vocabulary
@@ -415,13 +431,13 @@ func relationshipIRIVal(code string) iriVal {
 	return iriVal{relationshipVocab, code, ""}
 }
 
-// emitRelation emits a 76x-78x linking entry as bf:relation -> bf:Relation: the
-// relationship as a bf:relationship vocabulary IRI, and the linked resource as a
-// blank bf:associatedResource -> bf:Work carrying its title, optional creator
-// contribution and optional ISSN. The associated Work is a flat, label-oriented
-// stand-in for m2b's IRI-minted related resource.
+// emitRelation emits one 76x-78x linking entry as a bf:Relation node (the caller
+// wraps the repeated bf:relation children in a list): the relationship as a
+// bf:relationship vocabulary IRI, and the linked resource as a blank
+// bf:associatedResource -> bf:Work carrying its title, optional creator
+// contribution and optional ISSN/ISBN. The associated Work is a flat,
+// label-oriented stand-in for m2b's IRI-minted related resource.
 func emitRelation(s sink, rel Relation) {
-	s.beginChild(qpRelation)
 	s.beginNode(qcRelation, iriVal{}, qname{})
 	s.ref(qpRelationship, relationshipIRIVal(rel.Relationship))
 	s.beginChild(qpAssociatedResource)
@@ -436,15 +452,19 @@ func emitRelation(s sink, rel Relation) {
 		emitTitle(s, Title{MainTitle: rel.Title})
 		s.endChild()
 	}
-	if rel.ISSN != "" {
-		s.beginChild(qpIdentifiedBy)
-		emitIdentifier(s, Identifier{Class: "Issn", Value: rel.ISSN})
-		s.endChild()
+	if rel.ISSN != "" || rel.ISBN != "" {
+		s.beginList(qpIdentifiedBy)
+		if rel.ISSN != "" {
+			emitIdentifier(s, Identifier{Class: "Issn", Value: rel.ISSN})
+		}
+		if rel.ISBN != "" {
+			emitIdentifier(s, Identifier{Class: "Isbn", Value: rel.ISBN})
+		}
+		s.endList()
 	}
 	s.endNode()
 	s.endChild()
 	s.endNode()
-	s.endChild()
 }
 
 // emitRDA emits an RDA content/media/carrier node: an IRI-typed node in the given

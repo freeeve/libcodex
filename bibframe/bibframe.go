@@ -121,6 +121,7 @@ type Relation struct {
 	Name         string // linked resource creator ($a); optional
 	Title        string // linked resource title ($t, or $s); the primary access point
 	ISSN         string // linked resource ISSN ($x) -> bf:Issn; optional
+	ISBN         string // linked resource ISBN ($z) -> bf:Isbn; optional (776 print/ebook pairing)
 }
 
 // Instance is a particular publication of the Work (bf:Instance).
@@ -129,17 +130,27 @@ type Instance struct {
 	VariantTitles           []VariantTitle // 246 cover/spine titles
 	ResponsibilityStatement string
 	EditionStatement        string
+	SeriesStatements        []string // 490 -> bf:seriesStatement
 	Provisions              []Provision
 	CopyrightDate           string // 264 _4 $c -> bf:copyrightDate; optional
 	Extent                  []string
-	Dimensions              []string  // 300 $c -> bf:dimensions
-	Media                   []RDATerm // RDA media types (337) -> bf:media
-	Carrier                 []RDATerm // RDA carrier types (338) -> bf:carrier
-	Issuance                string    // mode of issuance (leader/07) -> bf:issuance IRI; optional
-	Notes                   []Note    // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
+	Dimensions              []string                // 300 $c -> bf:dimensions
+	Duration                []string                // 306 $a playing times -> bf:duration
+	Media                   []RDATerm               // RDA media types (337) -> bf:media
+	Carrier                 []RDATerm               // RDA carrier types (338) -> bf:carrier
+	DigitalCharacteristics  []DigitalCharacteristic // 347 -> bf:digitalCharacteristic
+	Issuance                string                  // mode of issuance (leader/07) -> bf:issuance IRI; optional
+	Notes                   []Note                  // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
 	Identifiers             []Identifier
 	ElectronicLocator       []string
 	Admin                   *AdminMetadata
+}
+
+// DigitalCharacteristic is one 347 digital-file characteristic: the bflc class
+// refining it (FileType for $a, EncodingFormat for $b) and its label.
+type DigitalCharacteristic struct {
+	Class string // "FileType" or "EncodingFormat"
+	Label string
 }
 
 // Title is a bf:Title with its component portions.
@@ -307,16 +318,31 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			g.Instance.Carrier = append(g.Instance.Carrier, rdaTerm(f))
 		case "773", "776", "780", "785":
 			g.appendRelation(f)
-		case "500", "504", "546":
-			// 500/504 describe the Instance; 546 (language) describes the Work.
-			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
+		case "500", "504", "511", "521", "533", "538", "546":
+			// Notes about the content (546 language, 511 performers, 521
+			// audience) describe the Work; the rest (500 general, 504
+			// bibliography, 533 reproduction, 538 system details) the Instance.
+			if v := noteLabel(f); v != "" {
 				n := Note{Type: noteTypeForTag(f.Tag), Label: v}
-				if f.Tag == "546" {
+				switch f.Tag {
+				case "511", "521", "546":
 					g.Work.Notes = append(g.Work.Notes, n)
-				} else {
+				default:
 					g.Instance.Notes = append(g.Instance.Notes, n)
 				}
 			}
+		case "490":
+			if stmt := seriesStatement(f); stmt != "" {
+				g.Instance.SeriesStatements = append(g.Instance.SeriesStatements, stmt)
+			}
+		case "306":
+			for _, d := range f.SubfieldValues('a') {
+				if v := strings.TrimSpace(d); v != "" {
+					g.Instance.Duration = append(g.Instance.Duration, v)
+				}
+			}
+		case "347":
+			g.appendDigitalCharacteristics(f)
 		case "505":
 			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
 				g.Work.TableOfContents = append(g.Work.TableOfContents, v)
@@ -539,7 +565,8 @@ func (g *BIBFRAME) appendRelation(f codex.Field) {
 	}
 	name := trimISBD(f.SubfieldValue('a'))
 	issn := trimISBD(f.SubfieldValue('x'))
-	if title == "" && name == "" && issn == "" {
+	isbn := trimISBD(f.SubfieldValue('z'))
+	if title == "" && name == "" && issn == "" && isbn == "" {
 		return
 	}
 	g.Work.Relations = append(g.Work.Relations, Relation{
@@ -547,6 +574,7 @@ func (g *BIBFRAME) appendRelation(f codex.Field) {
 		Name:         name,
 		Title:        title,
 		ISSN:         issn,
+		ISBN:         isbn,
 	})
 }
 
@@ -1216,12 +1244,77 @@ func ind2ForVariant(vt VariantTitle) byte {
 	}
 }
 
+// noteLabel renders a 5xx note's text: the field's subfield values in order,
+// space-joined, skipping the linkage subfields ($6/$8). A single-$a note reads
+// exactly as its $a; multi-subfield notes (533 reproduction details) keep every
+// part rather than dropping all but $a.
+func noteLabel(f codex.Field) string {
+	var parts []string
+	for _, s := range f.Subfields {
+		if s.Code == '6' || s.Code == '8' {
+			continue
+		}
+		if v := strings.TrimRight(s.Value, " "); v != "" {
+			parts = append(parts, v)
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// seriesStatement renders a 490 as one bf:seriesStatement literal: the series
+// title ($a) with the volume designation ($v) appended after the ISBD " ; "
+// separator, which the reverse crosswalk splits on.
+func seriesStatement(f codex.Field) string {
+	stmt := trimISBD(f.SubfieldValue('a'))
+	if v := trimISBD(f.SubfieldValue('v')); v != "" && stmt != "" {
+		stmt += " ; " + v
+	}
+	return stmt
+}
+
+// splitSeriesStatement inverts seriesStatement, splitting a statement at its
+// last " ; " into title and volume. A statement without the separator is all
+// title.
+func splitSeriesStatement(stmt string) (title, volume string) {
+	if i := strings.LastIndex(stmt, " ; "); i >= 0 {
+		return stmt[:i], stmt[i+3:]
+	}
+	return stmt, ""
+}
+
+// appendDigitalCharacteristics reads a 347 field's file type ($a) and encoding
+// format ($b) values as typed digital characteristics.
+func (g *BIBFRAME) appendDigitalCharacteristics(f codex.Field) {
+	for _, s := range f.Subfields {
+		var class string
+		switch s.Code {
+		case 'a':
+			class = "FileType"
+		case 'b':
+			class = "EncodingFormat"
+		default:
+			continue
+		}
+		if v := trimISBD(s.Value); v != "" {
+			g.Instance.DigitalCharacteristics = append(g.Instance.DigitalCharacteristics, DigitalCharacteristic{Class: class, Label: v})
+		}
+	}
+}
+
 // noteTypeForTag maps a 5xx note tag to its bf:noteType token ("" for a general
 // 500 note).
 func noteTypeForTag(tag string) string {
 	switch tag {
 	case "504":
 		return "bibliography"
+	case "511":
+		return "performers"
+	case "521":
+		return "audience"
+	case "533":
+		return "reproduction"
+	case "538":
+		return "systemDetails"
 	case "546":
 		return "language"
 	default: // 500
@@ -1235,6 +1328,14 @@ func tagForNoteType(noteType string) string {
 	switch noteType {
 	case "bibliography":
 		return "504"
+	case "performers":
+		return "511"
+	case "audience":
+		return "521"
+	case "reproduction":
+		return "533"
+	case "systemDetails":
+		return "538"
 	case "language":
 		return "546"
 	default:

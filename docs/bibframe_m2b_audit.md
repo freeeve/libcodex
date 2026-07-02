@@ -206,6 +206,19 @@ remains a tracked checklist in its task file.
   (`#Work760-1`-style) for each linked resource; this crosswalk keeps the flat model
   and emits the `bf:associatedResource` as a blank labeled `bf:Work`, consistent with
   the name-title `bf:relatedTo` handling from 062.
+- RESOLVED [081] -- downstream-driven round-trip batch (filed from libcatalog's
+  fidelity gate): 511/521 -> typed Work notes (`performers`/`audience`), 533/538 ->
+  typed Instance notes (`reproduction`/`systemDetails`), with note labels now
+  joining every subfield (a multi-subfield 533 keeps its details); 490 ->
+  `bf:seriesStatement` on the Instance (volume rejoined after " ; ", split back on
+  decode); 776 `$z` -> a `bf:Isbn` on the associated resource (the OverDrive
+  print/ebook pairing shape, previously dropped); 306 -> `bf:duration`; 347 $a/$b
+  -> `bf:digitalCharacteristic` -> `bflc:FileType`/`bflc:EncodingFormat`. Repeated
+  `bf:relatedTo`/`bf:relation` children now serialize as JSON-LD arrays -- the
+  third instance of the duplicate-object-key class, caught by the new loss-gate
+  matrix (`lossgate_test.go`), which round-trips a fully populated record and the
+  realdata corpus through all four serializations and pins every tag as
+  kept/transformed/lost.
 - RESOLVED [069] -- 003 is read into `AdminMetadata.ControlOrg` and attached to the
   001 `bf:Local` as a `bf:assigner` agent (organizations-vocabulary IRI when the
   code is IRI-safe, plus `bf:code`). Only emitted when 003 is present -- no DLC
