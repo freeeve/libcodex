@@ -116,7 +116,14 @@ type Identifier struct {
 	Value     string
 	Source    string // identifier scheme (bf:source), e.g. a provider code; optional
 	Qualifier string // qualifying note (bf:qualifier), e.g. "electronic bk"; optional
+	Status    string // bf:status: statusCancInv or statusIncorrect; "" when valid
 }
+
+// Identifier status codes (bf:status), following marc2bibframe2's mstatus values.
+const (
+	statusCancInv   = "cancinv"   // canceled or invalid ($z)
+	statusIncorrect = "incorrect" // incorrect ($y, ISSN)
+)
 
 // Provision is a bf:Publication (place / publisher / date).
 type Provision struct {
@@ -237,7 +244,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			if source == "" {
 				source = trimISBD(f.SubfieldValue('b'))
 			}
-			g.appendIdentifier("Identifier", trimISBD(f.SubfieldValue('a')), source, "")
+			g.appendIdentifier("Identifier", trimISBD(f.SubfieldValue('a')), source, "", "")
 		case "856":
 			for _, sf := range f.Subfields {
 				if sf.Code == 'u' {
@@ -404,7 +411,8 @@ func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class string, qua
 		qualifier = trimISBD(f.SubfieldValue('q'))
 	}
 	for _, sf := range f.Subfields {
-		if sf.Code == code {
+		switch sf.Code {
+		case code:
 			value := trimISBD(sf.Value)
 			q := qualifier
 			if qualified {
@@ -414,15 +422,25 @@ func (g *BIBFRAME) appendIdentifiers(f codex.Field, code byte, class string, qua
 					q = paren
 				}
 			}
-			g.appendIdentifier(class, value, source, q)
+			g.appendIdentifier(class, value, source, q, "")
+		case 'z':
+			// A canceled/invalid number ($z) is kept as an identifier flagged
+			// bf:status, not dropped, matching marc2bibframe2.
+			g.appendIdentifier(class, trimISBD(sf.Value), source, "", statusCancInv)
+		case 'y':
+			if class == "Issn" { // 022 $y is an incorrect ISSN
+				g.appendIdentifier(class, trimISBD(sf.Value), source, "", statusIncorrect)
+			}
 		}
 	}
 }
 
 // appendIdentifier records one Instance identifier when the value is non-empty.
-func (g *BIBFRAME) appendIdentifier(class, value, source, qualifier string) {
+func (g *BIBFRAME) appendIdentifier(class, value, source, qualifier, status string) {
 	if value != "" {
-		g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{Class: class, Value: value, Source: source, Qualifier: qualifier})
+		g.Instance.Identifiers = append(g.Instance.Identifiers, Identifier{
+			Class: class, Value: value, Source: source, Qualifier: qualifier, Status: status,
+		})
 	}
 }
 

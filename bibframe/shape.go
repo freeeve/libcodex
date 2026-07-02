@@ -260,6 +260,11 @@ func emitIdentifier(s sink, id Identifier) {
 	if id.Qualifier != "" {
 		s.lit(qpQualifier, id.Qualifier)
 	}
+	if id.Status != "" {
+		s.beginChild(qpStatus)
+		emitLabeled(s, qcStatus, id.Status)
+		s.endChild()
+	}
 	if id.Source != "" {
 		s.beginChild(qpSource)
 		emitLabeled(s, qcSource, id.Source)

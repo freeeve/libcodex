@@ -238,25 +238,44 @@ func identifierFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
 		}
 		source := sourceLabel(g, id)
 		qualifier := literal(g, id, pQualifier)
+		status := statusLabel(g, id)
 		switch typeExcept(g, id, "") {
 		case "Isbn":
-			fields = append(fields, identifierField("020", ' ', ' ', value, source, qualifier))
+			fields = append(fields, identifierField("020", ' ', ' ', value, source, qualifier, status))
 		case "Issn":
-			fields = append(fields, identifierField("022", ' ', ' ', value, source, qualifier))
+			fields = append(fields, identifierField("022", ' ', ' ', value, source, qualifier, status))
 		case "Lccn":
 			fields = append(fields, codex.NewDataField("010", ' ', ' ', codex.NewSubfield('a', strings.TrimSpace(value))))
 		default:
-			fields = append(fields, identifierField("024", '8', ' ', value, source, qualifier))
+			fields = append(fields, identifierField("024", '8', ' ', value, source, qualifier, status))
 		}
 	}
 	return fields
 }
 
-// identifierField builds an 020/022/024 from a value plus an optional scheme and
-// qualifier, which round-trip through subfields $2 and $q. A bf:qualifier lifted
-// out of an ISBN parenthetical is normalized back into $q, the modern form.
-func identifierField(tag string, ind1, ind2 byte, value, source, qualifier string) codex.Field {
-	subs := []codex.Subfield{codex.NewSubfield('a', value)}
+// statusLabel returns the rdfs:label of an identifier's bf:status node, or "".
+func statusLabel(g *rdf.Graph, node rdf.Term) string {
+	st, ok := g.Object(node, pStatus)
+	if !ok {
+		return ""
+	}
+	return literal(g, st, pLabel)
+}
+
+// identifierField builds an 020/022/024 from a value plus an optional scheme,
+// qualifier and status, which round-trip through subfields $2, $q and the value
+// subfield. A canceled/invalid number goes in $z, an incorrect ISSN in $y; a valid
+// number in $a. A bf:qualifier lifted out of an ISBN parenthetical is normalized
+// back into $q, the modern form.
+func identifierField(tag string, ind1, ind2 byte, value, source, qualifier, status string) codex.Field {
+	valueCode := byte('a')
+	switch status {
+	case statusCancInv:
+		valueCode = 'z'
+	case statusIncorrect:
+		valueCode = 'y'
+	}
+	subs := []codex.Subfield{codex.NewSubfield(valueCode, value)}
 	if qualifier != "" {
 		subs = append(subs, codex.NewSubfield('q', qualifier))
 	}

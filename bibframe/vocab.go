@@ -60,6 +60,7 @@ var (
 	qcAdminMetadata       = qname{nsBF, "AdminMetadata", "bf:AdminMetadata", classAdminMetadata}
 	qcGenerationProcess   = qname{nsBF, "GenerationProcess", "bf:GenerationProcess", classGenerationProcess}
 	qcSource              = qname{nsBF, "Source", "bf:Source", classSource}
+	qcStatus              = qname{nsBF, "Status", "bf:Status", classStatus}
 	qcPlace               = qname{nsBF, "Place", "bf:Place", bfNS + "Place"}
 	qcAgent               = qname{nsBF, "Agent", "bf:Agent", bfNS + "Agent"}
 	qcRole                = qname{nsBF, "Role", "bf:Role", bfNS + "Role"}
@@ -109,4 +110,5 @@ var (
 	qpDescriptionConventions = qname{nsBF, "descriptionConventions", "bf:descriptionConventions", pDescriptionConventions}
 	qpSource                 = qname{nsBF, "source", "bf:source", pSource}
 	qpQualifier              = qname{nsBF, "qualifier", "bf:qualifier", pQualifier}
+	qpStatus                 = qname{nsBF, "status", "bf:status", pStatus}
 )

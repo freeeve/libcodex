@@ -63,6 +63,10 @@ const (
 	// Qualifying information on an identifier (bf:qualifier), e.g. "electronic bk".
 	pQualifier = bfNS + "qualifier"
 
+	// Status of an identifier (bf:status), e.g. canceled/invalid.
+	pStatus     = bfNS + "status"
+	classStatus = bfNS + "Status"
+
 	// LoC's marc2bibframe2 carries the transcribed publication statement in these
 	// bflc properties, alongside the controlled bf:place / bf:date.
 	pSimplePlace = bflcNS + "simplePlace"

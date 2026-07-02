@@ -29,6 +29,24 @@ canceled one.
 
 ## Acceptance
 
-- [ ] 020/024 $z and 022 $y/$z become identifiers carrying `bf:status`.
-- [ ] Status round-trips ($z/$y restored on reverse).
-- [ ] Round-trip test for a canceled ISBN/ISSN; suite + fuzz green.
+- [x] 020/024 $z and 022 $y/$z become identifiers carrying `bf:status`.
+- [x] Status round-trips ($z/$y restored on reverse).
+- [x] Round-trip test for a canceled ISBN/ISSN; suite + fuzz green.
+
+## Result
+
+Added `Identifier.Status` (`statusCancInv`/`statusIncorrect` constants).
+`appendIdentifiers` now walks $z (all -> cancinv) and 022 $y (-> incorrect)
+alongside $a, so canceled/invalid numbers are kept rather than dropped.
+`emitIdentifier` emits `bf:status -> bf:Status` (labeled node, consistent with the
+source node) in order value/qualifier/status/source. Reverse (`statusLabel`,
+`identifierField`) restores the number into $z (cancinv) or $y (incorrect), $a
+otherwise. Node shape uses `rdfs:label`=code like the other nodes; IRI-ifying the
+status/source vocabulary is a separate cross-cutting divergence, out of scope here.
+
+Goldens unchanged (sample has no $z/$y, status only emitted when present). Tests:
+`identifier_status_test.go` (forward $z/$y/$z classification, $z/$y round-trip).
+Full suite + FuzzFromMARC/FuzzDecode green.
+
+Note: a single 020 with $a + $z becomes two `bf:identifiedBy` nodes and reverses
+to two 020 fields (data-preserving, not byte-identical to a combined input field).
