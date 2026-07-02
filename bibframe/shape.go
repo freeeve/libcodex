@@ -119,10 +119,13 @@ func workSubclass(w *Work) qname {
 }
 
 func emitWorkBody(s sink, w *Work) {
-	if len(w.Titles) > 0 {
+	if len(w.Titles) > 0 || len(w.VariantTitles) > 0 {
 		s.beginList(qpTitle)
 		for _, t := range w.Titles {
 			emitTitle(s, t)
+		}
+		for _, vt := range w.VariantTitles {
+			emitVariantTitle(s, vt)
 		}
 		s.endList()
 	}
@@ -191,10 +194,13 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 	if in.Issuance != "" {
 		s.ref(qpIssuance, issuanceIRIVal(in.Issuance))
 	}
-	if len(in.Titles) > 0 {
+	if len(in.Titles) > 0 || len(in.VariantTitles) > 0 {
 		s.beginList(qpTitle)
 		for _, t := range in.Titles {
 			emitTitle(s, t)
+		}
+		for _, vt := range in.VariantTitles {
+			emitVariantTitle(s, vt)
 		}
 		s.endList()
 	}
@@ -268,6 +274,33 @@ func emitTitle(s sink, t Title) {
 	}
 	if t.PartName != "" {
 		s.lit(qpPartName, t.PartName)
+	}
+	if t.NonSortNum != "" {
+		s.lit(qpNonSortNum, t.NonSortNum)
+	}
+	s.endNode()
+}
+
+// emitVariantTitle emits a 246 variant title as a bf:VariantTitle (or
+// bf:ParallelTitle) node under bf:title, carrying its bf:variantType when typed.
+func emitVariantTitle(s sink, vt VariantTitle) {
+	class := qcVariantTitle
+	if vt.Parallel {
+		class = qcParallelTitle
+	}
+	s.beginNode(class, iriVal{}, qname{})
+	s.lit(qpMainTitle, vt.MainTitle)
+	if vt.Subtitle != "" {
+		s.lit(qpSubtitle, vt.Subtitle)
+	}
+	if vt.PartNumber != "" {
+		s.lit(qpPartNumber, vt.PartNumber)
+	}
+	if vt.PartName != "" {
+		s.lit(qpPartName, vt.PartName)
+	}
+	if vt.VariantType != "" {
+		s.lit(qpVariantType, vt.VariantType)
 	}
 	s.endNode()
 }

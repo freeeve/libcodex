@@ -76,6 +76,7 @@ type Work struct {
 	Class           string // bf class refining bf:Work (e.g. "Text"), or ""
 	Content         string // RDA content-type code (336 $b or leader/06 fallback) -> bf:content IRI; optional
 	Titles          []Title
+	VariantTitles   []VariantTitle // 246 variant/parallel titles (non-cover/spine)
 	Contributions   []Contribution
 	RelatedWorks    []RelatedWork
 	Subjects        []Subject
@@ -100,6 +101,7 @@ type RelatedWork struct {
 // Instance is a particular publication of the Work (bf:Instance).
 type Instance struct {
 	Titles                  []Title
+	VariantTitles           []VariantTitle // 246 cover/spine titles
 	ResponsibilityStatement string
 	EditionStatement        string
 	Provisions              []Provision
@@ -121,6 +123,17 @@ type Title struct {
 	Subtitle   string
 	PartNumber string
 	PartName   string
+	NonSortNum string // 245 ind2 nonfiling character count (1-9) -> bflc:nonSortNum
+}
+
+// VariantTitle is a 246 variant or parallel title access point.
+type VariantTitle struct {
+	Parallel    bool   // 246 ind2=1 -> bf:ParallelTitle, else bf:VariantTitle
+	VariantType string // note-type token from 246 ind2 (cover/spine/...) -> bf:variantType; optional
+	MainTitle   string
+	Subtitle    string
+	PartNumber  string
+	PartName    string
 }
 
 // Contribution links an Agent to the Work with zero or more roles.
@@ -227,10 +240,18 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 				Subtitle:   trimISBD(f.SubfieldValue('b')),
 				PartNumber: trimISBD(f.SubfieldValue('n')),
 				PartName:   trimISBD(f.SubfieldValue('p')),
+				NonSortNum: nonSortNum(f.Ind2),
 			}
 			g.Instance.ResponsibilityStatement = trimISBD(f.SubfieldValue('c'))
 		case "130", "240":
-			uniform = Title{Type: "uniform", MainTitle: trimISBD(f.SubfieldValue('a'))}
+			uniform = Title{
+				Type:       "uniform",
+				MainTitle:  trimISBD(f.SubfieldValue('a')),
+				PartNumber: trimISBD(f.SubfieldValue('n')),
+				PartName:   trimISBD(f.SubfieldValue('p')),
+			}
+		case "246":
+			g.addVariantTitle(f)
 		case "100", "700":
 			g.appendContribution(f, "Person", f.Tag == "100")
 		case "110", "710":
@@ -969,6 +990,89 @@ func workClass(recordType byte) string {
 		return "Object"
 	default:
 		return ""
+	}
+}
+
+// nonSortNum returns the 245 nonfiling character count for a second indicator in
+// 1-9 (the count of leading characters to ignore in sorting), or "" otherwise.
+func nonSortNum(ind2 byte) string {
+	if ind2 >= '1' && ind2 <= '9' {
+		return string(ind2)
+	}
+	return ""
+}
+
+// addVariantTitle records a 246 variant title: a parallel title (ind2=1) or a typed
+// variant (cover/spine on the Instance, others on the Work).
+func (g *BIBFRAME) addVariantTitle(f codex.Field) {
+	vt := VariantTitle{
+		Parallel:    f.Ind2 == '1',
+		VariantType: variantType(f.Ind2),
+		MainTitle:   trimISBD(f.SubfieldValue('a')),
+		Subtitle:    trimISBD(f.SubfieldValue('b')),
+		PartNumber:  trimISBD(f.SubfieldValue('n')),
+		PartName:    trimISBD(f.SubfieldValue('p')),
+	}
+	if vt.MainTitle == "" && vt.Subtitle == "" {
+		return
+	}
+	switch f.Ind2 {
+	case '4', '8': // cover / spine titles describe the physical Instance
+		g.Instance.VariantTitles = append(g.Instance.VariantTitles, vt)
+	default:
+		g.Work.VariantTitles = append(g.Work.VariantTitles, vt)
+	}
+}
+
+// variantType maps a 246 second indicator to its bf:variantType token (empty for a
+// blank indicator or the parallel form, which the Parallel flag already carries).
+func variantType(ind2 byte) string {
+	switch ind2 {
+	case '0':
+		return "portion"
+	case '2':
+		return "distinctive"
+	case '3':
+		return "other"
+	case '4':
+		return "cover"
+	case '5':
+		return "added title page"
+	case '6':
+		return "caption"
+	case '7':
+		return "running"
+	case '8':
+		return "spine"
+	default: // blank (no type) or '1' (parallel, carried by the Parallel flag)
+		return ""
+	}
+}
+
+// ind2ForVariant inverts variantType/Parallel back to a 246 second indicator.
+func ind2ForVariant(vt VariantTitle) byte {
+	if vt.Parallel {
+		return '1'
+	}
+	switch vt.VariantType {
+	case "portion":
+		return '0'
+	case "distinctive":
+		return '2'
+	case "other":
+		return '3'
+	case "cover":
+		return '4'
+	case "added title page":
+		return '5'
+	case "caption":
+		return '6'
+	case "running":
+		return '7'
+	case "spine":
+		return '8'
+	default:
+		return ' '
 	}
 }
 

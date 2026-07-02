@@ -32,17 +32,20 @@ nonfiling, 246 variants, uniform-title subfields.
   `bf:responsibilityStatement`. (ConvSpec-200-247not240-Titles.xsl, match 245.)
 - DIVERGENCE (low) -- `trimISBD` chops one trailing `/ : ; ,`; m2b `tChopPunct`
   also strips trailing periods. End-of-field periods survive in our labels.
-- GAP (med) -- 245 ind2 nonfiling -> `bflc:nonSortNum` not emitted. **[071]**
+- RESOLVED [071] -- 245 ind2 (1-9) -> `bflc:nonSortNum` on the Title, reversed to
+  the 245 second indicator.
 - DIVERGENCE (med) -- m2b always emits a Work `bf:title` from 245; we put the
   transcribed title on the Work only when there is no 130/240. Defensible.
 - DIVERGENCE (med, structural) -- 130/240 uniform title emitted as a direct
   `bf:title` on the Work; m2b routes it through `bf:expressionOf -> bf:Hub`.
   Deliberate (pre-Hub model).
-- GAP (med/high) -- 130/240 capture $a only; drop $n/$p (partNumber/partName)
-  and $l/$f/$s/$m/$r/$o. At minimum add $n/$p. **[071]**
-- GAP (high) -- 246 variant titles unhandled (no `bf:VariantTitle`/
-  `bf:ParallelTitle`, no Instance cover/spine title). **[071]**
-- GAP (low) -- 210/222/242/243/247 and 245 $f/$g/$s unhandled. **[071]**
+- RESOLVED [071] -- 130/240 now carry $n/$p (partNumber/partName). $l/$f/$s/$m/$r/$o
+  still dropped (deferred, low-frequency).
+- RESOLVED [071] -- 246 -> `bf:VariantTitle` (or `bf:ParallelTitle` for ind2=1) under
+  `bf:title`, with a `bf:variantType` token from ind2; cover(4)/spine(8) attach to
+  the Instance, the rest to the Work. Reverse restores the 246 indicator. The main-
+  title reader (`firstTitle`) skips variant/parallel-typed nodes.
+- GAP (low), deferred [071] -- 210/222/242/243/247 and 245 $f/$g/$s unhandled.
 
 ## 2. Contributions / names (1XX / 7XX)
 

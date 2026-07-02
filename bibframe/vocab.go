@@ -54,6 +54,8 @@ var (
 	qcWork                   = qname{nsBF, "Work", "bf:Work", classWork}
 	qcInstance               = qname{nsBF, "Instance", "bf:Instance", classInstance}
 	qcTitle                  = qname{nsBF, "Title", "bf:Title", bfNS + "Title"}
+	qcVariantTitle           = qname{nsBF, "VariantTitle", "bf:VariantTitle", classVariantTitle}
+	qcParallelTitle          = qname{nsBF, "ParallelTitle", "bf:ParallelTitle", classParallelTitle}
 	qcPublication            = qname{nsBF, "Publication", "bf:Publication", bfNS + "Publication"}
 	qcProduction             = qname{nsBF, "Production", "bf:Production", bfNS + "Production"}
 	qcDistribution           = qname{nsBF, "Distribution", "bf:Distribution", bfNS + "Distribution"}
@@ -90,6 +92,8 @@ var (
 	qpSubtitle               = qname{nsBF, "subtitle", "bf:subtitle", pSubtitle}
 	qpPartNumber             = qname{nsBF, "partNumber", "bf:partNumber", pPartNumber}
 	qpPartName               = qname{nsBF, "partName", "bf:partName", pPartName}
+	qpNonSortNum             = qname{nsBFLC, "nonSortNum", "bflc:nonSortNum", pNonSortNum}
+	qpVariantType            = qname{nsBF, "variantType", "bf:variantType", pVariantType}
 	qpContribution           = qname{nsBF, "contribution", "bf:contribution", pContribution}
 	qpRelatedTo              = qname{nsBF, "relatedTo", "bf:relatedTo", pRelatedTo}
 	qpAgent                  = qname{nsBF, "agent", "bf:agent", pAgent}

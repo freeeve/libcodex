@@ -37,8 +37,10 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 		if hasPrimary {
 			ind1 = '1'
 		}
-		add(codex.NewDataField("245", ind1, '0', titleSubfields(instTitle, resp)...))
+		add(codex.NewDataField("245", ind1, titleInd2(instTitle.NonSortNum), titleSubfields(instTitle, resp)...))
 	}
+	fields = append(fields, variantTitleFields(g, work)...)
+	fields = append(fields, variantTitleFields(g, inst)...)
 
 	fields = append(fields, contribs...)
 	fields = append(fields, relatedWorkFields(g, work)...)
@@ -684,18 +686,63 @@ func locators(g *rdf.Graph, inst rdf.Term) []string {
 
 // ---- title helpers ----
 
-// firstTitle returns the components of a subject's first bf:Title.
+// firstTitle returns the components of a subject's first main bf:Title, skipping any
+// bf:VariantTitle/bf:ParallelTitle nodes (which the 246 reverse handles separately).
 func firstTitle(g *rdf.Graph, subject rdf.Term) Title {
-	node, ok := g.Object(subject, pTitle)
-	if !ok {
-		return Title{}
+	for _, node := range g.Objects(subject, pTitle) {
+		if g.HasType(node, classVariantTitle) || g.HasType(node, classParallelTitle) {
+			continue
+		}
+		return Title{
+			MainTitle:  literal(g, node, pMainTitle),
+			Subtitle:   literal(g, node, pSubtitle),
+			PartNumber: literal(g, node, pPartNumber),
+			PartName:   literal(g, node, pPartName),
+			NonSortNum: literal(g, node, pNonSortNum),
+		}
 	}
-	return Title{
-		MainTitle:  literal(g, node, pMainTitle),
-		Subtitle:   literal(g, node, pSubtitle),
-		PartNumber: literal(g, node, pPartNumber),
-		PartName:   literal(g, node, pPartName),
+	return Title{}
+}
+
+// variantTitleFields reverses a subject's bf:VariantTitle/bf:ParallelTitle nodes into
+// 246 fields, restoring the second indicator from the variant type / parallel flag.
+func variantTitleFields(g *rdf.Graph, subject rdf.Term) []codex.Field {
+	var fields []codex.Field
+	for _, node := range g.Objects(subject, pTitle) {
+		parallel := g.HasType(node, classParallelTitle)
+		if !parallel && !g.HasType(node, classVariantTitle) {
+			continue
+		}
+		vt := VariantTitle{
+			Parallel:    parallel,
+			VariantType: literal(g, node, pVariantType),
+			MainTitle:   literal(g, node, pMainTitle),
+			Subtitle:    literal(g, node, pSubtitle),
+			PartNumber:  literal(g, node, pPartNumber),
+			PartName:    literal(g, node, pPartName),
+		}
+		subs := []codex.Subfield{codex.NewSubfield('a', vt.MainTitle)}
+		if vt.Subtitle != "" {
+			subs = append(subs, codex.NewSubfield('b', vt.Subtitle))
+		}
+		if vt.PartNumber != "" {
+			subs = append(subs, codex.NewSubfield('n', vt.PartNumber))
+		}
+		if vt.PartName != "" {
+			subs = append(subs, codex.NewSubfield('p', vt.PartName))
+		}
+		fields = append(fields, codex.NewDataField("246", ' ', ind2ForVariant(vt), subs...))
 	}
+	return fields
+}
+
+// titleInd2 returns the 245 second indicator from a nonfiling character count: the
+// single digit when valid, else '0'.
+func titleInd2(nonSortNum string) byte {
+	if len(nonSortNum) == 1 && nonSortNum[0] >= '1' && nonSortNum[0] <= '9' {
+		return nonSortNum[0]
+	}
+	return '0'
 }
 
 // titleSubfields renders a Title (and optional statement of responsibility) as
