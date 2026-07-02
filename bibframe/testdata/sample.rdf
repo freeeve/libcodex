@@ -29,7 +29,7 @@
           </bf:Person>
         </bf:agent>
         <bf:role>
-          <bf:Role>
+          <bf:Role rdf:about="http://id.loc.gov/vocabulary/relators/edt">
             <rdfs:label>edt</rdfs:label>
           </bf:Role>
         </bf:role>

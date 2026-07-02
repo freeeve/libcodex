@@ -28,6 +28,15 @@ func workIRIVal(base string) iriVal     { return iriVal{"#", base, "Work"} }
 func instanceIRIVal(base string) iriVal { return iriVal{"#", base, "Instance"} }
 func langIRIVal(code string) iriVal     { return iriVal{langVocab, code, ""} }
 
+// roleIRIVal wraps a role IRI (relators vocabulary or a verbatim URI); the empty
+// IRI yields the zero iriVal, i.e. a blank role node.
+func roleIRIVal(iri string) iriVal {
+	if iri == "" {
+		return iriVal{}
+	}
+	return iriVal{a: iri}
+}
+
 // sink receives the shape as a stream of calls. beginChild/endChild bracket a
 // single child node; beginList/endList bracket a repeated one (JSON renders it as
 // an array); a bare beginNode/endNode is a root node. iri is the zero iriVal for a
@@ -227,12 +236,22 @@ func emitContribution(s sink, c Contribution) {
 	s.beginChild(qpAgent)
 	emitLabeled(s, bfName(c.Class), c.Label)
 	s.endChild()
-	if c.Role != "" {
-		s.beginChild(qpRole)
-		emitLabeled(s, qcRole, c.Role)
-		s.endChild()
+	for _, r := range c.Roles {
+		emitRole(s, r)
 	}
 	s.endNode()
+}
+
+// emitRole emits a bf:role node: an IRI-typed bf:Role for a relator IRI (labeled
+// with its term when present), or a blank bf:Role carrying just the literal term.
+func emitRole(s sink, r Role) {
+	s.beginChild(qpRole)
+	s.beginNode(qcRole, roleIRIVal(r.IRI), qname{})
+	if r.Term != "" {
+		s.lit(qpLabel, r.Term)
+	}
+	s.endNode()
+	s.endChild()
 }
 
 // emitLanguage emits a bf:Language IRI node in the LoC languages vocabulary,

@@ -53,7 +53,11 @@ func contKey(c Contribution) string {
 	if c.Primary {
 		p = "1"
 	}
-	return p + "|" + c.Class + "|" + c.Label + "|" + c.Role
+	key := p + "|" + c.Class + "|" + c.Label
+	for _, r := range c.Roles {
+		key += "|" + r.IRI + "=" + r.Term
+	}
+	return key
 }
 
 // roundTrip checks that decoding an encoded record and re-running the forward

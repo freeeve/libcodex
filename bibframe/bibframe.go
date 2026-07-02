@@ -45,6 +45,9 @@ const (
 	rdfNS     = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 	rdfsNS    = "http://www.w3.org/2000/01/rdf-schema#"
 	langVocab = "http://id.loc.gov/vocabulary/languages/"
+	// relatorVocab is the LoC relator-term vocabulary; a three-letter $4 relator
+	// code names a term IRI beneath it (e.g. .../relators/aut).
+	relatorVocab = "http://id.loc.gov/vocabulary/relators/"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -88,12 +91,19 @@ type Title struct {
 	PartName   string
 }
 
-// Contribution links an Agent to the Work with an optional role.
+// Contribution links an Agent to the Work with zero or more roles.
 type Contribution struct {
 	Primary bool   // a bflc:PrimaryContribution (1xx) vs a plain bf:Contribution (7xx)
-	Class   string // agent class: "Person", "Organization" or "Meeting"
+	Class   string // agent class: "Person", "Family", "Organization", "Jurisdiction" or "Meeting"
 	Label   string // agent name
-	Role    string // role term, or ""
+	Roles   []Role // controlled and/or literal roles, in field order
+}
+
+// Role is a single contributor role: a relator IRI (from a $4 relator code or
+// URI) with an optional label, or a bare literal term (from $e/$j).
+type Role struct {
+	IRI  string // relator IRI (LoC relators vocabulary or a verbatim URI); "" for a literal role
+	Term string // rdfs:label text -- the role term, or the relator code when only a $4 code is present
 }
 
 // Subject is a topical, geographic or name access point on the Work.
@@ -346,18 +356,132 @@ func (g *BIBFRAME) presize(fields []codex.Field) {
 	}
 }
 
+// appendContribution builds a Contribution from a 1xx/7xx field: the agent label
+// concatenates the tag-appropriate name subfields, the class is refined from ind1
+// (Family, Jurisdiction), and roles come from $4 (relator code/URI, controlled)
+// ahead of the literal role subfield ($e for names, $j for meetings).
 func (g *BIBFRAME) appendContribution(f codex.Field, class string, primary bool) {
-	label := trimISBD(f.SubfieldValue('a'))
+	labelCodes, roleSub := "abcdqjk", byte('e')
+	switch class {
+	case "Organization":
+		labelCodes = "abcdngk"
+	case "Meeting":
+		labelCodes, roleSub = "acdengq", 'j'
+	}
+	label := agentLabel(f, labelCodes)
 	if label == "" {
 		return
 	}
-	role := f.SubfieldValue('e')
-	if role == "" {
-		role = f.SubfieldValue('4')
-	}
 	g.Work.Contributions = append(g.Work.Contributions, Contribution{
-		Primary: primary, Class: class, Label: label, Role: trimISBD(role),
+		Primary: primary,
+		Class:   agentSubclass(class, f.Ind1),
+		Label:   label,
+		Roles:   contribRoles(f, roleSub),
 	})
+}
+
+// agentLabel joins, in field order, the values of the name subfields named in
+// codes (one space between them) and trims a trailing ISBD mark.
+func agentLabel(f codex.Field, codes string) string {
+	var parts []string
+	for _, s := range f.Subfields {
+		if strings.IndexByte(codes, s.Code) >= 0 {
+			if v := strings.TrimSpace(s.Value); v != "" {
+				parts = append(parts, v)
+			}
+		}
+	}
+	return trimISBD(strings.Join(parts, " "))
+}
+
+// agentSubclass refines a tag-derived agent class using ind1: an x00 with ind1=3
+// is a Family, an x10 with ind1=1 is a Jurisdiction. Other indicators keep the
+// tag-derived class.
+func agentSubclass(class string, ind1 byte) string {
+	switch {
+	case class == "Person" && ind1 == '3':
+		return "Family"
+	case class == "Organization" && ind1 == '1':
+		return "Jurisdiction"
+	}
+	return class
+}
+
+// contribRoles collects a field's roles: every $4 (a relator code -> relators IRI,
+// a URI verbatim, else a literal) followed by every literal role subfield, each
+// split on the ", and &" compound-role delimiters.
+func contribRoles(f codex.Field, roleSub byte) []Role {
+	var roles []Role
+	for _, v := range f.SubfieldValues('4') {
+		if v = strings.TrimSpace(v); v != "" {
+			roles = append(roles, relatorRole(v))
+		}
+	}
+	for _, v := range f.SubfieldValues(roleSub) {
+		for _, term := range splitRoleTerms(trimISBD(v)) {
+			roles = append(roles, Role{Term: term})
+		}
+	}
+	return roles
+}
+
+// relatorRole classifies a $4 value: a three-letter lowercase relator code becomes
+// a relators-vocabulary IRI labeled with the code; an XML-safe absolute URI is used
+// verbatim; anything else becomes a literal role term.
+func relatorRole(v string) Role {
+	switch {
+	case isRelatorCode(v):
+		return Role{IRI: relatorVocab + v, Term: v}
+	case isSafeIRI(v):
+		return Role{IRI: v}
+	default:
+		return Role{Term: v}
+	}
+}
+
+// isRelatorCode reports whether v is a three-letter lowercase MARC relator code.
+func isRelatorCode(v string) bool {
+	if len(v) != 3 {
+		return false
+	}
+	for i := 0; i < 3; i++ {
+		if v[i] < 'a' || v[i] > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+// isSafeIRI reports whether v is an absolute URI carrying no characters that would
+// break the unescaped node-IRI paths in the serializers (so it can be emitted as a
+// role IRI without further sanitizing).
+func isSafeIRI(v string) bool {
+	if !strings.Contains(v, "://") {
+		return false
+	}
+	for i := 0; i < len(v); i++ {
+		switch c := v[i]; {
+		case c <= ' ', c == '<', c == '>', c == '"', c == '&', c == '\'', c == 0x7f:
+			return false
+		}
+	}
+	return true
+}
+
+// splitRoleTerms splits one literal role string into its component terms on the
+// ", and &" delimiters, trimming each and dropping empties.
+func splitRoleTerms(s string) []string {
+	if s = strings.TrimSpace(s); s == "" {
+		return nil
+	}
+	s = strings.NewReplacer("&", ",", " and ", ",").Replace(s)
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func (g *BIBFRAME) appendSubject(label, class, source string) {

@@ -104,21 +104,62 @@ func contributions(g *rdf.Graph, work rdf.Term) ([]codex.Field, bool) {
 			continue
 		}
 		isPrimary := g.HasType(c, primaryContribution) || g.HasType(c, bfPrimaryContribution)
-		tag := contribTag(agentClass(g, agent), isPrimary)
-		subs := []codex.Subfield{codex.NewSubfield('a', label)}
-		if r := literal(g, roleNode(g, c), pLabel); r != "" {
-			subs = append(subs, codex.NewSubfield('e', r))
-		}
-		fields = append(fields, codex.NewDataField(tag, '1', ' ', subs...))
+		class := agentClass(g, agent)
+		tag := contribTag(class, isPrimary)
+		subs := append([]codex.Subfield{codex.NewSubfield('a', label)}, roleSubfields(g, c, class)...)
+		fields = append(fields, codex.NewDataField(tag, ind1ForClass(class), ' ', subs...))
 		primary = primary || isPrimary
 	}
 	return fields, primary
 }
 
-// roleNode returns the bf:role node of a contribution (zero Term when absent).
-func roleNode(g *rdf.Graph, contribution rdf.Term) rdf.Term {
-	r, _ := g.Object(contribution, pRole)
-	return r
+// roleSubfields reverses a contribution's bf:role nodes: an IRI role becomes $4 (the
+// relators code when the IRI sits under the relators vocabulary, else the whole IRI);
+// a literal role becomes $j for a meeting agent and $e otherwise.
+func roleSubfields(g *rdf.Graph, c rdf.Term, class string) []codex.Subfield {
+	var subs []codex.Subfield
+	for _, r := range g.Objects(c, pRole) {
+		if r.IsIRI() {
+			subs = append(subs, codex.NewSubfield('4', relatorCode(r.Value)))
+			continue
+		}
+		if term := literal(g, r, pLabel); term != "" {
+			subs = append(subs, codex.NewSubfield(roleLiteralSub(class), term))
+		}
+	}
+	return subs
+}
+
+// relatorCode returns the $4 value for a role IRI: the local relator code when the
+// IRI is under the LoC relators vocabulary, else the IRI itself (a verbatim URI role).
+func relatorCode(iri string) string {
+	if code := strings.TrimPrefix(iri, relatorVocab); code != iri {
+		return code
+	}
+	return iri
+}
+
+// roleLiteralSub picks the literal-role subfield for an agent class: $j for a
+// meeting (x11), $e otherwise.
+func roleLiteralSub(class string) byte {
+	if class == "Meeting" {
+		return 'j'
+	}
+	return 'e'
+}
+
+// ind1ForClass returns the MARC first indicator the forward crosswalk reads back to
+// this agent class: 3 for a Family, 2 for a corporate/meeting name in direct order,
+// 1 for a personal surname or a jurisdiction.
+func ind1ForClass(class string) byte {
+	switch class {
+	case "Family":
+		return '3'
+	case "Organization", "Meeting":
+		return '2'
+	default: // Person, Jurisdiction and unknown agents
+		return '1'
+	}
 }
 
 // agentClass returns the agent's specific bf class (Person, Organization, …),

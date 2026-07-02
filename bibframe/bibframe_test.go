@@ -144,11 +144,11 @@ func TestFromRecord(t *testing.T) {
 	if n := len(g.Work.Contributions); n != 3 {
 		t.Fatalf("contributions = %d, want 3", n)
 	}
-	if !g.Work.Contributions[0].Primary || g.Work.Contributions[0].Role != "author" {
-		t.Errorf("primary contribution = %+v", g.Work.Contributions[0])
+	if c := g.Work.Contributions[0]; !c.Primary || len(c.Roles) != 1 || c.Roles[0].Term != "author" || c.Roles[0].IRI != "" {
+		t.Errorf("primary contribution = %+v", c)
 	}
-	if g.Work.Contributions[1].Primary || g.Work.Contributions[1].Role != "edt" {
-		t.Errorf("added contribution = %+v", g.Work.Contributions[1])
+	if c := g.Work.Contributions[1]; c.Primary || len(c.Roles) != 1 || c.Roles[0].IRI != relatorVocab+"edt" {
+		t.Errorf("added contribution = %+v", c)
 	}
 	if g.Work.Contributions[2].Class != "Organization" {
 		t.Errorf("corporate contribution = %+v", g.Work.Contributions[2])
