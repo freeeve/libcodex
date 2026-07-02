@@ -23,12 +23,12 @@ func sampleWorkInstances() *WorkInstances {
 		Instances: []Instance{
 			{
 				Titles:      []Title{{MainTitle: "First Edition"}},
-				Provision:   &Provision{Place: "London", Publisher: "Verso", Date: "2001"},
+				Provisions:  []Provision{{Class: "Publication", Place: "London", Publisher: "Verso", Date: "2001"}},
 				Identifiers: []Identifier{{Class: "Isbn", Value: "0000000001"}},
 			},
 			{
 				Titles:      []Title{{MainTitle: "Second Edition"}},
-				Provision:   &Provision{Place: "New York", Publisher: "Norton", Date: "2010"},
+				Provisions:  []Provision{{Class: "Publication", Place: "New York", Publisher: "Norton", Date: "2010"}},
 				Identifiers: []Identifier{{Class: "Isbn", Value: "0000000002"}},
 			},
 		},

@@ -132,13 +132,18 @@ Summary: coarse shape matches (one provision node + extent/media/carrier on
 Instance, language + content class on Work) but consistently simplified: every
 26X -> `bf:Publication`, RDA vocab IRIs stripped, no `bf:content`, no `bflc:simple*`.
 
-- GAP (med) -- 264 ind2 always `bf:Publication`; m2b maps 0/1/2/3 ->
-  Production/Publication/Distribution/Manufacture, one node per 26X. **[066]**
-- GAP (med) -- 264 _4 copyright date dropped; m2b -> `bf:copyrightDate`. **[066]**
-- GAP (low/med) -- `bflc:simplePlace/simpleAgent/simpleDate` transcription not
-  emitted forward (the reader already parses it). **[066]**
-- DIVERGENCE (med) -- 008/15-17 country place: m2b emits a `bf:place` country IRI
-  unconditionally; we emit no 008-derived place and no EDTF-typed dates. **[066]**
+- RESOLVED [066] -- one provision node per 26X, typed by 264 ind2 (0/1/2/3 ->
+  Production/Publication/Distribution/Manufacture, 260/blank -> Publication);
+  `Instance.Provisions []Provision`. Emitted as a `bf:provisionActivity` list so
+  multiple nodes serialize as a JSON-LD array rather than duplicate keys.
+- RESOLVED [066] -- 264 _4 -> `Instance.CopyrightDate` (`bf:copyrightDate`), not a
+  provision node; the reverse emits it back as 264 _4 $c.
+- RESOLVED [066] -- transcribed $a/$b go to `bflc:simplePlace`/`simpleAgent` (not a
+  duplicate controlled label) and the date to `bf:date` + `bflc:simpleDate`.
+- RESOLVED [066] -- 008/15-17 country is a controlled `bf:place` IRI in the LoC
+  countries vocabulary on a Publication node (minted when the record has no usable
+  26X); the reverse reconstructs a minimal 008 carrying just the country so it
+  round-trips. Still no EDTF datatype on dates (deferred, cosmetic).
 - GAP (med/high) -- 336 content type unhandled; no `bf:content`, and no leader/06
   fallback content IRI (m2b Works always carry one). **[067]**
 - GAP (med) -- 337/338 emit label-only `bf:Media`/`bf:Carrier`; m2b builds the RDA

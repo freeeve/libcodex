@@ -170,7 +170,10 @@ func TestFromRecord(t *testing.T) {
 	if len(g.Instance.Identifiers) != 3 {
 		t.Errorf("identifiers = %+v", g.Instance.Identifiers)
 	}
-	if p := g.Instance.Provision; p == nil || p.Date != "1993" || p.Publisher != "Firebrand Books" {
+	if len(g.Instance.Provisions) != 1 {
+		t.Fatalf("provisions = %+v", g.Instance.Provisions)
+	}
+	if p := g.Instance.Provisions[0]; p.Date != "1993" || p.Publisher != "Firebrand Books" || p.Country != "nyu" {
 		t.Errorf("provision = %+v", p)
 	}
 	if len(g.Instance.ElectronicLocator) != 1 {
@@ -382,8 +385,8 @@ func TestEscapingAndEdgeCases(t *testing.T) {
 		t.Errorf("a 100 without $a must yield no contribution: %+v", g.Work.Contributions)
 	}
 	// No 264, so the date comes from the 008 fallback.
-	if g.Instance.Provision == nil || g.Instance.Provision.Date != "1995" {
-		t.Errorf("008 date fallback = %+v", g.Instance.Provision)
+	if len(g.Instance.Provisions) != 1 || g.Instance.Provisions[0].Date != "1995" {
+		t.Errorf("008 date fallback = %+v", g.Instance.Provisions)
 	}
 	if len(g.Instance.Titles) != 1 || g.Instance.Titles[0].PartNumber != "Part 1" {
 		t.Errorf("part number not carried: %+v", g.Instance.Titles)
@@ -405,11 +408,14 @@ func TestEscapingAndEdgeCases(t *testing.T) {
 		t.Fatalf("JSON-LD invalid: %v\n%s", err, jb)
 	}
 
-	// date008 edge cases: a "0000" date and a too-short 008 both yield no date.
+	// date008 edge cases: a "0000" date and a too-short 008 both yield no date
+	// (the "0000" case still mints a country-only provision from its 008 country).
 	for _, c008 := range []string{"920219s0000    nyua", "tooShort"} {
 		r := codex.NewRecord().AddField(codex.NewControlField("008", c008))
-		if d := FromRecord(r).Instance.Provision; d != nil {
-			t.Errorf("008=%q should give no provision date, got %+v", c008, d)
+		for _, p := range FromRecord(r).Instance.Provisions {
+			if p.Date != "" {
+				t.Errorf("008=%q should give no provision date, got %+v", c008, p)
+			}
 		}
 	}
 }

@@ -40,6 +40,7 @@ const (
 	pRespStmt     = bfNS + "responsibilityStatement"
 	pEdition      = bfNS + "editionStatement"
 	pProvision    = bfNS + "provisionActivity"
+	pCopyright    = bfNS + "copyrightDate"
 	pPlace        = bfNS + "place"
 	pDate         = bfNS + "date"
 	pExtent       = bfNS + "extent"

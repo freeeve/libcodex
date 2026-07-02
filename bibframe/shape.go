@@ -37,6 +37,10 @@ func roleIRIVal(iri string) iriVal {
 	return iriVal{a: iri}
 }
 
+// countryIRIVal builds a bf:place IRI in the LoC countries vocabulary from a MARC
+// country code.
+func countryIRIVal(code string) iriVal { return iriVal{countriesVocab, code, ""} }
+
 // sink receives the shape as a stream of calls. beginChild/endChild bracket a
 // single child node; beginList/endList bracket a repeated one (JSON renders it as
 // an array); a bare beginNode/endNode is a root node. iri is the zero iriVal for a
@@ -151,8 +155,15 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 	if in.EditionStatement != "" {
 		s.lit(qpEditionStatement, in.EditionStatement)
 	}
-	if p := in.Provision; p != nil {
-		emitProvision(s, p)
+	if len(in.Provisions) > 0 {
+		s.beginList(qpProvisionActivity)
+		for i := range in.Provisions {
+			emitProvision(s, &in.Provisions[i])
+		}
+		s.endList()
+	}
+	if in.CopyrightDate != "" {
+		s.lit(qpCopyrightDate, in.CopyrightDate)
 	}
 	if len(in.Extent) > 0 {
 		s.beginList(qpExtent)
@@ -318,24 +329,45 @@ func emitIdentifier(s sink, id Identifier) {
 	s.endNode()
 }
 
+// emitProvision emits one provision-activity node typed by its class. The 008
+// country is the controlled bf:place IRI; the transcribed place/agent go to the
+// bflc:simple* properties (not a second controlled label), and the date to bf:date
+// plus bflc:simpleDate.
 func emitProvision(s sink, p *Provision) {
-	s.beginChild(qpProvisionActivity)
-	s.beginNode(qcPublication, iriVal{}, qname{})
-	if p.Place != "" {
+	s.beginNode(provisionSubclass(p.Class), iriVal{}, qname{})
+	if p.Country != "" {
 		s.beginChild(qpPlace)
-		emitLabeled(s, qcPlace, p.Place)
+		s.beginNode(qcPlace, countryIRIVal(p.Country), qname{})
+		s.lit(qpLabel, p.Country)
+		s.endNode()
 		s.endChild()
 	}
+	if p.Place != "" {
+		s.lit(qpSimplePlace, p.Place)
+	}
 	if p.Publisher != "" {
-		s.beginChild(qpAgent)
-		emitLabeled(s, qcAgent, p.Publisher)
-		s.endChild()
+		s.lit(qpSimpleAgent, p.Publisher)
 	}
 	if p.Date != "" {
 		s.lit(qpDate, p.Date)
+		s.lit(qpSimpleDate, p.Date)
 	}
 	s.endNode()
-	s.endChild()
+}
+
+// provisionSubclass maps a provision class name to its bf: qname (Publication for
+// an unknown class).
+func provisionSubclass(class string) qname {
+	switch class {
+	case "Production":
+		return qcProduction
+	case "Distribution":
+		return qcDistribution
+	case "Manufacture":
+		return qcManufacture
+	default:
+		return qcPublication
+	}
 }
 
 // emitAdmin emits the bf:AdminMetadata provenance node: the generation-process

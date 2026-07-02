@@ -140,16 +140,14 @@
     <bf:provisionActivity>
       <bf:Publication>
         <bf:place>
-          <bf:Place>
-            <rdfs:label>Ithaca, New York</rdfs:label>
+          <bf:Place rdf:about="http://id.loc.gov/vocabulary/countries/nyu">
+            <rdfs:label>nyu</rdfs:label>
           </bf:Place>
         </bf:place>
-        <bf:agent>
-          <bf:Agent>
-            <rdfs:label>Firebrand Books</rdfs:label>
-          </bf:Agent>
-        </bf:agent>
+        <bflc:simplePlace>Ithaca, New York</bflc:simplePlace>
+        <bflc:simpleAgent>Firebrand Books</bflc:simpleAgent>
         <bf:date>1993</bf:date>
+        <bflc:simpleDate>1993</bflc:simpleDate>
       </bf:Publication>
     </bf:provisionActivity>
     <bf:extent>

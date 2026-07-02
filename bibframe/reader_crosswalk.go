@@ -53,8 +53,8 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	if ed := literal(g, inst, pEdition); ed != "" {
 		add(codex.NewDataField("250", ' ', ' ', codex.NewSubfield('a', ed)))
 	}
-	if p := provisionSubfields(g, inst); len(p) > 0 {
-		add(codex.NewDataField("260", ' ', ' ', p...))
+	for _, f := range provisionFields(g, inst) {
+		add(f)
 	}
 	for _, e := range labelsOf(g, inst, pExtent) {
 		add(codex.NewDataField("300", ' ', ' ', codex.NewSubfield('a', e)))
@@ -490,18 +490,38 @@ func langCode(g *rdf.Graph, l rdf.Term) string {
 	return ""
 }
 
-// provisionSubfields reverses bf:provisionActivity into 260 $a/$b/$c. It prefers
-// LoC's transcribed bflc:simplePlace/simpleAgent/simpleDate (which map directly to
-// the 260 statement) over the controlled bf:place/bf:agent nodes (whose labels are
-// authority forms — e.g. the country, not the city), and falls back to the
-// controlled labels this library's own output uses.
-func provisionSubfields(g *rdf.Graph, inst rdf.Term) []codex.Subfield {
-	prov, ok := g.Object(inst, pProvision)
-	if !ok {
-		return nil
+// provisionFields reverses the Instance's provision activities into 260 statements
+// (one per node), plus a reconstructed 008 carrying the country of the first node
+// that has one, and a 264 _4 for a bf:copyrightDate. Provision classes collapse to
+// the generic 260 rather than typed 264 indicators, keeping the transcribed
+// statement front and centre in this library's flatter model.
+func provisionFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
+	var fields []codex.Field
+	country := ""
+	for _, prov := range g.Objects(inst, pProvision) {
+		if subs := provision26XSubfields(g, prov); len(subs) > 0 {
+			fields = append(fields, codex.NewDataField("260", ' ', ' ', subs...))
+		}
+		if country == "" {
+			country = countryCode(g, prov)
+		}
 	}
+	if country != "" {
+		fields = append(fields, codex.NewControlField("008", control008Country(country)))
+	}
+	if cd := literal(g, inst, pCopyright); cd != "" {
+		fields = append(fields, codex.NewDataField("264", ' ', '4', codex.NewSubfield('c', cd)))
+	}
+	return fields
+}
+
+// provision26XSubfields reads one provision node into 260 $a/$b/$c, preferring the
+// transcribed bflc:simple* forms; the controlled bf:place label is used only when
+// it is a blank labeled node, never a country IRI (whose label is an authority
+// name, not the transcribed place).
+func provision26XSubfields(g *rdf.Graph, prov rdf.Term) []codex.Subfield {
 	var subs []codex.Subfield
-	if place := firstNonEmpty(literal(g, prov, pSimplePlace), literal(g, mustNode(g, prov, pPlace), pLabel)); place != "" {
+	if place := firstNonEmpty(literal(g, prov, pSimplePlace), transcribedPlace(g, prov)); place != "" {
 		subs = append(subs, codex.NewSubfield('a', place))
 	}
 	if pub := firstNonEmpty(literal(g, prov, pSimpleAgent), literal(g, mustNode(g, prov, pAgent), pLabel)); pub != "" {
@@ -511,6 +531,38 @@ func provisionSubfields(g *rdf.Graph, inst rdf.Term) []codex.Subfield {
 		subs = append(subs, codex.NewSubfield('c', date))
 	}
 	return subs
+}
+
+// transcribedPlace returns the label of a blank bf:place node, or "" when the place
+// is a controlled IRI (a country authority, not the transcribed place of publication).
+func transcribedPlace(g *rdf.Graph, prov rdf.Term) string {
+	p, ok := g.Object(prov, pPlace)
+	if !ok || p.IsIRI() {
+		return ""
+	}
+	return literal(g, p, pLabel)
+}
+
+// countryCode returns the MARC country code of a provision node's controlled
+// bf:place IRI when it sits under the LoC countries vocabulary, else "".
+func countryCode(g *rdf.Graph, prov rdf.Term) string {
+	p, ok := g.Object(prov, pPlace)
+	if !ok || !p.IsIRI() {
+		return ""
+	}
+	if code := strings.TrimPrefix(p.Value, countriesVocab); code != p.Value && isCountryCode(code) {
+		return code
+	}
+	return ""
+}
+
+// control008Country renders a minimal 40-byte 008 whose only populated field is the
+// country at 15-17, so the reconstructed record carries the place back into the
+// forward crosswalk without fabricating date or language positions.
+func control008Country(code string) string {
+	b := []byte(strings.Repeat(" ", 40))
+	copy(b[15:18], code)
+	return string(b)
 }
 
 // firstNonEmpty returns the first non-empty string, or "".

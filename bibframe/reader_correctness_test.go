@@ -216,12 +216,13 @@ func TestProvision264Copyright(t *testing.T) {
 			codex.NewSubfield('c', "2015"))).
 		AddField(codex.NewDataField("264", ' ', '4', codex.NewSubfield('c', "©2015")))
 
-	prov := FromRecord(rec).Instance.Provision
-	if prov == nil {
-		t.Fatal("expected a provision")
+	g := FromRecord(rec)
+	if len(g.Instance.Provisions) != 1 {
+		t.Fatalf("expected one provision, got %+v", g.Instance.Provisions)
 	}
-	if prov.Date != "2015" {
-		t.Errorf("provision date = %q, want '2015' (from 264 _1, not the copyright)", prov.Date)
+	prov := g.Instance.Provisions[0]
+	if prov.Class != "Publication" || prov.Date != "2015" {
+		t.Errorf("provision = %+v, want Publication date '2015' (from 264 _1, not the copyright)", prov)
 	}
 	if prov.Place != "London" {
 		t.Errorf("provision place = %q, want 'London'", prov.Place)
@@ -229,13 +230,23 @@ func TestProvision264Copyright(t *testing.T) {
 	if prov.Publisher != "Verso" {
 		t.Errorf("provision publisher = %q, want 'Verso'", prov.Publisher)
 	}
+	if g.Instance.CopyrightDate == "" {
+		t.Errorf("264 _4 copyright date not captured")
+	}
 
-	// A copyright statement alone must not become a publication date.
+	// A copyright statement alone must not become a publication date, but its
+	// date is still captured as the copyright date.
 	only := codex.NewRecord().
 		SetLeader(codex.Leader("00925cam a2200277 a 4500")).
 		AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "T"))).
 		AddField(codex.NewDataField("264", ' ', '4', codex.NewSubfield('c', "©2015")))
-	if p := FromRecord(only).Instance.Provision; p != nil && p.Date == "©2015" {
-		t.Errorf("copyright-only 264 _4 leaked the copyright date as bf:date")
+	og := FromRecord(only)
+	for _, p := range og.Instance.Provisions {
+		if p.Date != "" {
+			t.Errorf("copyright-only 264 _4 leaked the copyright date as a provision date: %+v", p)
+		}
+	}
+	if og.Instance.CopyrightDate == "" {
+		t.Errorf("copyright-only 264 _4 should still capture the copyright date")
 	}
 }

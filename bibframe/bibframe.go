@@ -48,6 +48,9 @@ const (
 	// relatorVocab is the LoC relator-term vocabulary; a three-letter $4 relator
 	// code names a term IRI beneath it (e.g. .../relators/aut).
 	relatorVocab = "http://id.loc.gov/vocabulary/relators/"
+	// countriesVocab is the LoC country vocabulary; an 008/15-17 MARC country code
+	// names a place IRI beneath it (e.g. .../countries/nyu).
+	countriesVocab = "http://id.loc.gov/vocabulary/countries/"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -85,7 +88,8 @@ type Instance struct {
 	Titles                  []Title
 	ResponsibilityStatement string
 	EditionStatement        string
-	Provision               *Provision
+	Provisions              []Provision
+	CopyrightDate           string // 264 _4 $c -> bf:copyrightDate; optional
 	Extent                  []string
 	Media                   string // RDA media type (bf:media), e.g. "unmediated", "audio", "computer"
 	Carrier                 string // RDA carrier type (bf:carrier), e.g. "volume", "online resource", "audio disc"
@@ -149,11 +153,15 @@ const (
 	statusIncorrect = "incorrect" // incorrect ($y, ISSN)
 )
 
-// Provision is a bf:Publication (place / publisher / date).
+// Provision is a provision-activity node (bf:Publication / bf:Production /
+// bf:Distribution / bf:Manufacture) carrying the transcribed place / agent / date
+// and, on the publication node, the 008 country as a controlled bf:place IRI.
 type Provision struct {
-	Place     string
-	Publisher string
-	Date      string
+	Class     string // "Publication", "Production", "Distribution" or "Manufacture"
+	Place     string // transcribed place ($a) -> bflc:simplePlace
+	Publisher string // transcribed agent ($b) -> bflc:simpleAgent
+	Date      string // date ($c or 008) -> bf:date + bflc:simpleDate
+	Country   string // 008/15-17 country code -> controlled bf:place IRI; optional
 }
 
 // AdminMetadata is administrative provenance about the record's description —
@@ -303,13 +311,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 		g.Instance.Titles = append(g.Instance.Titles, transcribed)
 	}
 
-	prov := provisionStatement(provFields)
-	if prov.Date == "" {
-		prov.Date = date008(r)
-	}
-	if prov.Place != "" || prov.Publisher != "" || prov.Date != "" {
-		g.Instance.Provision = &prov
-	}
+	g.addProvisions(r, provFields)
 	// Every record carries admin metadata: the generation process marks it as
 	// libcodex output, alongside the control number, change date and cataloging
 	// conventions the record itself provides.
@@ -747,45 +749,94 @@ func subdivided(f codex.Field) string {
 	return strings.Join(parts, "--")
 }
 
-// provisionStatement picks the single 260/264 field that best describes
-// publication and reads its place/publisher/date. A 264 publication statement
-// (2nd indicator '1') is preferred over a legacy 260, which is preferred over
-// the other 264 roles (production, distribution, manufacture); a 264 copyright
-// statement (2nd indicator '4') is never chosen, so its $c copyright date is not
-// emitted as a bf:date. Reading every subfield from one field also avoids mixing
-// one statement's place with another's date.
-func provisionStatement(fields []codex.Field) Provision {
-	var best *codex.Field
-	bestRank := 0
+// addProvisions builds one provision-activity node per 260/264, typed by the 264
+// second indicator (0 Production, 1 Publication, 2 Distribution, 3 Manufacture; a
+// 260 or blank indicator is a Publication). A 264 _4 copyright statement is not a
+// provision -- its $c becomes the Instance copyright date. The 008/15-17 country
+// (and, absent a 26X date, the 008 date) attaches to a Publication node, minted
+// when the record has no usable 26X.
+func (g *BIBFRAME) addProvisions(r *codex.Record, fields []codex.Field) {
 	for i := range fields {
-		if r := publicationRank(fields[i]); r > bestRank {
-			bestRank, best = r, &fields[i]
+		f := fields[i]
+		if f.Tag == "264" && f.Ind2 == '4' {
+			if d := cleanDate(f.SubfieldValue('c')); d != "" && g.Instance.CopyrightDate == "" {
+				g.Instance.CopyrightDate = d
+			}
+			continue
+		}
+		p := Provision{
+			Class:     provisionClass(f),
+			Place:     trimISBD(f.SubfieldValue('a')),
+			Publisher: trimISBD(f.SubfieldValue('b')),
+			Date:      cleanDate(f.SubfieldValue('c')),
+		}
+		if p.Place != "" || p.Publisher != "" || p.Date != "" {
+			g.Instance.Provisions = append(g.Instance.Provisions, p)
 		}
 	}
-	if best == nil {
-		return Provision{}
+	country, fallbackDate := country008(r), date008(r)
+	pub := g.publicationProvision()
+	if pub == nil && (country != "" || (len(g.Instance.Provisions) == 0 && fallbackDate != "")) {
+		g.Instance.Provisions = append(g.Instance.Provisions, Provision{Class: "Publication"})
+		pub = &g.Instance.Provisions[len(g.Instance.Provisions)-1]
 	}
-	return Provision{
-		Place:     trimISBD(best.SubfieldValue('a')),
-		Publisher: trimISBD(best.SubfieldValue('b')),
-		Date:      cleanDate(best.SubfieldValue('c')),
+	if pub != nil {
+		if country != "" {
+			pub.Country = country
+		}
+		if pub.Date == "" {
+			pub.Date = fallbackDate
+		}
 	}
 }
 
-// publicationRank scores a 260/264 field as a source for the bf:Publication
-// node; the highest-scoring field wins and a zero score is never chosen.
-func publicationRank(f codex.Field) int {
-	if f.Tag == "260" {
-		return 2
+// publicationProvision returns a pointer to the first Publication provision, or nil.
+func (g *BIBFRAME) publicationProvision() *Provision {
+	for i := range g.Instance.Provisions {
+		if g.Instance.Provisions[i].Class == "Publication" {
+			return &g.Instance.Provisions[i]
+		}
 	}
-	switch f.Ind2 {
-	case '1': // publication
-		return 3
-	case '4': // copyright notice date -- not a publication statement
-		return 0
-	default: // production, distribution, manufacture, or unspecified
-		return 1
+	return nil
+}
+
+// provisionClass maps a 26X field to its provision-activity subclass.
+func provisionClass(f codex.Field) string {
+	if f.Tag == "264" {
+		switch f.Ind2 {
+		case '0':
+			return "Production"
+		case '2':
+			return "Distribution"
+		case '3':
+			return "Manufacture"
+		}
 	}
+	return "Publication" // 260, 264 _1, or unspecified
+}
+
+// country008 reads the 008/15-17 MARC country code, or "" when absent/invalid.
+func country008(r *codex.Record) string {
+	if c := r.ControlField("008"); len(c) >= 18 {
+		if code := strings.TrimSpace(c[15:18]); isCountryCode(code) {
+			return code
+		}
+	}
+	return ""
+}
+
+// isCountryCode reports whether s is a syntactically valid MARC country code (two
+// or three lowercase ASCII letters), so a malformed 008 cannot mint an unsafe IRI.
+func isCountryCode(s string) bool {
+	if len(s) < 2 || len(s) > 3 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < 'a' || s[i] > 'z' {
+			return false
+		}
+	}
+	return true
 }
 
 // cleanDate strips the brackets and trailing punctuation MARC transcribes around
