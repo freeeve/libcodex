@@ -178,6 +178,12 @@ func (gb *graphBuilder) instance(work, inst rdf.Term, in *Instance) {
 	for _, e := range in.Extent {
 		gb.labeled(inst, pExtent, bfNS+"Extent", e)
 	}
+	if in.Media != "" {
+		gb.labeled(inst, pMedia, bfNS+"Media", in.Media)
+	}
+	if in.Carrier != "" {
+		gb.labeled(inst, pCarrier, bfNS+"Carrier", in.Carrier)
+	}
 	for _, id := range in.Identifiers {
 		node := gb.fresh()
 		gb.g.Add(inst, rdf.NewIRI(pIdentifiedBy), node)

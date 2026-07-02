@@ -72,6 +72,8 @@ type Instance struct {
 	EditionStatement        string
 	Provision               *Provision
 	Extent                  []string
+	Media                   string // RDA media type (bf:media), e.g. "unmediated", "audio", "computer"
+	Carrier                 string // RDA carrier type (bf:carrier), e.g. "volume", "online resource", "audio disc"
 	Identifiers             []Identifier
 	ElectronicLocator       []string
 	Admin                   *AdminMetadata
@@ -170,6 +172,14 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 		case "300":
 			if e := extent(f); e != "" {
 				g.Instance.Extent = append(g.Instance.Extent, e)
+			}
+		case "337":
+			if g.Instance.Media == "" {
+				g.Instance.Media = trimISBD(f.SubfieldValue('a')) // RDA media type
+			}
+		case "338":
+			if g.Instance.Carrier == "" {
+				g.Instance.Carrier = trimISBD(f.SubfieldValue('a')) // RDA carrier type
 			}
 		case "520":
 			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {

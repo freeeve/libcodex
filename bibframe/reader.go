@@ -40,6 +40,8 @@ const (
 	pPlace        = bfNS + "place"
 	pDate         = bfNS + "date"
 	pExtent       = bfNS + "extent"
+	pMedia        = bfNS + "media"
+	pCarrier      = bfNS + "carrier"
 	pIdentifiedBy = bfNS + "identifiedBy"
 	pLocator      = bfNS + "electronicLocator"
 	pCode         = bfNS + "code"

@@ -63,6 +63,12 @@ func recordFromWork(g *rdf.Graph, work rdf.Term, backref map[rdf.Term]rdf.Term) 
 	for _, e := range labelsOf(g, inst, pExtent) {
 		add(codex.NewDataField("300", ' ', ' ', codex.NewSubfield('a', e)))
 	}
+	for _, m := range labelsOf(g, inst, pMedia) {
+		add(codex.NewDataField("337", ' ', ' ', codex.NewSubfield('a', m)))
+	}
+	for _, c := range labelsOf(g, inst, pCarrier) {
+		add(codex.NewDataField("338", ' ', ' ', codex.NewSubfield('a', c)))
+	}
 	for _, s := range labelsOf(g, work, pSummary) {
 		add(codex.NewDataField("520", ' ', ' ', codex.NewSubfield('a', s)))
 	}

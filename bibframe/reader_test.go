@@ -267,6 +267,60 @@ func TestEncodersIsomorphic(t *testing.T) {
 	}
 }
 
+// TestInstanceCarrierMedia confirms an Instance's RDA media/carrier (337/338) is
+// rendered on the Instance node in every serialization, that the four encoders
+// stay isomorphic on it, and that it round-trips back to 337/338.
+func TestInstanceCarrierMedia(t *testing.T) {
+	rec := codex.NewRecord().
+		SetLeader(codex.Leader("00000nim a2200000 a 4500")).
+		AddField(codex.NewControlField("001", "carrier1")).
+		AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "Recorded talk"))).
+		AddField(codex.NewDataField("337", ' ', ' ', codex.NewSubfield('a', "audio"))).
+		AddField(codex.NewDataField("338", ' ', ' ', codex.NewSubfield('a', "audio disc")))
+
+	if bib := FromRecord(rec); bib.Instance.Media != "audio" || bib.Instance.Carrier != "audio disc" {
+		t.Fatalf("FromRecord media/carrier = %q/%q, want audio/audio disc", bib.Instance.Media, bib.Instance.Carrier)
+	}
+
+	x, _ := Encode(rec)
+	j, _ := EncodeJSONLD(rec)
+	nt, _ := EncodeNTriples(rec)
+	ttl, _ := EncodeTurtle(rec)
+	graphs := map[string]*rdf.Graph{}
+	for name, p := range map[string]func() (*rdf.Graph, error){
+		"rdfxml":   func() (*rdf.Graph, error) { return rdf.ParseRDFXML(x) },
+		"jsonld":   func() (*rdf.Graph, error) { return rdf.ParseJSONLD(j) },
+		"ntriples": func() (*rdf.Graph, error) { return rdf.ParseNTriples(nt) },
+		"turtle":   func() (*rdf.Graph, error) { return rdf.ParseTurtle(ttl) },
+	} {
+		g, err := p()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		graphs[name] = g
+	}
+	want := canonGraph(graphs["rdfxml"])
+	for name, g := range graphs {
+		if got := canonGraph(g); !reflect.DeepEqual(want, got) {
+			t.Errorf("%s graph differs from RDF/XML:\n want %s\n got  %s", name, strings.Join(want, "\n  "), strings.Join(got, "\n  "))
+		}
+	}
+	if joined := strings.Join(want, "\n"); !strings.Contains(joined, bfNS+"media") || !strings.Contains(joined, bfNS+"carrier") {
+		t.Errorf("graph missing bf:media/bf:carrier:\n%s", joined)
+	}
+
+	recs, err := Decode(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := recs[0].SubfieldValue("337", 'a'); v != "audio" {
+		t.Errorf("337$a = %q, want audio", v)
+	}
+	if v := recs[0].SubfieldValue("338", 'a'); v != "audio disc" {
+		t.Errorf("338$a = %q, want 'audio disc'", v)
+	}
+}
+
 // TestRoundTripNTriples and TestRoundTripTurtle exercise the new serializations
 // through Encode -> Decode -> forward crosswalk.
 func TestRoundTripNTriples(t *testing.T) {

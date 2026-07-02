@@ -65,6 +65,12 @@ func appendInstanceXML(b []byte, g *BIBFRAME, base string) []byte {
 	for _, e := range g.Instance.Extent {
 		b = labeledXML(b, "bf:extent", "bf:Extent", e)
 	}
+	if g.Instance.Media != "" {
+		b = labeledXML(b, "bf:media", "bf:Media", g.Instance.Media)
+	}
+	if g.Instance.Carrier != "" {
+		b = labeledXML(b, "bf:carrier", "bf:Carrier", g.Instance.Carrier)
+	}
 	for _, id := range g.Instance.Identifiers {
 		b = appendIdentifierXML(b, id)
 	}

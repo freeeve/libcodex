@@ -131,6 +131,14 @@ func appendInstanceJSONLD(b []byte, g *BIBFRAME, base string) []byte {
 		b = append(b, '}')
 	}
 	b = simpleLabeledArrayJSON(b, "bf:extent", "bf:Extent", g.Instance.Extent)
+	if g.Instance.Media != "" {
+		b = append(b, `,"bf:media":`...)
+		b = appendLabeledJSON(b, "bf:Media", g.Instance.Media)
+	}
+	if g.Instance.Carrier != "" {
+		b = append(b, `,"bf:carrier":`...)
+		b = appendLabeledJSON(b, "bf:Carrier", g.Instance.Carrier)
+	}
 	if len(g.Instance.Identifiers) > 0 {
 		b = append(b, `,"bf:identifiedBy":[`...)
 		for i, id := range g.Instance.Identifiers {
