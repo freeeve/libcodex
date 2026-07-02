@@ -41,6 +41,10 @@ func roleIRIVal(iri string) iriVal {
 // country code.
 func countryIRIVal(code string) iriVal { return iriVal{countriesVocab, code, ""} }
 
+// issuanceIRIVal builds a bf:issuance IRI in the LoC issuance vocabulary from a
+// mode-of-issuance code.
+func issuanceIRIVal(code string) iriVal { return iriVal{issuanceVocab, code, ""} }
+
 // rdaIRIVal builds a term IRI in an RDA vocabulary (content/media/carrier) from a
 // code, or the zero iriVal (a blank node) for an empty code.
 func rdaIRIVal(vocab, code string) iriVal {
@@ -184,6 +188,9 @@ func emitWorkBody(s sink, w *Work) {
 func emitInstance(s sink, in *Instance, instBase, workBase string) {
 	s.beginNode(qcInstance, instanceIRIVal(instBase), qname{})
 	s.ref(qpInstanceOf, workIRIVal(workBase))
+	if in.Issuance != "" {
+		s.ref(qpIssuance, issuanceIRIVal(in.Issuance))
+	}
 	if len(in.Titles) > 0 {
 		s.beginList(qpTitle)
 		for _, t := range in.Titles {

@@ -48,6 +48,7 @@ const (
 	pContent      = bfNS + "content"
 	pMedia        = bfNS + "media"
 	pCarrier      = bfNS + "carrier"
+	pIssuance     = bfNS + "issuance"
 	pIdentifiedBy = bfNS + "identifiedBy"
 	pLocator      = bfNS + "electronicLocator"
 	pCode         = bfNS + "code"

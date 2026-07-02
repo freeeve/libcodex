@@ -134,6 +134,7 @@
   </bf:Work>
   <bf:Instance rdf:about="#92005291Instance">
     <bf:instanceOf rdf:resource="#92005291Work"/>
+    <bf:issuance rdf:resource="http://id.loc.gov/vocabulary/issuance/mono"/>
     <bf:title>
       <bf:Title>
         <bf:mainTitle>Stone butch blues</bf:mainTitle>

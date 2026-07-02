@@ -161,10 +161,15 @@ Instance, language + content class on Work) but consistently simplified: every
   041 $b (summary language) still unhandled (deferred, low-frequency); full
   bf:accompaniedBy related work remains out of scope (Hub model).
 - MATCH -- leader/06 -> Work content class (Text/NotatedMusic/...).
-- DIVERGENCE (low/med) -- leader/06 i/j collapsed to `Audio`; m2b -> NonMusicAudio
-  / MusicAudio. q -> nothing (m2b `bf:Hub`); no secondary `bf:Manuscript` type. **[070]**
-- GAP (low/med) -- leader/07 issuance + Monograph/Serial/Collection/Integrating and
-  Instance `bf:issuance` not emitted. **[070]**
+- RESOLVED [070] -- leader/06 i/j now split into `bf:NonMusicAudio`/`bf:MusicAudio`
+  (was a single `Audio`), inverted by `recordType` (Audio still maps to 'i' for
+  external input). leader/07 -> `Instance.Issuance` -> `bf:issuance` IRI in the LoC
+  issuance vocabulary (mono/serl/intg/coll), reversed to leader/07 by `leaderFor`.
+- DIVERGENCE, kept [070] -- the Work is NOT given a second rdf:type from leader/07
+  (bf:Monograph/Serial are non-standard and would collide with the single-subclass
+  reverse `typeExcept`); the standard `bf:issuance` carries the signal instead. q ->
+  Hub and a secondary `bf:Manuscript` type remain out of scope (Hub model / reverse
+  cost). The issuance IRI is the round-trippable mode-of-issuance signal.
 
 ## 6. AdminMetadata / Notes / Locator / Linking
 

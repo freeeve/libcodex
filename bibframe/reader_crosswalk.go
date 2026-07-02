@@ -10,7 +10,7 @@ import (
 
 func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *codex.Record {
 	rec := codex.NewRecord()
-	rec.SetLeader(leaderForClass(typeExcept(g, work, "Work")))
+	rec.SetLeader(leaderFor(typeExcept(g, work, "Work"), issuanceCode(g, inst)))
 
 	var fields []codex.Field
 	add := func(f codex.Field) { fields = append(fields, f) }
@@ -795,14 +795,31 @@ func isFallbackBase(id string) bool {
 	return true
 }
 
-// leaderForClass returns a default leader with byte 6 (type of record) set to
-// match a BIBFRAME content class, the inverse of workClass.
-func leaderForClass(class string) codex.Leader {
+// leaderFor returns a default leader with byte 6 (type of record) set from a
+// BIBFRAME content class and byte 7 (bibliographic level) from a mode-of-issuance
+// code -- the inverse of workClass and issuanceForLevel.
+func leaderFor(class, issuance string) codex.Leader {
 	b := []byte(codex.NewRecord().Leader().String())
 	if t := recordType(class); t != 0 {
 		b[6] = t
 	}
+	if lvl := levelForIssuance(issuance); lvl != 0 {
+		b[7] = lvl
+	}
 	return codex.Leader(b)
+}
+
+// issuanceCode returns the Instance's mode-of-issuance code: the local name of its
+// bf:issuance IRI when it sits under the LoC issuance vocabulary, else "".
+func issuanceCode(g *rdf.Graph, inst rdf.Term) string {
+	o, ok := g.Object(inst, pIssuance)
+	if !ok || !o.IsIRI() {
+		return ""
+	}
+	if code := strings.TrimPrefix(o.Value, issuanceVocab); code != o.Value {
+		return code
+	}
+	return ""
 }
 
 // recordType maps a BIBFRAME content class back to a representative leader byte 6.
@@ -816,8 +833,10 @@ func recordType(class string) byte {
 		return 'e'
 	case "MovingImage":
 		return 'g'
-	case "Audio":
+	case "NonMusicAudio", "Audio":
 		return 'i'
+	case "MusicAudio":
+		return 'j'
 	case "StillImage":
 		return 'k'
 	case "Multimedia":

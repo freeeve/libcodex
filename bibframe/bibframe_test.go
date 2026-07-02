@@ -210,7 +210,7 @@ func TestWorkClass(t *testing.T) {
 	cases := map[byte]string{
 		'a': "Text", 't': "Text", 'c': "NotatedMusic", 'd': "NotatedMusic",
 		'e': "Cartography", 'f': "Cartography", 'g': "MovingImage",
-		'i': "Audio", 'j': "Audio", 'k': "StillImage", 'm': "Multimedia",
+		'i': "NonMusicAudio", 'j': "MusicAudio", 'k': "StillImage", 'm': "Multimedia",
 		'o': "MixedMaterial", 'p': "MixedMaterial", 'r': "Object", 'z': "",
 	}
 	for in, want := range cases {

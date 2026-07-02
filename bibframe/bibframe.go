@@ -60,6 +60,9 @@ const (
 	// 040 $a); conventionsVocab names a description-convention IRI from 040 $e.
 	orgVocab         = "http://id.loc.gov/vocabulary/organizations/"
 	conventionsVocab = "http://id.loc.gov/vocabulary/descriptionConventions/"
+	// issuanceVocab names a mode-of-issuance IRI from a leader/07 bibliographic level
+	// (e.g. .../issuance/mono, .../issuance/serl).
+	issuanceVocab = "http://id.loc.gov/vocabulary/issuance/"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -105,6 +108,7 @@ type Instance struct {
 	Dimensions              []string  // 300 $c -> bf:dimensions
 	Media                   []RDATerm // RDA media types (337) -> bf:media
 	Carrier                 []RDATerm // RDA carrier types (338) -> bf:carrier
+	Issuance                string    // mode of issuance (leader/07) -> bf:issuance IRI; optional
 	Identifiers             []Identifier
 	ElectronicLocator       []string
 	Admin                   *AdminMetadata
@@ -203,6 +207,7 @@ const generatorLabel = "libcodex"
 func FromRecord(r *codex.Record) *BIBFRAME {
 	g := &BIBFRAME{}
 	g.Work.Class = workClass(r.Leader().RecordType())
+	g.Instance.Issuance = issuanceForLevel(r.Leader().BibLevel())
 	fields := r.Fields()
 	g.presize(fields)
 	var transcribed, uniform Title
@@ -950,8 +955,10 @@ func workClass(recordType byte) string {
 		return "Cartography"
 	case 'g':
 		return "MovingImage"
-	case 'i', 'j':
-		return "Audio"
+	case 'i':
+		return "NonMusicAudio"
+	case 'j':
+		return "MusicAudio"
 	case 'k':
 		return "StillImage"
 	case 'm':
@@ -962,6 +969,40 @@ func workClass(recordType byte) string {
 		return "Object"
 	default:
 		return ""
+	}
+}
+
+// issuanceForLevel maps leader/07 (bibliographic level) to a mode-of-issuance code
+// in the LoC issuance vocabulary, or "" when no mode applies.
+func issuanceForLevel(level byte) string {
+	switch level {
+	case 'm':
+		return "mono" // monograph / single unit
+	case 's':
+		return "serl" // serial
+	case 'i':
+		return "intg" // integrating resource
+	case 'c', 'd':
+		return "coll" // collection / subunit
+	default:
+		return ""
+	}
+}
+
+// levelForIssuance inverts issuanceForLevel back to a leader/07 byte, or 0 when the
+// code is unknown.
+func levelForIssuance(code string) byte {
+	switch code {
+	case "mono":
+		return 'm'
+	case "serl":
+		return 's'
+	case "intg":
+		return 'i'
+	case "coll":
+		return 'c'
+	default:
+		return 0
 	}
 }
 

@@ -118,6 +118,7 @@ var (
 	qpContent                = qname{nsBF, "content", "bf:content", pContent}
 	qpMedia                  = qname{nsBF, "media", "bf:media", pMedia}
 	qpCarrier                = qname{nsBF, "carrier", "bf:carrier", pCarrier}
+	qpIssuance               = qname{nsBF, "issuance", "bf:issuance", pIssuance}
 	qpIdentifiedBy           = qname{nsBF, "identifiedBy", "bf:identifiedBy", pIdentifiedBy}
 	qpElectronicLocator      = qname{nsBF, "electronicLocator", "bf:electronicLocator", pLocator}
 	qpAdminMetadata          = qname{nsBF, "adminMetadata", "bf:adminMetadata", pAdminMetadata}

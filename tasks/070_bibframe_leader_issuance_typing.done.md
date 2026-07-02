@@ -32,6 +32,27 @@ Ref: `docs/bibframe_m2b_audit.md` section 5; m2b `ConvSpec-LDR.xsl`.
 
 ## Acceptance
 
-- [ ] i/j -> NonMusicAudio/MusicAudio, round-tripping through the leader.
-- [ ] leader/07 -> issuance type + `bf:issuance`.
-- [ ] Goldens regenerated + reviewed; round-trip + fuzz green.
+- [x] i/j -> NonMusicAudio/MusicAudio, round-tripping through the leader.
+- [x] leader/07 -> issuance type + `bf:issuance`.
+- [x] Goldens regenerated + reviewed; round-trip + fuzz green.
+
+## Result
+
+`workClass` splits leader/06 'i'/'j' into `NonMusicAudio`/`MusicAudio` (was a single
+`Audio`); the reverse `recordType` inverts them ('i'/'j') and still maps a stray
+`Audio` to 'i' for external input. Added `Instance.Issuance` from leader/07
+(`issuanceForLevel`: m->mono, s->serl, i->intg, c/d->coll), emitted as a
+`bf:issuance` reference to the LoC issuance-vocabulary IRI. The reverse
+(`leaderFor` + `issuanceCode`) sets leader byte 7 back from the issuance IRI, so
+the mode of issuance round-trips.
+
+Design choice: issuance is carried only as the standard Instance `bf:issuance` IRI,
+not as a second Work rdf:type -- the single-subclass reverse (`typeExcept`) expects
+exactly one content-class type beside `bf:Work`, and bf:Monograph/Serial are
+non-standard. Documented in the audit. q->Hub and secondary bf:Manuscript stay out
+of scope.
+
+Goldens: the sample (leader/06 'a', /07 'm') gains `bf:issuance` issuance/mono on
+the Instance; regenerated both serializations. Tests: `leader_issuance_test.go`
+(i/j audio subclasses + leader round-trip, four issuance levels + leader/07
+round-trip) and the updated `TestWorkClass`. Suite + FuzzFromMARC + FuzzDecode green.
