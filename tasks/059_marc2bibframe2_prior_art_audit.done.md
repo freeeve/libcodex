@@ -69,10 +69,28 @@ punctuation trimming (`trimISBD`), and control-field 006/007/008 slicing.
 
 ## Acceptance
 
-- [ ] A findings note (in this file or a `docs/` audit note) covering each area
+- [x] A findings note (in this file or a `docs/` audit note) covering each area
       above, classified matches / deliberate-divergence / gap.
-- [ ] Each actionable gap filed as its own numbered task with the m2b reference.
-- [ ] No behavior change committed under this task; goldens untouched.
+- [x] Each actionable gap filed as its own numbered task with the m2b reference.
+- [x] No behavior change committed under this task; goldens untouched.
 
 Origin: user request after the 057/058 field-by-field prior-art checks -- do the
 sweep once rather than per field.
+
+## Result
+
+Findings note: `docs/bibframe_m2b_audit.md` -- six subsystems (titles,
+contributions, subjects, identifiers/classification, provision/physical/language/
+leader, admin/notes/locator/linking) each compared against the matching
+`ConvSpec-*.xsl` module and classified match / deliberate-divergence / gap, with a
+prioritized gap register at the end.
+
+Headline: the crosswalk matches m2b's node shapes for the fields it implements and
+its simplifications (flat subject labels, no Hub, no MADS ComplexSubject) are
+deliberate and preserved. The gaps are (a) dropped secondary signals -- subject
+`bf:source`, identifier `bf:status`, 024 ind1 scheme, RDA content/media/carrier
+IRIs, relator IRIs -- and (b) unimplemented breadth: the 5xx note family beyond
+520 and the entire 76x-78x linking family.
+
+Gaps filed as tasks **060-073** (Tier 1: 060-064; Tier 2: 065-071; Tier 3:
+072-073). No code changed under this task.
