@@ -44,6 +44,7 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 
 	fields = append(fields, contribs...)
 	fields = append(fields, relatedWorkFields(g, work)...)
+	fields = append(fields, relationFields(g, work)...)
 	fields = append(fields, subjectFields(g, work)...)
 	fields = append(fields, identifierFields(g, inst)...)
 	fields = append(fields, classificationFields(g, work)...)
@@ -154,6 +155,74 @@ func relatedWorkFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		fields = append(fields, codex.NewDataField(contribTag(class, primary), ind1ForClass(class), ' ', subs...))
 	}
 	return fields
+}
+
+// relationFields reverses a Work's bf:relation nodes into 76x-78x linking fields:
+// the tag and second indicator come from the bf:relationship code, and the linked
+// resource's creator ($a), title ($t) and ISSN ($x) come from its
+// bf:associatedResource Work. It inverts emitRelation.
+func relationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
+	var fields []codex.Field
+	for _, rel := range g.Objects(work, pRelation) {
+		tag, ind2, ok := relationField(relationshipCode(g, rel))
+		if !ok {
+			continue
+		}
+		res, ok := g.Object(rel, pAssociatedResource)
+		if !ok {
+			continue
+		}
+		var subs []codex.Subfield
+		if name := associatedName(g, res); name != "" {
+			subs = append(subs, codex.NewSubfield('a', name))
+		}
+		if title := firstTitle(g, res).MainTitle; title != "" {
+			subs = append(subs, codex.NewSubfield('t', title))
+		}
+		if issn := associatedISSN(g, res); issn != "" {
+			subs = append(subs, codex.NewSubfield('x', issn))
+		}
+		if len(subs) == 0 {
+			continue
+		}
+		fields = append(fields, codex.NewDataField(tag, ' ', ind2, subs...))
+	}
+	return fields
+}
+
+// relationshipCode returns a bf:Relation node's relationship code: the local name of
+// its bf:relationship IRI when the IRI sits under the relationship vocabulary, else "".
+func relationshipCode(g *rdf.Graph, rel rdf.Term) string {
+	r, ok := g.Object(rel, pRelationship)
+	if !ok || !r.IsIRI() {
+		return ""
+	}
+	if code := strings.TrimPrefix(r.Value, relationshipVocab); code != r.Value {
+		return code
+	}
+	return ""
+}
+
+// associatedName returns the creator label of a bf:associatedResource Work: the
+// rdfs:label of its bf:contribution's bf:agent, or "".
+func associatedName(g *rdf.Graph, res rdf.Term) string {
+	if c, ok := g.Object(res, pContribution); ok {
+		if agent, ok := g.Object(c, pAgent); ok {
+			return literal(g, agent, pLabel)
+		}
+	}
+	return ""
+}
+
+// associatedISSN returns the first bf:identifiedBy value of a bf:associatedResource
+// Work (the linked resource's ISSN), or "".
+func associatedISSN(g *rdf.Graph, res rdf.Term) string {
+	for _, id := range g.Objects(res, pIdentifiedBy) {
+		if v := literal(g, id, pValue); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // roleSubfields reverses a contribution's bf:role nodes: an IRI role becomes $4 (the

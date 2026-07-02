@@ -79,6 +79,7 @@ var (
 	qcNote                   = qname{nsBF, "Note", "bf:Note", classNote}
 	qcContribution           = qname{nsBF, "Contribution", "bf:Contribution", bfNS + "Contribution"}
 	qcPrimaryContribution    = qname{nsBFLC, "PrimaryContribution", "bflc:PrimaryContribution", primaryContribution}
+	qcRelation               = qname{nsBF, "Relation", "bf:Relation", classRelation}
 )
 
 // Predicate qnames.
@@ -97,6 +98,9 @@ var (
 	qpVariantType            = qname{nsBF, "variantType", "bf:variantType", pVariantType}
 	qpContribution           = qname{nsBF, "contribution", "bf:contribution", pContribution}
 	qpRelatedTo              = qname{nsBF, "relatedTo", "bf:relatedTo", pRelatedTo}
+	qpRelation               = qname{nsBF, "relation", "bf:relation", pRelation}
+	qpRelationship           = qname{nsBF, "relationship", "bf:relationship", pRelationship}
+	qpAssociatedResource     = qname{nsBF, "associatedResource", "bf:associatedResource", pAssociatedResource}
 	qpAgent                  = qname{nsBF, "agent", "bf:agent", pAgent}
 	qpRole                   = qname{nsBF, "role", "bf:role", pRole}
 	qpSubject                = qname{nsBF, "subject", "bf:subject", pSubject}

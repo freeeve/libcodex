@@ -177,8 +177,9 @@ Instance, language + content class on Work) but consistently simplified: every
 ## 6. AdminMetadata / Notes / Locator / Linking
 
 Summary: implemented fields match node shape (520 summary, 001 Local, 005
-changeDate, 856 electronicLocator-on-Instance), but the whole 5xx note family
-beyond 520 and the entire 76x-78x linking family are absent.
+changeDate, 856 electronicLocator-on-Instance). The common 5xx notes [072] and the
+common 76x-78x linking entries [073] now crosswalk; the long tail of each family
+remains a tracked checklist in its task file.
 
 - MATCH -- 520 -> `bf:summary`; 001 -> `bf:identifiedBy`/`bf:Local`; 005 ->
   `bf:changeDate`; 856 $u -> `bf:electronicLocator` on Instance.
@@ -190,9 +191,21 @@ beyond 520 and the entire 76x-78x linking family are absent.
   so they cannot collide on one object key. The long tail (508/511/521/524/525/
   533/534/502/506/540/538, 520 ind1 nuance) stays a tracked checklist in
   `tasks/072_bibframe_5xx_notes.done.md`.
-- GAP (high, structural) -- 76x-78x linking entries entirely unhandled; m2b emits
-  `bf:relation -> bf:Relation` with a relationship-vocab IRI + `bf:associatedResource`
-  (per-field minted Work/Instance IRIs), not bare `bf:precededBy`. **[073]**
+- RESOLVED [073] -- the common 76x-78x linking entries land as
+  `bf:relation -> bf:Relation`: a `bf:relationship` vocabulary IRI plus a
+  `bf:associatedResource -> bf:Work` carrying the linked resource's title, optional
+  creator and ISSN. 780/785 refine the relationship by second indicator (continues/
+  supersedes/absorbed/... and their succeeding inverses); 773 -> `partOf`, 776 ->
+  `otherPhysicalFormat`. `Work.Relations` and the `linkRelations` table drive both
+  directions; the associated Work is a flat blank node (no minted IRI, a deliberate
+  divergence -- see the note below), skipped as a standalone record on decode. The
+  remaining tags (760/762/765/767/770/772/774/775/777/786/787, 490/8xx series ->
+  `bf:hasSeries`) stay a tracked checklist in
+  `tasks/073_bibframe_linking_entries.done.md`.
+- DIVERGENCE (structural) -- m2b mints per-field Work/Instance IRIs
+  (`#Work760-1`-style) for each linked resource; this crosswalk keeps the flat model
+  and emits the `bf:associatedResource` as a blank labeled `bf:Work`, consistent with
+  the name-title `bf:relatedTo` handling from 062.
 - RESOLVED [069] -- 003 is read into `AdminMetadata.ControlOrg` and attached to the
   001 `bf:Local` as a `bf:assigner` agent (organizations-vocabulary IRI when the
   code is IRI-safe, plus `bf:code`). Only emitted when 003 is present -- no DLC

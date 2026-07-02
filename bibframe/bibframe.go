@@ -63,6 +63,9 @@ const (
 	// issuanceVocab names a mode-of-issuance IRI from a leader/07 bibliographic level
 	// (e.g. .../issuance/mono, .../issuance/serl).
 	issuanceVocab = "http://id.loc.gov/vocabulary/issuance/"
+	// relationshipVocab names a work-to-work relationship IRI from a 76x-78x linking
+	// entry (e.g. .../relationship/continues for a 780 preceding entry).
+	relationshipVocab = "http://id.loc.gov/vocabulary/relationship/"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -79,6 +82,7 @@ type Work struct {
 	VariantTitles   []VariantTitle // 246 variant/parallel titles (non-cover/spine)
 	Contributions   []Contribution
 	RelatedWorks    []RelatedWork
+	Relations       []Relation // 76x-78x linking entries -> bf:relation
 	Subjects        []Subject
 	GenreForms      []string
 	Languages       []string // content languages: ISO 639-2 codes from 008/35-37 and 041 $a
@@ -105,6 +109,18 @@ type RelatedWork struct {
 	Class   string // creator agent class: Person/Family/Organization/Jurisdiction/Meeting
 	Name    string // creator name (the subfields before $t)
 	Title   Title  // the related work's title ($t)
+}
+
+// Relation is a 76x-78x work-to-work linking entry (preceding/succeeding title,
+// host item, other physical format). It emits a bf:relation -> bf:Relation node
+// carrying a bf:relationship vocabulary IRI and a bf:associatedResource -> bf:Work,
+// modeled flat (a blank associated Work labeled with the linked resource's title)
+// rather than m2b's IRI-minted Hub target.
+type Relation struct {
+	Relationship string // bf:relationship code (e.g. "continues", "otherPhysicalFormat")
+	Name         string // linked resource creator ($a); optional
+	Title        string // linked resource title ($t, or $s); the primary access point
+	ISSN         string // linked resource ISSN ($x) -> bf:Issn; optional
 }
 
 // Instance is a particular publication of the Work (bf:Instance).
@@ -289,6 +305,8 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			g.Instance.Media = append(g.Instance.Media, rdaTerm(f))
 		case "338":
 			g.Instance.Carrier = append(g.Instance.Carrier, rdaTerm(f))
+		case "773", "776", "780", "785":
+			g.appendRelation(f)
 		case "500", "504", "546":
 			// 500/504 describe the Instance; 546 (language) describes the Work.
 			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
@@ -504,6 +522,104 @@ func (g *BIBFRAME) appendRelatedWork(f codex.Field, class, labelCodes string, pr
 		Name:    name,
 		Title:   Title{MainTitle: title},
 	})
+}
+
+// appendRelation records a 76x-78x linking entry as a Relation: the relationship
+// code from the tag (and, for 780/785, the second indicator), the linked resource's
+// title ($t, or $s), creator ($a) and ISSN ($x). A field with no relationship code
+// or no access-point content is skipped.
+func (g *BIBFRAME) appendRelation(f codex.Field) {
+	code, ok := relationCodeFor(f.Tag, f.Ind2)
+	if !ok {
+		return
+	}
+	title := trimISBD(f.SubfieldValue('t'))
+	if title == "" {
+		title = trimISBD(f.SubfieldValue('s'))
+	}
+	name := trimISBD(f.SubfieldValue('a'))
+	issn := trimISBD(f.SubfieldValue('x'))
+	if title == "" && name == "" && issn == "" {
+		return
+	}
+	g.Work.Relations = append(g.Work.Relations, Relation{
+		Relationship: code,
+		Name:         name,
+		Title:        title,
+		ISSN:         issn,
+	})
+}
+
+// linkRelation pairs a 76x-78x linking tag (and, for the continuation entries, its
+// second indicator) with its bf:relationship vocabulary code. It is the single
+// source of truth for both crosswalk directions: the forward pass reads a code from
+// (tag, ind2), the reverse pass recovers (tag, ind2) from a code.
+type linkRelation struct {
+	tag  string
+	ind2 byte
+	code string
+}
+
+// linkRelations maps the supported 76x-78x linking entries to relationship codes.
+// 780 (preceding) and 785 (succeeding) refine the code by their second indicator;
+// 773 (host item) and 776 (other physical format) map by tag alone (ind2 ' ').
+var linkRelations = []linkRelation{
+	{"780", '0', "continues"},
+	{"780", '1', "continuesInPart"},
+	{"780", '2', "supersedes"},
+	{"780", '3', "supersedesInPart"},
+	{"780", '4', "formedByUnionOf"},
+	{"780", '5', "absorbed"},
+	{"780", '6', "absorbedInPart"},
+	{"780", '7', "separatedFrom"},
+	{"785", '0', "continuedBy"},
+	{"785", '1', "continuedInPartBy"},
+	{"785", '2', "supersededBy"},
+	{"785", '3', "supersededInPartBy"},
+	{"785", '4', "absorbedBy"},
+	{"785", '5', "absorbedInPartBy"},
+	{"785", '6', "splitInto"},
+	{"785", '7', "mergedToForm"},
+	{"785", '8', "changedBackTo"},
+	{"773", ' ', "partOf"},
+	{"776", ' ', "otherPhysicalFormat"},
+}
+
+// relationCodeFor returns the bf:relationship code for a linking field and whether
+// the tag is supported. 773/776 map by tag; 780/785 map by second indicator,
+// falling back to the tag's base (ind2 '0') code for an unrecognized indicator.
+func relationCodeFor(tag string, ind2 byte) (string, bool) {
+	switch tag {
+	case "773", "776":
+		for _, lr := range linkRelations {
+			if lr.tag == tag {
+				return lr.code, true
+			}
+		}
+	case "780", "785":
+		for _, lr := range linkRelations {
+			if lr.tag == tag && lr.ind2 == ind2 {
+				return lr.code, true
+			}
+		}
+		for _, lr := range linkRelations {
+			if lr.tag == tag && lr.ind2 == '0' {
+				return lr.code, true
+			}
+		}
+	}
+	return "", false
+}
+
+// relationField inverts relationCodeFor, recovering the 76x-78x tag and second
+// indicator that produced a relationship code.
+func relationField(code string) (string, byte, bool) {
+	for _, lr := range linkRelations {
+		if lr.code == code {
+			return lr.tag, lr.ind2, true
+		}
+	}
+	return "", 0, false
 }
 
 // agentLabel joins, in field order, the values of the name subfields named in codes

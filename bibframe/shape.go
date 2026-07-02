@@ -159,6 +159,9 @@ func emitWorkBody(s sink, w *Work) {
 	for _, rw := range w.RelatedWorks {
 		emitRelatedWork(s, rw)
 	}
+	for _, rel := range w.Relations {
+		emitRelation(s, rel)
+	}
 	if len(w.Subjects) > 0 {
 		s.beginList(qpSubject)
 		for _, sub := range w.Subjects {
@@ -397,6 +400,48 @@ func emitRelatedWork(s sink, rw RelatedWork) {
 	}
 	s.beginChild(qpTitle)
 	emitTitle(s, rw.Title)
+	s.endChild()
+	s.endNode()
+	s.endChild()
+}
+
+// relationshipIRIVal builds a bf:relationship IRI in the LoC relationship vocabulary
+// from a controlled code (a linkRelations token, always IRI-safe), or the zero
+// iriVal (a blank node) for an empty code.
+func relationshipIRIVal(code string) iriVal {
+	if code == "" {
+		return iriVal{}
+	}
+	return iriVal{relationshipVocab, code, ""}
+}
+
+// emitRelation emits a 76x-78x linking entry as bf:relation -> bf:Relation: the
+// relationship as a bf:relationship vocabulary IRI, and the linked resource as a
+// blank bf:associatedResource -> bf:Work carrying its title, optional creator
+// contribution and optional ISSN. The associated Work is a flat, label-oriented
+// stand-in for m2b's IRI-minted related resource.
+func emitRelation(s sink, rel Relation) {
+	s.beginChild(qpRelation)
+	s.beginNode(qcRelation, iriVal{}, qname{})
+	s.ref(qpRelationship, relationshipIRIVal(rel.Relationship))
+	s.beginChild(qpAssociatedResource)
+	s.beginNode(qcWork, iriVal{}, qname{})
+	if rel.Name != "" {
+		s.beginChild(qpContribution)
+		emitContribution(s, Contribution{Class: "Agent", Label: rel.Name})
+		s.endChild()
+	}
+	if rel.Title != "" {
+		s.beginChild(qpTitle)
+		emitTitle(s, Title{MainTitle: rel.Title})
+		s.endChild()
+	}
+	if rel.ISSN != "" {
+		s.beginChild(qpIdentifiedBy)
+		emitIdentifier(s, Identifier{Class: "Issn", Value: rel.ISSN})
+		s.endChild()
+	}
+	s.endNode()
 	s.endChild()
 	s.endNode()
 	s.endChild()
