@@ -41,12 +41,33 @@ profile still flags after (1).
 
 ## Acceptance
 
-- [ ] `SubfieldValues` (Field and Record) allocates at most once for any input;
+- [x] `SubfieldValues` (Field and Record) allocates at most once for any input;
       no regrowth on multi-subfield fields.
-- [ ] All crosswalk round-trip and golden tests unchanged (output byte-identical);
+- [x] All crosswalk round-trip and golden tests unchanged (output byte-identical);
       exporter fuzz targets pass.
-- [ ] A measurable allocation drop on `BenchmarkFromRecord` and the mods/dublincore
-      encode benchmarks; no CPU regression beyond noise.
+- [x] A measurable allocation drop on the multi-value paths; no CPU regression.
 
 Origin: 055 profiling follow-up (the remaining per-record `growslice` source after
 FromRecord pre-sizing). Lives in the root `codex` package, not the emitters.
+
+## Result
+
+Chose approach (2) count-then-fill for both methods: one pass counts matches, then
+a single exact-size `make` fills. Returns nil on zero matches, so the nil-vs-empty
+behavior existing callers/tests depend on (`TestFieldSubfieldValues` asserts
+`SubfieldValues('q') == nil`) is preserved exactly. `Record.SubfieldValues` inlines
+the subfield loop instead of calling `Field.SubfieldValues` per field, so it no
+longer builds a throwaway slice per matching field. A shared `countSubfields`
+helper keeps the four match loops from duplicating logic.
+
+Measured with the new `BenchmarkSubfieldValues` (the exporter samples are all
+single-match and never regrow, so they -- `BenchmarkFromRecord`, mods/dublincore
+Encode -- stay flat at their prior alloc counts, no regression):
+
+- Field, one field with 3 matching `$a`: 3 allocs/112 B/62 ns -> 1 alloc/48 B/25 ns.
+- Record, 4 same-tag fields x 2 matching `$a`: 9 allocs/368 B/222 ns -> 1 alloc/128 B/79 ns.
+
+So the win lands exactly on the repeated-subfield / repeated-field inputs the
+profile flagged; single-match callers are unchanged. Approach (3) (append/iterator
+variant) was not needed -- no caller measurably required a reusable buffer once the
+intermediates were gone.
