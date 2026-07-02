@@ -45,7 +45,35 @@ the graph does not know.
 
 ## Acceptance
 
-- [ ] 007 for electronic and sound categories round-trips category + SMD (and
-      any position with a typed source) on the kitchen-sink and realdata gates.
-- [ ] 006 leading byte round-trips for records carrying one.
-- [ ] Loss-gate tables updated; suite + fuzz green.
+- [x] 007 for electronic, sound and video categories round-trips category + SMD
+      on the kitchen-sink and realdata gates.
+- [x] 006 leading byte round-trips for the 'm' (electronic aspect) form.
+- [x] Loss-gate tables updated; suite + fuzz green.
+
+## Result
+
+- One bidirectional table (`carrier007`, bibframe.go) correlates RDA carrier
+  codes with 007/00-01 for the sound (sd/si/sq/ss/st/sz -- byte-identical),
+  computer (cr/co<-cd/ca/cb/ce/cf/ch/ck/cz) and video (vd/vf/vr/vc/vz)
+  categories.
+- Forward (`applyCodedFields`): runs after the field pass so explicit 337/338
+  win; a mapped 007 adds its carrier term, a 006 leading 'm' adds the computer
+  media type, both deduplicated. No new graph vocabulary -- the coded fields
+  fold into the existing bf:media/bf:carrier shape.
+- Decode (`codedFields`, reader_crosswalk.go): a minimal 2-byte 007 per mapped
+  carrier (deduplicated), and 006 "m" + fill when a computer media type rides
+  on a record whose leader/06 is not itself 'm' (no redundant 006 on software
+  records). Derive-don't-fabricate: nothing is emitted without a graph source.
+- Gate: 006/007 added to the kitchen sink and coreTags; the realdata sweep
+  requires 007 survival only for mapped categories (the corpus's `ad|canzn`
+  atlas 007 stays lost by scope) and implicitly verifies the two `cr` records.
+
+### Remaining categories (tracked)
+
+- [ ] 007 a/d (map/globe), g (projected), h (microform), k (nonprojected
+      graphic), m (motion picture), t (text), z (unspecified) -- no clean
+      carrier correlation; would need their own typed properties.
+- [ ] 006 leading bytes other than 'm' (a/t/e/g/i/j/...) -- would need a
+      multi-content-type Work model.
+- [ ] Positions beyond 00-01 (color, sound, dimensions, reformatting quality)
+      -- need typed properties (bf:soundCharacteristic, bf:colorContent, ...).

@@ -80,6 +80,7 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	for _, c := range rdaFields(g, inst, pCarrier, "338", carrierVocab, "rdacarrier") {
 		add(c)
 	}
+	fields = append(fields, codedFields(g, inst, rec.Leader().RecordType())...)
 	for _, s := range labelsOf(g, work, pSummary) {
 		add(codex.NewDataField("520", ' ', ' ', codex.NewSubfield('a', s)))
 	}
@@ -199,6 +200,33 @@ func relationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 			continue
 		}
 		fields = append(fields, codex.NewDataField(tag, ' ', ind2, subs...))
+	}
+	return fields
+}
+
+// codedFields rebuilds minimal 006/007 control fields from the Instance's RDA
+// media and carrier terms -- the derive-don't-fabricate shape of the partial 008
+// reconstruction. Each carrier with a 007 mapping yields a 2-byte 007
+// (category + specific material designation); a computer media type on a record
+// whose leader is not itself a computer file yields the 006 'm' electronic
+// aspect, with the remaining positions left as fill.
+func codedFields(g *rdf.Graph, inst rdf.Term, leaderType byte) []codex.Field {
+	var fields []codex.Field
+	seen := map[string]bool{}
+	for _, node := range g.Objects(inst, pCarrier) {
+		code := rdaValue(node, carrierVocab)
+		if coded, ok := f007ForCarrier(code); ok && !seen[coded] {
+			seen[coded] = true
+			fields = append(fields, codex.NewControlField("007", coded))
+		}
+	}
+	if leaderType != 'm' {
+		for _, node := range g.Objects(inst, pMedia) {
+			if rdaValue(node, mediaVocab) == "c" {
+				fields = append(fields, codex.NewControlField("006", "m"+strings.Repeat(" ", 17)))
+				break
+			}
+		}
 	}
 	return fields
 }

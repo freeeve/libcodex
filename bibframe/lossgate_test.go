@@ -22,7 +22,7 @@ import (
 // coreTags are the tags the crosswalk round-trips: present in the source record
 // implies present after Encode -> Decode.
 var coreTags = []string{
-	"001", "008",
+	"001", "006", "007", "008",
 	"010", "020", "022", "024", "041", "050", "072", "082",
 	"100", "130", "240", "245", "246", "250", "260", "300", "306",
 	// 264 _4 (copyright) survives via bf:copyrightDate; provision-typed 264s
@@ -56,6 +56,8 @@ func kitchenSink() *codex.Record {
 		AddField(codex.NewControlField("001", "sink0001")).
 		AddField(codex.NewControlField("003", "DLC")).
 		AddField(codex.NewControlField("005", "20260702120000.0")).
+		AddField(codex.NewControlField("006", "m                 ")).
+		AddField(codex.NewControlField("007", "cr")).
 		AddField(codex.NewControlField("008", "920219s1993    nyua                eng  "))
 	add := func(tag string, ind1, ind2 byte, subs ...codex.Subfield) {
 		rec.AddField(codex.NewDataField(tag, ind1, ind2, subs...))
@@ -215,11 +217,27 @@ func TestLossGateRealData(t *testing.T) {
 					if tag == "264" && got["260"] {
 						continue // provision-typed 264s collapse into 260 by convention
 					}
+					if tag == "007" && !mappable007(rec) {
+						continue // only the sound/computer/video categories reconstruct (tasks/082)
+					}
 					t.Errorf("%s [%s]: core tag %s lost", filepath.Base(path), name, tag)
 				}
 			}
 		}
 	}
+}
+
+// mappable007 reports whether any of a record's 007 fields is in a category the
+// crosswalk reconstructs (sound/computer/video via the carrier correlation).
+func mappable007(r *codex.Record) bool {
+	for _, f := range r.Fields() {
+		if f.Tag == "007" && len(f.Value) >= 2 {
+			if _, ok := carrierFor007(f.Value[:2]); ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // TestKitchenSinkLosslessCodecs runs the sink through the lossless codecs:

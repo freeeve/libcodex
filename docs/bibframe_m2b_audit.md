@@ -206,6 +206,15 @@ remains a tracked checklist in its task file.
   (`#Work760-1`-style) for each linked resource; this crosswalk keeps the flat model
   and emits the `bf:associatedResource` as a blank labeled `bf:Work`, consistent with
   the name-title `bf:relatedTo` handling from 062.
+- RESOLVED [082] -- 006/007 coded fields fold into the RDA media/carrier model
+  through one bidirectional table (`carrier007`): a 007 in the sound, computer or
+  video categories contributes its correlated carrier term on read (explicit
+  337/338 win; coded fields only add what is missing), and decode rebuilds a
+  minimal 2-byte 007 per mapped carrier plus the 006 'm' electronic aspect when a
+  computer media type rides on a non-computer-file leader -- the same
+  derive-don't-fabricate shape as the partial 008 reconstruction. Unmapped
+  categories (maps, globes, microforms, ...) remain enumerated in
+  `tasks/082_bibframe_006_007_coded_fields.done.md`.
 - RESOLVED [081] -- downstream-driven round-trip batch (filed from libcatalog's
   fidelity gate): 511/521 -> typed Work notes (`performers`/`audience`), 533/538 ->
   typed Instance notes (`reproduction`/`systemDetails`), with note labels now

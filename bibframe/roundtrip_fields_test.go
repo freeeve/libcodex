@@ -139,6 +139,66 @@ func TestRelationISBN(t *testing.T) {
 	}
 }
 
+// TestCodedFieldsRoundTrip covers 006/007 folding into media/carrier terms and
+// their reconstruction on decode (task 082: sound/computer/video categories).
+func TestCodedFieldsRoundTrip(t *testing.T) {
+	// An electronic-resource shape with no 337/338: the coded fields alone must
+	// produce the carrier and media, and decode must rebuild both plus RDA fields.
+	rec := recordWith(
+		codex.NewControlField("006", "m        d        "),
+		codex.NewControlField("007", "cr"),
+	)
+	g := FromRecord(rec)
+	if len(g.Instance.Carrier) != 1 || g.Instance.Carrier[0].Code != "cr" {
+		t.Fatalf("carrier from 007 = %+v", g.Instance.Carrier)
+	}
+	if len(g.Instance.Media) != 1 || g.Instance.Media[0].Code != "c" {
+		t.Fatalf("media from 006 = %+v", g.Instance.Media)
+	}
+
+	encoded, err := Encode(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recs, err := Decode(encoded)
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("Decode: %v (%d records)", err, len(recs))
+	}
+	got := recs[0]
+	if f := firstField(got, "007"); f == nil || f.Value != "cr" {
+		t.Errorf("007 = %+v, want cr", f)
+	}
+	if f := firstField(got, "006"); f == nil || len(f.Value) != 18 || f.Value[0] != 'm' {
+		t.Errorf("006 = %+v, want m + fill", f)
+	}
+
+	// Explicit 337/338 win: a 007 whose carrier is already present adds nothing.
+	g2 := FromRecord(recordWith(
+		codex.NewControlField("007", "sd"),
+		codex.NewDataField("338", ' ', ' ', codex.NewSubfield('a', "audio disc"),
+			codex.NewSubfield('b', "sd"), codex.NewSubfield('2', "rdacarrier")),
+	))
+	if len(g2.Instance.Carrier) != 1 {
+		t.Errorf("carrier deduplication failed: %+v", g2.Instance.Carrier)
+	}
+
+	// A computer-file record (leader/06 m) must not gain a redundant 006.
+	sw := recordWith(codex.NewDataField("337", ' ', ' ', codex.NewSubfield('b', "c"),
+		codex.NewSubfield('2', "rdamedia")))
+	sw.SetLeader(codex.Leader("00000nmm a2200000 a 4500"))
+	b2, err := Encode(sw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recs2, err := Decode(b2)
+	if err != nil || len(recs2) != 1 {
+		t.Fatalf("Decode: %v", err)
+	}
+	if f := firstField(recs2[0], "006"); f != nil {
+		t.Errorf("computer-file record gained a redundant 006: %+v", f)
+	}
+}
+
 // TestDurationAndDigitalCharacteristics covers 306 -> bf:duration and 347 ->
 // bf:digitalCharacteristic (FileType/EncodingFormat) both ways.
 func TestDurationAndDigitalCharacteristics(t *testing.T) {

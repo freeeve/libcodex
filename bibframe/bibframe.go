@@ -262,6 +262,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	g.presize(fields)
 	var transcribed, uniform Title
 	var provFields []codex.Field
+	var coded006, coded007 []string
 	var descConventions []string
 	for _, f := range fields {
 		switch f.Tag {
@@ -343,6 +344,10 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			}
 		case "347":
 			g.appendDigitalCharacteristics(f)
+		case "006":
+			coded006 = append(coded006, f.Value)
+		case "007":
+			coded007 = append(coded007, f.Value)
 		case "505":
 			if v := strings.TrimRight(f.SubfieldValue('a'), " "); v != "" {
 				g.Work.TableOfContents = append(g.Work.TableOfContents, v)
@@ -422,6 +427,8 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			}
 		}
 	}
+
+	g.applyCodedFields(coded006, coded007)
 
 	// Every Work carries an RDA content type: 336 when present, else a fallback
 	// derived from leader/06, so the content signal is never absent (mirroring m2b).
@@ -576,6 +583,76 @@ func (g *BIBFRAME) appendRelation(f codex.Field) {
 		ISSN:         issn,
 		ISBN:         isbn,
 	})
+}
+
+// carrier007 pairs an RDA carrier code (338 $b) with the 007/00-01 category +
+// specific-material-designation bytes it corresponds to, for the sound, computer
+// and video categories. One table drives both directions: the forward pass folds
+// a 007 into a carrier term, the reverse pass rebuilds a minimal 2-byte 007 from
+// the carrier -- the same derive-don't-fabricate shape as the partial 008
+// reconstruction. The audio and video codes align byte-for-byte (RDA carriers
+// were designed against 007); computer discs differ (carrier "cd" is 007 "co",
+// optical disc).
+var carrier007 = []struct{ carrier, coded string }{
+	{"sd", "sd"}, {"si", "si"}, {"sq", "sq"}, {"ss", "ss"}, {"st", "st"}, {"sz", "sz"},
+	{"cr", "cr"}, {"cd", "co"}, {"ca", "ca"}, {"cb", "cb"}, {"ce", "ce"},
+	{"cf", "cf"}, {"ch", "ch"}, {"ck", "ck"}, {"cz", "cz"},
+	{"vd", "vd"}, {"vf", "vf"}, {"vr", "vr"}, {"vc", "vc"}, {"vz", "vz"},
+}
+
+// carrierFor007 returns the RDA carrier code for a 007's leading bytes.
+func carrierFor007(coded string) (string, bool) {
+	for _, m := range carrier007 {
+		if m.coded == coded {
+			return m.carrier, true
+		}
+	}
+	return "", false
+}
+
+// f007ForCarrier inverts carrierFor007.
+func f007ForCarrier(carrier string) (string, bool) {
+	for _, m := range carrier007 {
+		if m.carrier == carrier {
+			return m.coded, true
+		}
+	}
+	return "", false
+}
+
+// applyCodedFields folds 006/007 coded values into the RDA media/carrier terms
+// after the field pass, so explicit 337/338 fields win and the coded fields only
+// add what is missing. A 007 whose category+SMD maps to a carrier adds that
+// carrier; a 006 leading byte 'm' (computer-file aspect, the electronic-resource
+// shape) adds the computer media type.
+func (g *BIBFRAME) applyCodedFields(coded006, coded007 []string) {
+	haveCarrier := map[string]bool{}
+	for _, c := range g.Instance.Carrier {
+		haveCarrier[c.Code] = true
+	}
+	for _, v := range coded007 {
+		if len(v) < 2 {
+			continue
+		}
+		if code, ok := carrierFor007(v[:2]); ok && !haveCarrier[code] {
+			haveCarrier[code] = true
+			g.Instance.Carrier = append(g.Instance.Carrier, RDATerm{Code: code})
+		}
+	}
+	for _, v := range coded006 {
+		if len(v) == 0 || v[0] != 'm' {
+			continue // only the computer-file aspect is modeled; see tasks/082
+		}
+		haveMedia := false
+		for _, m := range g.Instance.Media {
+			if m.Code == "c" {
+				haveMedia = true
+			}
+		}
+		if !haveMedia {
+			g.Instance.Media = append(g.Instance.Media, RDATerm{Code: "c"})
+		}
+	}
 }
 
 // linkRelation pairs a 76x-78x linking tag (and, for the continuation entries, its
