@@ -46,6 +46,7 @@ func RecordGraph(r *codex.Record, idx int) rdf.Term {
 type NTriplesWriter struct {
 	w   io.Writer
 	enc rdf.Encoder // shared across records so blank-node labels stay unique
+	buf []byte      // reused across records so streaming does not allocate per record
 	idx int         // stream position, so 001-less records get distinct bases
 	err error
 }
@@ -60,7 +61,8 @@ func (nw *NTriplesWriter) Write(r *codex.Record) error {
 	if nw.err != nil {
 		return nw.err
 	}
-	if _, err := nw.w.Write(nw.enc.AppendNTriples(nil, graphFromRecordAt(r, nw.idx))); err != nil {
+	nw.buf = nw.enc.AppendNTriples(nw.buf[:0], graphFromRecordAt(r, nw.idx))
+	if _, err := nw.w.Write(nw.buf); err != nil {
 		nw.err = err
 	}
 	nw.idx++
@@ -75,6 +77,7 @@ func (nw *NTriplesWriter) Close() error { return nw.err }
 type TurtleWriter struct {
 	w       io.Writer
 	enc     rdf.Encoder // shared across records so blank-node labels stay unique
+	buf     []byte      // reused across records so streaming does not allocate per record
 	idx     int         // stream position, so 001-less records get distinct bases
 	started bool
 	err     error
@@ -96,7 +99,8 @@ func (tw *TurtleWriter) Write(r *codex.Record) error {
 			return err
 		}
 	}
-	if _, err := tw.w.Write(tw.enc.AppendTurtle(nil, graphFromRecordAt(r, tw.idx), bibframePrefixes)); err != nil {
+	tw.buf = tw.enc.AppendTurtle(tw.buf[:0], graphFromRecordAt(r, tw.idx), bibframePrefixes)
+	if _, err := tw.w.Write(tw.buf); err != nil {
 		tw.err = err
 	}
 	tw.idx++
@@ -114,7 +118,8 @@ type NQuadsWriter struct {
 	w        io.Writer
 	graphFor func(*codex.Record, int) rdf.Term
 	enc      rdf.Encoder
-	idx      int // stream position, passed to graphFor and the node base
+	buf      []byte // reused across records so streaming does not allocate per record
+	idx      int    // stream position, passed to graphFor and the node base
 	err      error
 }
 
@@ -137,7 +142,8 @@ func (nw *NQuadsWriter) Write(r *codex.Record) error {
 	if nw.graphFor != nil {
 		g = nw.graphFor(r, nw.idx)
 	}
-	if _, err := nw.w.Write(nw.enc.AppendNQuads(nil, graphFromRecordAt(r, nw.idx), g)); err != nil {
+	nw.buf = nw.enc.AppendNQuads(nw.buf[:0], graphFromRecordAt(r, nw.idx), g)
+	if _, err := nw.w.Write(nw.buf); err != nil {
 		nw.err = err
 	}
 	nw.idx++

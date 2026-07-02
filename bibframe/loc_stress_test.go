@@ -91,7 +91,7 @@ func TestLoCStress(t *testing.T) {
 			t.Errorf("%s: no bf:Work in merged graph", id)
 			continue
 		}
-		rec := recordFromWork(merged, works[0])
+		rec := recordFromWork(merged, works[0], instanceBackrefs(merged))
 		title := subfield(rec, "245", 'a')
 		if title == "" {
 			t.Errorf("%s: reconstructed 245 has empty $a", id)

@@ -57,3 +57,21 @@ Requirements:
 - [ ] Existing single-instance tests and golden output unchanged.
 
 Consumer: libcatalog Phase 1 (`identity/`, `tasks/001`, `tasks/002`).
+
+## Prerequisites from task 048 (structural groundwork, done)
+
+Task 048 landed the structural fixes that make this task safe to start:
+
+- **Finding 048-4 (base sanitization):** `BIBFRAME.Graph(base)` now applies
+  `sanitizeID`, so caller-supplied bases at both tiers cannot mint invalid node
+  IRIs. `WorkInstances.Graph(workBase, instanceBases)` must apply the same rule to
+  every base it accepts.
+- **Finding 048-5 (blank-label collisions):** `graphBuilder.fresh()` namespaces
+  blank labels by the node base. A grain assembled from separate `Graph` calls
+  would still collide, so this task must build the Work + all its Instances with
+  **one** `graphBuilder` (one blank counter) as the requirements above state.
+- **Finding 048-2 (reader binds one Instance per Work):** `recordFromWork` still
+  reads a single Instance (via the precomputed `instanceBackrefs` map). Once this
+  task emits one-Work/N-Instance grains, `Decode` must iterate
+  `g.Objects(work, pHasInstance)` and this task's acceptance must fix the policy
+  (one record per Work+Instance pair, or merge). Decide it here.

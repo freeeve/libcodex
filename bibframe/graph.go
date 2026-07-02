@@ -22,7 +22,7 @@ func graphFromRecordAt(r *codex.Record, idx int) *rdf.Graph {
 }
 
 func graphFromBIBFRAME(bib *BIBFRAME, base string) *rdf.Graph {
-	gb := &graphBuilder{g: &rdf.Graph{}}
+	gb := &graphBuilder{g: &rdf.Graph{}, prefix: base}
 	work := rdf.NewIRI(workURI(base))
 	inst := rdf.NewIRI(instanceURI(base))
 	gb.work(work, inst, bib)
@@ -36,18 +36,26 @@ func graphFromBIBFRAME(bib *BIBFRAME, base string) *rdf.Graph {
 // non-MARC source and want the same graph shape FromRecord produces; serialize
 // the result with rdf's NQuads, NTriples or Turtle encoders. FromRecord(r).Graph(
 // base) is equivalent to the graph the record writers emit.
+//
+// base is sanitized to the characters valid in an IRI fragment (dropping spaces,
+// '#', '/', etc.), so a caller-supplied identifier cannot produce an invalid node
+// IRI (e.g. "#my idWork") or defeat the reader's controlNumber recovery.
 func (bib *BIBFRAME) Graph(base string) *rdf.Graph {
-	return graphFromBIBFRAME(bib, base)
+	return graphFromBIBFRAME(bib, sanitizeID(base))
 }
 
 type graphBuilder struct {
 	g      *rdf.Graph
+	prefix string // blank-label namespace (the node base) so separately built graphs merge safely
 	blanks int
 }
 
+// fresh mints a blank node namespaced by the builder's base, so two graphs built
+// for different records (different bases) never collide on _:b1 when their triples
+// are merged into one document.
 func (gb *graphBuilder) fresh() rdf.Term {
 	gb.blanks++
-	return rdf.NewBlank("b" + strconv.Itoa(gb.blanks))
+	return rdf.NewBlank(gb.prefix + "b" + strconv.Itoa(gb.blanks))
 }
 
 // typ adds an rdf:type triple.
