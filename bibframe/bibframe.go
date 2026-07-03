@@ -1496,5 +1496,4 @@ func sanitizeID(s string) string {
 	return b.String()
 }
 
-func workURI(base string) string     { return "#" + base + "Work" }
 func instanceURI(base string) string { return "#" + base + "Instance" }

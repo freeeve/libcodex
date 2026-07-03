@@ -84,7 +84,6 @@ var (
 
 // Predicate qnames.
 var (
-	qpType                   = qname{nsRDF, "type", "rdf:type", pType}
 	qpLabel                  = qname{nsRDFS, "label", "rdfs:label", pLabel}
 	qpValue                  = qname{nsRDF, "value", "rdf:value", pValue}
 	qpHasInstance            = qname{nsBF, "hasInstance", "bf:hasInstance", pHasInstance}
