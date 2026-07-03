@@ -184,3 +184,22 @@ func FuzzSerializeRoundTrip(f *testing.F) {
 		}
 	})
 }
+
+// FuzzParseNQuadsShared asserts the zero-copy parse yields exactly the quads the
+// copying parse does on arbitrary input — the two differ only in what backs
+// their terms, so any divergence is a bug in the shared (unsafe.String) path.
+func FuzzParseNQuadsShared(f *testing.F) {
+	seedStream(f)
+	f.Fuzz(func(t *testing.T, data []byte) {
+		want, _ := ParseNQuads(data)
+		got, _ := ParseNQuadsShared(data)
+		if len(got.Quads) != len(want.Quads) {
+			t.Fatalf("shared parsed %d quads, copying parsed %d", len(got.Quads), len(want.Quads))
+		}
+		for i := range got.Quads {
+			if got.Quads[i] != want.Quads[i] {
+				t.Fatalf("quad %d differs:\n shared %+v\n copied %+v", i, got.Quads[i], want.Quads[i])
+			}
+		}
+	})
+}

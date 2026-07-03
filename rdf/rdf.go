@@ -7,7 +7,10 @@
 //
 //   - Whole document: ParseRDFXML, ParseJSONLD, ParseTurtle and ParseNTriples take
 //     a []byte and return a *Graph. Fast and convenient for inputs that fit in
-//     memory.
+//     memory. The line-based parsers have zero-copy variants (ParseNTriplesShared,
+//     ParseNQuadsShared) that back terms with the caller's buffer instead of a
+//     private copy — one input-sized allocation less, for callers that keep the
+//     buffer immutable.
 //   - Streaming: NewDecoder reads N-Triples, N-Quads, RDF/XML or Turtle from an
 //     io.Reader one triple at a time in constant memory, for inputs too large to
 //     materialize (e.g. the multi-gigabyte Library of Congress authority dumps).
@@ -81,7 +84,7 @@ type Triple struct {
 type Graph struct {
 	Triples []Triple
 
-	spo map[Term][]Triple // subject -> triples
+	spo map[Term][]int32 // subject -> positions in Triples, carved from one shared arena
 }
 
 // Add appends a triple.
@@ -90,14 +93,34 @@ func (g *Graph) Add(s, p, o Term) {
 	g.spo = nil // invalidate the index
 }
 
+// index builds the lazy subject index in two passes: count the triples per
+// subject, then carve each subject's bucket from one shared arena at exactly
+// its final size. Buckets hold int32 positions into Triples rather than Triple
+// copies, so a corpus-scale build costs a few bytes per triple instead of the
+// hundreds that per-subject append growth over copied triples did. (int32
+// bounds a graph at 2^31 triples — hundreds of gigabytes of Triple values,
+// far past in-memory reach.)
 func (g *Graph) index() {
 	if g.spo != nil {
 		return
 	}
-	g.spo = make(map[Term][]Triple, len(g.Triples))
-	for _, t := range g.Triples {
-		g.spo[t.S] = append(g.spo[t.S], t)
+	counts := make(map[Term]int32, len(g.Triples)/4+1)
+	for i := range g.Triples {
+		counts[g.Triples[i].S]++
 	}
+	arena := make([]int32, 0, len(g.Triples))
+	spo := make(map[Term][]int32, len(counts))
+	for i := range g.Triples {
+		s := g.Triples[i].S
+		bucket, ok := spo[s]
+		if !ok {
+			n := len(arena) + int(counts[s])
+			bucket = arena[len(arena):len(arena):n]
+			arena = arena[:n]
+		}
+		spo[s] = append(bucket, int32(i))
+	}
+	g.spo = spo
 }
 
 // Objects returns the objects of every triple with the given subject and
@@ -105,8 +128,8 @@ func (g *Graph) index() {
 func (g *Graph) Objects(subject Term, predicate string) []Term {
 	g.index()
 	var out []Term
-	for _, t := range g.spo[subject] {
-		if t.P.Kind == IRI && t.P.Value == predicate {
+	for _, i := range g.spo[subject] {
+		if t := &g.Triples[i]; t.P.Kind == IRI && t.P.Value == predicate {
 			out = append(out, t.O)
 		}
 	}
@@ -117,8 +140,8 @@ func (g *Graph) Objects(subject Term, predicate string) []Term {
 // index without allocating an intermediate slice.
 func (g *Graph) Object(subject Term, predicate string) (Term, bool) {
 	g.index()
-	for _, t := range g.spo[subject] {
-		if t.P.Kind == IRI && t.P.Value == predicate {
+	for _, i := range g.spo[subject] {
+		if t := &g.Triples[i]; t.P.Kind == IRI && t.P.Value == predicate {
 			return t.O, true
 		}
 	}
@@ -129,8 +152,8 @@ func (g *Graph) Object(subject Term, predicate string) (Term, bool) {
 // without allocating.
 func (g *Graph) HasType(subject Term, typeIRI string) bool {
 	g.index()
-	for _, t := range g.spo[subject] {
-		if t.P.Kind == IRI && t.P.Value == TypeIRI && t.O.Kind == IRI && t.O.Value == typeIRI {
+	for _, i := range g.spo[subject] {
+		if t := &g.Triples[i]; t.P.Kind == IRI && t.P.Value == TypeIRI && t.O.Kind == IRI && t.O.Value == typeIRI {
 			return true
 		}
 	}
@@ -142,8 +165,8 @@ func (g *Graph) HasType(subject Term, typeIRI string) bool {
 // slice, serving the frequent single-value field reads.
 func (g *Graph) Literal(subject Term, predicate string) (string, bool) {
 	g.index()
-	for _, t := range g.spo[subject] {
-		if t.P.Kind == IRI && t.P.Value == predicate && t.O.Kind == Literal {
+	for _, i := range g.spo[subject] {
+		if t := &g.Triples[i]; t.P.Kind == IRI && t.P.Value == predicate && t.O.Kind == Literal {
 			return t.O.Value, true
 		}
 	}

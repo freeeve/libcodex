@@ -51,6 +51,16 @@ func (a *arena) concat(x, y string) string {
 	return a.view(start)
 }
 
+// bytesView returns b's bytes as a string without copying. The caller must not
+// modify b while the string, or any substring of it, remains reachable — it is
+// what backs the Shared parse variants.
+func bytesView(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(&b[0], len(b))
+}
+
 // unescape decodes the RDF string escapes in s into the arena. The unescaped form
 // is never longer than s, so the single reservation never overflows the chunk.
 func (a *arena) unescape(s string) string {

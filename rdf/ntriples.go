@@ -1,7 +1,6 @@
 package rdf
 
 import (
-	"bytes"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -10,13 +9,26 @@ import (
 // ParseNTriples parses an N-Triples document (one "subject predicate object ."
 // statement per line) into a Graph. It also accepts N-Quads, ignoring any fourth
 // (graph) term. Blank, comment and malformed lines are skipped, so it is robust to
-// the trailing noise real-world dumps carry.
+// the trailing noise real-world dumps carry. One private copy of the input backs
+// every term, so data is free for reuse once it returns.
 func ParseNTriples(data []byte) (*Graph, error) {
-	// One copy of the input backs every term (zero-copy substrings); preallocate
-	// the triple slice from the line count so it never grows.
-	g := &Graph{Triples: make([]Triple, 0, bytes.Count(data, []byte{'\n'})+1)}
+	return parseNTriples(string(data))
+}
+
+// ParseNTriplesShared is ParseNTriples without the private input copy: terms
+// are zero-copy views into data itself, saving one input-sized allocation. In
+// exchange the caller must not modify data while the Graph, or any Term drawn
+// from it, remains in use.
+func ParseNTriplesShared(data []byte) (*Graph, error) {
+	return parseNTriples(bytesView(data))
+}
+
+func parseNTriples(data string) (*Graph, error) {
+	// Zero-copy substrings of data back every term; preallocate the triple
+	// slice from the line count so it never grows.
+	g := &Graph{Triples: make([]Triple, 0, strings.Count(data, "\n")+1)}
 	var a arena
-	for line := range strings.SplitSeq(string(data), "\n") {
+	for line := range strings.SplitSeq(data, "\n") {
 		if tr, ok := parseNTLine(line, &a); ok {
 			g.Triples = append(g.Triples, tr)
 		}

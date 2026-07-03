@@ -1,7 +1,6 @@
 package rdf
 
 import (
-	"bytes"
 	"slices"
 	"strings"
 )
@@ -146,11 +145,25 @@ func (g *Graph) NQuads(graph Term) []byte {
 // ParseNQuads parses an N-Quads document into a Dataset, preserving each
 // statement's graph term; lines carrying only three terms fall in the default
 // graph. It shares the N-Triples term reader, so the same escaping and leniency
-// apply — blank, comment and malformed lines are skipped.
+// apply — blank, comment and malformed lines are skipped. One private copy of
+// the input backs every term, so data is free for reuse once it returns.
 func ParseNQuads(data []byte) (*Dataset, error) {
-	d := &Dataset{Quads: make([]Quad, 0, bytes.Count(data, []byte{'\n'})+1)}
+	return parseNQuads(string(data))
+}
+
+// ParseNQuadsShared is ParseNQuads without the private input copy: terms are
+// zero-copy views into data itself, saving one input-sized allocation — worth
+// it when read-heavy consumers parse corpus-scale documents. In exchange the
+// caller must not modify data while the Dataset, or any Graph or Term derived
+// from it, remains in use.
+func ParseNQuadsShared(data []byte) (*Dataset, error) {
+	return parseNQuads(bytesView(data))
+}
+
+func parseNQuads(data string) (*Dataset, error) {
+	d := &Dataset{Quads: make([]Quad, 0, strings.Count(data, "\n")+1)}
 	var a arena
-	for line := range strings.SplitSeq(string(data), "\n") {
+	for line := range strings.SplitSeq(data, "\n") {
 		if q, ok := parseNQuadLine(line, &a); ok {
 			d.Quads = append(d.Quads, q)
 		}
