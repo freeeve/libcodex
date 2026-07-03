@@ -1,0 +1,29 @@
+#!/bin/sh
+# Pre-push hook mirroring the static checks of CI's build job (gofmt, vet,
+# staticcheck at CI's pinned version, then the test suite without -race), so a
+# push that would fail CI is stopped locally instead. Enable once per clone:
+#
+#	git config core.hooksPath .githooks
+#
+# Bypass for an emergency push: git push --no-verify
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-push: gofmt -s"
+fmt=$(gofmt -s -l .)
+if [ -n "$fmt" ]; then
+	echo "pre-push: gofmt -s needed on:" >&2
+	echo "$fmt" >&2
+	exit 1
+fi
+
+echo "pre-push: go vet"
+go vet ./...
+
+echo "pre-push: staticcheck"
+go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...
+
+echo "pre-push: go test"
+go test ./...
+
+echo "pre-push: all checks passed"
