@@ -353,10 +353,15 @@ const (
 
 // normalizeSchema folds the many recordSchema identifiers a server may send (short
 // names, info: URIs, namespace URIs) to a canonical token: "marcxml", "mods" or
-// "dc". An unrecognized identifier is returned unchanged.
+// "dc". An unrecognized identifier is returned unchanged. Server-specific labels for
+// MARC21 slim XML fold to "marcxml" too, case-insensitively: "MARC21-xml" and
+// "MARC21plus-1-xml" (the extended profile, still slim XML) as sent by the Deutsche
+// Nationalbibliothek, and the bare "marc21".
 func normalizeSchema(s string) string {
 	switch {
-	case s == "marcxml" || s == marcxmlSlimNS || strings.HasPrefix(s, "info:srw/schema/1/marcxml"):
+	case s == marcxmlSlimNS || strings.HasPrefix(s, "info:srw/schema/1/marcxml") ||
+		strings.EqualFold(s, "marcxml") || strings.EqualFold(s, "MARC21-xml") ||
+		strings.EqualFold(s, "MARC21plus-1-xml") || strings.EqualFold(s, "marc21"):
 		return "marcxml"
 	case s == "mods" || s == modsV3NS || strings.HasPrefix(s, "info:srw/schema/1/mods"):
 		return "mods"
