@@ -22,10 +22,11 @@ func Quote(term string) string {
 //	q := sru.And(sru.Term("author", "melville"), sru.Term("title", "moby dick"))
 //	rd := client.NewReader(ctx, q.String())
 //
-// Access points map to the Dublin Core context set most deployments index
-// (dc.title, dc.author, ...); an index name containing a dot (e.g. "bath.isbn")
-// passes through unchanged for servers using another set. This is a query
-// writer only -- it does not parse CQL.
+// Access points map to the context set most deployments index -- Dublin Core
+// for descriptive fields (dc.title, dc.author, ...) and the Bath profile for
+// identifiers (bath.isbn, bath.issn, bath.lccn); an index name containing a dot
+// (e.g. "bath.possessingInstitution") passes through unchanged for servers using
+// another set. This is a query writer only -- it does not parse CQL.
 type Query struct {
 	index string
 	term  string
@@ -35,20 +36,24 @@ type Query struct {
 }
 
 // cqlIndex maps a builder access-point name to its CQL index. "any" renders as
-// a bare term (the server-choice index).
+// a bare term (the server-choice index). Identifier access points use the Bath
+// profile (bath.isbn/issn/lccn) rather than Dublin Core, which defines no
+// identifier indexes -- servers such as LOC's reject the dc.isbn/dc.issn forms
+// with an "unsupported index" diagnostic.
 var cqlIndex = map[string]string{
 	"any":     "",
 	"title":   "dc.title",
 	"author":  "dc.author",
 	"subject": "dc.subject",
-	"isbn":    "dc.isbn",
-	"issn":    "dc.issn",
+	"isbn":    "bath.isbn",
+	"issn":    "bath.issn",
+	"lccn":    "bath.lccn",
 	"id":      "rec.id",
 }
 
 // Term is a single-term query against a named access point ("any", "title",
-// "author", "subject", "isbn", "issn", "id"); any other name (e.g. "bath.isbn")
-// is used as the CQL index verbatim.
+// "author", "subject", "isbn", "issn", "lccn", "id"); any other name (e.g.
+// "bath.possessingInstitution") is used as the CQL index verbatim.
 func Term(index, term string) Query { return Query{index: index, term: term} }
 
 // And matches records satisfying both queries.
