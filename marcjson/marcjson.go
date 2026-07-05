@@ -107,9 +107,11 @@ func indStr(b byte) string {
 	return string(b)
 }
 
-// indByte parses an indicator string, defaulting an empty one to a blank space.
+// indByte parses an indicator string, folding an empty or non-printable one to a
+// blank space — the encode side already renders an unset (zero) indicator as a
+// blank, so accepting the raw byte here would make decode→encode→decode unstable.
 func indByte(s string) byte {
-	if s == "" {
+	if s == "" || !asciiChar(s[0]) {
 		return ' '
 	}
 	return s[0]

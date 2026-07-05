@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"fields\"[{\"1\"{\"ind1\"\"\x00\"}}]}")
