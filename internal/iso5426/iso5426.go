@@ -127,8 +127,11 @@ func DecodeLossy(data []byte) (string, bool) {
 		case isCombining(c):
 			// 0xF9 is both the breve-below mark and the letter ø; treat it as a mark
 			// only when it composes with the following byte, otherwise as the graphic.
+			// With marks already pending it is always the graphic: marks precede their
+			// base, and Encode places an inner decomposition mark only at the start of
+			// a run — so a mark-then-0xF9 sequence is a diacritic on ø, not two marks.
 			if g, isGraphic := iso5426Graphic[c]; isGraphic {
-				if i+1 >= len(data) || !composes(c, data[i+1]) {
+				if len(pending) > 0 || i+1 >= len(data) || !composes(c, data[i+1]) {
 					flush(g)
 					i++
 					continue
