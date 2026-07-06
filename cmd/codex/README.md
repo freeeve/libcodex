@@ -6,15 +6,28 @@ wiring the library's format packages behind four subcommands.
 
 ## Install
 
+With Go:
+
 ```sh
 go install github.com/freeeve/libcodex/cmd/codex@latest
 ```
 
-Or build from a checkout:
+With Homebrew (this repo is its own tap):
+
+```sh
+brew tap freeeve/libcodex https://github.com/freeeve/libcodex
+brew install freeeve/libcodex/codex
+```
+
+Or grab a prebuilt binary for your OS/arch from the
+[latest release](https://github.com/freeeve/libcodex/releases/latest)
+(linux/macOS/windows, amd64/arm64), or build from a checkout:
 
 ```sh
 go build -o codex ./cmd/codex
 ```
+
+`codex version` reports the build version.
 
 ## Usage
 
@@ -41,7 +54,9 @@ compose in a pipe.
 | `bibframe`           |  ✓   |   ✓   | BIBFRAME RDF/XML                       |
 | `dublincore`         |      |   ✓   | write-only, lossy display projection   |
 | `mods`               |      |   ✓   | write-only, lossy display projection   |
-| `schemaorg`          |      |   ✓   | write-only, lossy display projection   |
+| `schemaorg`          |      |   ✓   | write-only, schema.org JSON-LD         |
+| `ris`                |      |   ✓   | write-only, reference-manager RIS      |
+| `bibtex`             |      |   ✓   | write-only, BibTeX                     |
 
 Auto-detection recognizes an ISO 2709 leader (five leading digits), an XML
 document (BIBFRAME RDF/XML vs plain MARCXML), a JSON array/object, and the

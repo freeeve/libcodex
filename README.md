@@ -132,6 +132,37 @@ w.Close()
 
 Any of the 4 × 4 source/target combinations works and preserves the model.
 
+## Command-line tool (`codex`)
+
+The same codecs are wrapped in a small CLI for shell use — inspecting,
+transcoding, validating and profiling records without writing Go:
+
+```sh
+go install github.com/freeeve/libcodex/cmd/codex@latest
+```
+
+```sh
+codex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]   readable dump
+codex convert   [-i fmt] -o fmt [file...]                      transcode
+codex validate  [-i fmt] [file...]                             structural check
+codex stats     [-i fmt] [file...]                             field/leader report
+```
+
+The input format is auto-detected from the leading bytes when `-i` is omitted,
+and with no file arguments each subcommand reads stdin, so commands compose in a
+pipe:
+
+```sh
+codex cat -t 084,650 catalog.mrc          # dump only classification/subject fields
+codex convert -o bibframe catalog.mrc     # MARC → BIBFRAME RDF/XML on stdout
+codex convert -o marcjson catalog.mrc | codex stats   # transcode, then profile
+```
+
+`convert` targets every registered output format (the four MARC serializations
+plus `bibframe`, `mods`, `dublincore`, `schemaorg`, `ris` and `bibtex`). See
+[`cmd/codex/README.md`](cmd/codex/README.md) for the full format table and
+per-subcommand detail.
+
 ## Export converters
 
 Beyond the four round-trip serializations, the library exports to formats that

@@ -10,6 +10,7 @@ import (
 
 	"github.com/freeeve/libcodex"
 	"github.com/freeeve/libcodex/bibframe"
+	"github.com/freeeve/libcodex/citation"
 	"github.com/freeeve/libcodex/dublincore"
 	"github.com/freeeve/libcodex/iso2709"
 	"github.com/freeeve/libcodex/marcjson"
@@ -55,6 +56,8 @@ var writers = map[string]writerFactory{
 	"dublincore": func(w io.Writer) codex.RecordWriter { return dublincore.NewWriter(w) },
 	"mods":       func(w io.Writer) codex.RecordWriter { return mods.NewWriter(w) },
 	"schemaorg":  func(w io.Writer) codex.RecordWriter { return schemaorg.NewWriter(w) },
+	"ris":        func(w io.Writer) codex.RecordWriter { return citation.NewRISWriter(w) },
+	"bibtex":     func(w io.Writer) codex.RecordWriter { return citation.NewBibTeXWriter(w) },
 }
 
 // formatNames returns the distinct canonical names of a registry, sorted, for

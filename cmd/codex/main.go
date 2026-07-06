@@ -17,6 +17,10 @@ import (
 	"os"
 )
 
+// version is the build version, stamped at release time via
+// -ldflags "-X main.version=<tag>"; it is "dev" for a plain go build/install.
+var version = "dev"
+
 // usageText is the top-level help, listing the registered input/output formats.
 func usageText() string {
 	return `codex -- inspect and convert bibliographic records
@@ -61,6 +65,9 @@ func run(cmd string, args []string, stdout io.Writer) error {
 		return runStats(args, stdout)
 	case "help", "-h", "--help":
 		fmt.Fprintln(stdout, usageText())
+		return nil
+	case "version", "-v", "--version":
+		fmt.Fprintln(stdout, "codex "+version)
 		return nil
 	default:
 		return fmt.Errorf("unknown subcommand %q (try: cat, convert, validate, stats)", cmd)
