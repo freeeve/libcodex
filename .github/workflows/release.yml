@@ -1,0 +1,68 @@
+name: Release
+
+# Build the codex CLI for every supported OS/arch and attach the archives to the
+# GitHub release for the tag. Runs on a pushed v* tag, or on demand
+# (workflow_dispatch) with a tag input to (re)build assets for an existing tag.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build release assets for (e.g. v0.15.0)'
+        required: true
+
+permissions:
+  contents: write # create the release and upload assets
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          check-latest: true
+          cache: false # zero-dependency module: there is no go.sum to cache
+
+      - name: Build archives
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Pure-stdlib module, so cross-compilation is a plain go build per target.
+          targets="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
+          for t in $targets; do
+            os="${t%/*}"; arch="${t#*/}"
+            name="codex_${TAG}_${os}_${arch}"
+            bin="codex"; [ "$os" = "windows" ] && bin="codex.exe"
+            echo "building $name"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+              go build -trimpath -ldflags "-s -w -X main.version=${TAG}" -o "$bin" ./cmd/codex
+            if [ "$os" = "windows" ]; then
+              zip -q "dist/${name}.zip" "$bin" README.md LICENSE cmd/codex/README.md
+            else
+              tar -czf "dist/${name}.tar.gz" "$bin" README.md LICENSE cmd/codex/README.md
+            fi
+            rm -f "$bin"
+          done
+          (cd dist && sha256sum * > checksums.txt)
+          ls -l dist
+
+      - name: Publish assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Create the release only if one does not exist yet, so a curated release
+          # body is never overwritten; then attach (or replace) the built assets.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" dist/* --clobber
