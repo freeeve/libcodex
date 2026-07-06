@@ -581,7 +581,9 @@ func identifierField(tag string, ind1, ind2 byte, value, source, qualifier, stat
 
 // classificationFields reverses bf:classification into 050/082, and a generic
 // bf:Classification (source-qualified, as 072 produces) back into 072 with its
-// scheme in $2.
+// scheme in $2. A Classification's rdfs:label (Label) is display-only and has no
+// standard MARC channel, so it is not rendered here: a Classification round-tripped
+// through MARC keeps its code ($a) but loses its Label.
 func classificationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 	var fields []codex.Field
 	for _, c := range g.Objects(work, pClassif) {

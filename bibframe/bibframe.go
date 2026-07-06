@@ -199,6 +199,7 @@ type Subject struct {
 type Classification struct {
 	Class       string // "ClassificationLcc", "ClassificationDdc" or "Classification"
 	Value       string // classification portion ($a)
+	Label       string // human display text for the coded Value (rdfs:label); display-only, optional
 	ItemPortion string // item/cutter portion (bf:itemPortion, $b); optional
 	Edition     string // Dewey edition (bf:edition): "full" or "abridged"; optional
 	Source      string // classification scheme (bf:source), e.g. "bisacsh"; optional

@@ -507,6 +507,9 @@ func emitLanguage(s sink, code, part string) {
 func emitClassification(s sink, c Classification) {
 	s.beginNode(bfName(c.Class), iriVal{}, qname{})
 	s.lit(qpClassificationPortion, c.Value)
+	if c.Label != "" {
+		s.lit(qpLabel, c.Label)
+	}
 	if c.ItemPortion != "" {
 		s.lit(qpItemPortion, c.ItemPortion)
 	}
