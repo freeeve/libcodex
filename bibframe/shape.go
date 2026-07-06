@@ -37,6 +37,15 @@ func roleIRIVal(iri string) iriVal {
 	return iriVal{a: iri}
 }
 
+// subjectIRIVal wraps a subject's authority IRI ($0); the empty IRI yields the
+// zero iriVal, i.e. a blank subject node.
+func subjectIRIVal(iri string) iriVal {
+	if iri == "" {
+		return iriVal{}
+	}
+	return iriVal{a: iri}
+}
+
 // countryIRIVal builds a bf:place IRI in the LoC countries vocabulary from a MARC
 // country code.
 func countryIRIVal(code string) iriVal { return iriVal{countriesVocab, code, ""} }
@@ -378,7 +387,7 @@ func emitLabeled(s sink, class qname, label string) {
 // and, when known, the controlling thesaurus as bf:source (mirroring the
 // classification source node).
 func emitSubject(s sink, sub Subject) {
-	s.beginNode(bfName(sub.Class), iriVal{}, qname{})
+	s.beginNode(bfName(sub.Class), subjectIRIVal(sub.Authority), qname{})
 	s.lit(qpLabel, sub.Label)
 	if sub.Source != "" {
 		s.beginChild(qpSource)

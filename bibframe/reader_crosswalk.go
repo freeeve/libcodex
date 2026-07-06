@@ -414,23 +414,59 @@ func subjectFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 	for _, s := range g.Objects(work, pSubject) {
 		label := literal(g, s, pLabel)
 		if label == "" {
+			label = literal(g, s, pPrefLabel) // read the SKOS shape natively
+		}
+		if label == "" {
 			continue
 		}
-		ind2, sub2 := subjectInd2(sourceLabel(g, s))
-		switch typeExcept(g, s, "") {
+		// An IRI subject node carries its authority link in $0; derive the
+		// thesaurus from the IRI prefix when no bf:source node names it.
+		var authority string
+		if s.IsIRI() {
+			authority = s.Value
+		}
+		source := sourceLabel(g, s)
+		if source == "" && authority != "" {
+			source = sourceFromIRI(authority)
+		}
+		ind2, sub2 := subjectInd2(source)
+		class := typeExcept(g, s, "")
+		if class == "" {
+			class = "Topic" // an untyped SKOS concept defaults to a topical 650
+		}
+		switch class {
 		case "Topic":
-			fields = append(fields, headingField("650", label, ind2, sub2))
+			fields = append(fields, headingField("650", label, ind2, sub2, authority))
 		case "Place":
-			fields = append(fields, headingField("651", label, ind2, sub2))
+			fields = append(fields, headingField("651", label, ind2, sub2, authority))
 		case "Person":
-			fields = append(fields, nameHeadingField("600", '1', ind2, label, sub2))
+			fields = append(fields, nameHeadingField("600", '1', ind2, label, sub2, authority))
 		case "Organization":
-			fields = append(fields, nameHeadingField("610", '2', ind2, label, sub2))
+			fields = append(fields, nameHeadingField("610", '2', ind2, label, sub2, authority))
 		case "Meeting":
-			fields = append(fields, nameHeadingField("611", '2', ind2, label, sub2))
+			fields = append(fields, nameHeadingField("611", '2', ind2, label, sub2, authority))
 		}
 	}
 	return fields
+}
+
+// sourceFromIRI derives a subject thesaurus code from a well-known authority IRI
+// prefix, so a bare SKOS concept IRI still resolves to the right 6xx second
+// indicator / $2. It returns "" for an unrecognized host.
+func sourceFromIRI(iri string) string {
+	switch {
+	case strings.Contains(iri, "id.loc.gov/authorities/subjects"):
+		return "lcsh"
+	case strings.Contains(iri, "id.loc.gov/authorities/childrensSubjects"):
+		return "lcshac"
+	case strings.Contains(iri, "id.worldcat.org/fast"):
+		return "fast"
+	case strings.Contains(iri, "homosaurus.org"):
+		return "homosaurus"
+	case strings.Contains(iri, "id.nlm.nih.gov/mesh"):
+		return "mesh"
+	}
+	return ""
 }
 
 // subjectInd2 reverses a subject bf:source code into a 6xx second indicator, plus
@@ -459,27 +495,37 @@ func subjectInd2(source string) (ind2 byte, sub2 string) {
 
 // headingField builds a 650/651 from a "--"-subdivided label: the first portion
 // is $a, each remaining portion a general subdivision $x, with the thesaurus in
-// $2 when the second indicator defers to it.
-func headingField(tag, label string, ind2 byte, sub2 string) codex.Field {
+// $2 when the second indicator defers to it and the authority link in $0 when the
+// subject node was an IRI.
+func headingField(tag, label string, ind2 byte, sub2, authority string) codex.Field {
 	parts := strings.Split(label, "--")
 	subs := []codex.Subfield{codex.NewSubfield('a', parts[0])}
 	for _, p := range parts[1:] {
 		subs = append(subs, codex.NewSubfield('x', p))
 	}
-	if sub2 != "" {
-		subs = append(subs, codex.NewSubfield('2', sub2))
-	}
+	subs = appendThesaurusAndAuthority(subs, sub2, authority)
 	return codex.NewDataField(tag, ' ', ind2, subs...)
 }
 
 // nameHeadingField builds a 600/610/611 name subject from its label, carrying the
-// thesaurus in $2 when the second indicator defers to it.
-func nameHeadingField(tag string, ind1, ind2 byte, label, sub2 string) codex.Field {
+// thesaurus in $2 and the authority link in $0 as headingField does.
+func nameHeadingField(tag string, ind1, ind2 byte, label, sub2, authority string) codex.Field {
 	subs := []codex.Subfield{codex.NewSubfield('a', label)}
+	subs = appendThesaurusAndAuthority(subs, sub2, authority)
+	return codex.NewDataField(tag, ind1, ind2, subs...)
+}
+
+// appendThesaurusAndAuthority appends the $2 thesaurus (when the indicator defers
+// to it) and the $0 authority link (when present) to a 6xx subfield list, in MARC
+// order.
+func appendThesaurusAndAuthority(subs []codex.Subfield, sub2, authority string) []codex.Subfield {
 	if sub2 != "" {
 		subs = append(subs, codex.NewSubfield('2', sub2))
 	}
-	return codex.NewDataField(tag, ind1, ind2, subs...)
+	if authority != "" {
+		subs = append(subs, codex.NewSubfield('0', authority))
+	}
+	return subs
 }
 
 // identifierFields reverses bf:identifiedBy into 020/022/024, restoring the

@@ -17,6 +17,7 @@ const (
 
 	pType                  = rdfNS + "type"
 	pLabel                 = rdfsNS + "label"
+	pPrefLabel             = skosNS + "prefLabel"
 	pValue                 = rdfNS + "value"
 	pTitle                 = bfNS + "title"
 	pMainTitle             = bfNS + "mainTitle"

@@ -44,6 +44,7 @@ const (
 	bflcNS    = "http://id.loc.gov/ontologies/bflc/"
 	rdfNS     = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 	rdfsNS    = "http://www.w3.org/2000/01/rdf-schema#"
+	skosNS    = "http://www.w3.org/2004/02/skos/core#"
 	langVocab = "http://id.loc.gov/vocabulary/languages/"
 	// relatorVocab is the LoC relator-term vocabulary; a three-letter $4 relator
 	// code names a term IRI beneath it (e.g. .../relators/aut).
@@ -190,9 +191,10 @@ type Role struct {
 
 // Subject is a topical, geographic or name access point on the Work.
 type Subject struct {
-	Class  string // "Topic", "Place", "Person", "Organization" or "Meeting"
-	Label  string
-	Source string // subject thesaurus code (bf:source), e.g. "lcsh", "mesh"; optional
+	Class     string // "Topic", "Place", "Person", "Organization" or "Meeting"
+	Label     string
+	Source    string // subject thesaurus code (bf:source), e.g. "lcsh", "mesh"; optional
+	Authority string // authority IRI ($0); when set the bf:subject node is this IRI, not a blank node; optional
 }
 
 // Classification is a call number with its BIBFRAME class.
@@ -358,23 +360,23 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 				g.Work.Summary = append(g.Work.Summary, v)
 			}
 		case "650":
-			g.appendSubject(subdivided(f), "Topic", subjectSource(f))
+			g.appendSubject(subdivided(f), "Topic", subjectSource(f), subjectAuthority(f))
 		case "651":
-			g.appendSubject(subdivided(f), "Place", subjectSource(f))
+			g.appendSubject(subdivided(f), "Place", subjectSource(f), subjectAuthority(f))
 		case "655":
 			// A subdivided 655 is a topical subject in m2b; a plain genre term
 			// stays a bf:genreForm (which our model carries as a bare label).
 			if hasSubdivision(f) {
-				g.appendSubject(subdivided(f), "Topic", subjectSource(f))
+				g.appendSubject(subdivided(f), "Topic", subjectSource(f), subjectAuthority(f))
 			} else if v := trimISBD(f.SubfieldValue('a')); v != "" {
 				g.Work.GenreForms = append(g.Work.GenreForms, v)
 			}
 		case "600":
-			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Person", subjectSource(f))
+			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Person", subjectSource(f), subjectAuthority(f))
 		case "610":
-			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Organization", subjectSource(f))
+			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Organization", subjectSource(f), subjectAuthority(f))
 		case "611":
-			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Meeting", subjectSource(f))
+			g.appendSubject(trimISBD(f.SubfieldValue('a')), "Meeting", subjectSource(f), subjectAuthority(f))
 		case "050":
 			g.appendCallNumber(f, "ClassificationLcc", "", "")
 		case "082":
@@ -836,10 +838,24 @@ func splitRoleTerms(s string) []string {
 	return out
 }
 
-func (g *BIBFRAME) appendSubject(label, class, source string) {
+func (g *BIBFRAME) appendSubject(label, class, source, authority string) {
 	if label != "" {
-		g.Work.Subjects = append(g.Work.Subjects, Subject{Class: class, Label: label, Source: source})
+		g.Work.Subjects = append(g.Work.Subjects, Subject{Class: class, Label: label, Source: source, Authority: authority})
 	}
+}
+
+// subjectAuthority returns the authority IRI a 6xx carries in $0, or "" when
+// absent or not IRI-shaped. A $0 that is a record control number (e.g.
+// "(DLC)sh85..." rather than a URI) is left out, since bf:subject mints an IRI
+// object only from an actual authority link.
+func subjectAuthority(f codex.Field) string {
+	for _, v := range f.SubfieldValues('0') {
+		v = strings.TrimRight(v, " ")
+		if strings.HasPrefix(v, "http://") || strings.HasPrefix(v, "https://") {
+			return v
+		}
+	}
+	return ""
 }
 
 // subjectThesaurusByInd2 maps a 6xx second indicator to the conventional $2
