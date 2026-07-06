@@ -64,7 +64,9 @@ func (s *graphSink) beginNode(class qname, iri iriVal, extra qname) {
 	if n := len(s.preds); n > 0 && len(s.subj) > 0 {
 		s.gb.g.Add(s.subj[len(s.subj)-1], rdf.NewIRI(s.preds[n-1].fullIRI()), term)
 	}
-	s.gb.typ(term, class.fullIRI())
+	if !class.empty() { // an rdf:Description node carries no rdf:type
+		s.gb.typ(term, class.fullIRI())
+	}
 	if extra.local != "" {
 		s.gb.typ(term, extra.fullIRI())
 	}
@@ -177,14 +179,19 @@ func (s *xmlSink) beginNode(class qname, iri iriVal, extra qname) {
 		s.b = append(s.b, ">\n"...)
 		s.depth += 2
 	}
+	if class.empty() { // an untyped node is the rdf:Description element
+		class = qcDescription
+	}
 	s.b = appendIndent(s.b, s.depth)
 	s.b = append(s.b, '<')
 	s.b = appendQName(s.b, class)
 	if !iri.blank() {
+		// Escape the IRI: internal fragment/vocab IRIs are clean (a no-op here), but
+		// a node IRI can also be untrusted record data, e.g. an 856 locator URL.
 		s.b = append(s.b, ` rdf:about="`...)
-		s.b = append(s.b, iri.a...) // sanitized fragment or known-safe vocab IRI; no escaping
-		s.b = append(s.b, iri.b...)
-		s.b = append(s.b, iri.c...)
+		s.b = appendXMLAttr(s.b, iri.a)
+		s.b = appendXMLAttr(s.b, iri.b)
+		s.b = appendXMLAttr(s.b, iri.c)
 		s.b = append(s.b, '"')
 	}
 	s.b = append(s.b, ">\n"...)
@@ -320,13 +327,16 @@ func (s *jsonSink) beginNode(class qname, iri iriVal, extra qname) {
 		s.b = append(s.b, '"', ',')
 	}
 	s.b = append(s.b, `"@type":`...)
-	if extra.local != "" {
+	switch {
+	case class.empty(): // an untyped node: empty @type array, so key()'s comma still holds
+		s.b = append(s.b, '[', ']')
+	case extra.local != "":
 		s.b = append(s.b, '[')
 		s.b = appendJSONQName(s.b, class)
 		s.b = append(s.b, ',')
 		s.b = appendJSONQName(s.b, extra)
 		s.b = append(s.b, ']')
-	} else {
+	default:
 		s.b = appendJSONQName(s.b, class)
 	}
 }

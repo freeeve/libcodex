@@ -177,7 +177,10 @@
         <rdf:value>urn:isbn:0786803525</rdf:value>
       </bf:Identifier>
     </bf:identifiedBy>
-    <bf:electronicLocator rdf:resource="https://example.org/item"/>
+    <bf:electronicLocator>
+      <rdf:Description rdf:about="https://example.org/item">
+      </rdf:Description>
+    </bf:electronicLocator>
     <bf:adminMetadata>
       <bf:AdminMetadata>
         <bf:generationProcess>

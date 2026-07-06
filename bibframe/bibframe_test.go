@@ -85,8 +85,8 @@ func TestEncodeWellFormed(t *testing.T) {
 		`<bf:Isbn>`,
 		`<rdf:value>0786803525</rdf:value>`,
 		`<bf:Issn>`,
-		`<bf:electronicLocator rdf:resource="https://example.org/item"/>`,
-		`A novel about &lt;gender&gt; &amp; identity.`, // XML escaping
+		`<rdf:Description rdf:about="https://example.org/item">`, // URL-only locator node
+		`A novel about &lt;gender&gt; &amp; identity.`,           // XML escaping
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("RDF/XML missing %q", want)

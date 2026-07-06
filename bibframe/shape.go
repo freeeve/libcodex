@@ -320,7 +320,11 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 		s.endList()
 	}
 	if len(in.ElectronicLocator) > 0 {
-		s.refList(qpElectronicLocator, in.ElectronicLocator)
+		s.beginList(qpElectronicLocator)
+		for _, loc := range in.ElectronicLocator {
+			emitLocator(s, loc)
+		}
+		s.endList()
 	}
 	emitNotes(s, in.Notes)
 	if in.Admin != nil {
@@ -528,6 +532,32 @@ func emitClassification(s sink, c Classification) {
 	if c.Source != "" {
 		s.beginChild(qpSource)
 		emitLabeled(s, qcSource, c.Source)
+		s.endChild()
+	}
+	s.endNode()
+}
+
+// locatorNoteType is the bf:noteType marking a locator's 856 $y link text, so the
+// reverse crosswalk can tell it apart from a $z public note.
+const locatorNoteType = "link text"
+
+// emitLocator emits one 856 access link as an rdf:Description node under
+// bf:electronicLocator: the URL is the node IRI, $3 materials the rdfs:label, $z
+// a literal bf:note, and $y a bf:note node typed with bf:noteType.
+func emitLocator(s sink, loc ElectronicLocator) {
+	s.beginNode(qname{}, iriVal{a: loc.URL}, qname{}) // URL is the node IRI; appendLocator drops empty $u
+	if loc.Materials != "" {
+		s.lit(qpLabel, loc.Materials)
+	}
+	if loc.Note != "" {
+		s.lit(qpNote, loc.Note)
+	}
+	if loc.LinkText != "" {
+		s.beginChild(qpNote)
+		s.beginNode(qcNote, iriVal{}, qname{})
+		s.lit(qpNoteType, locatorNoteType)
+		s.lit(qpLabel, loc.LinkText)
+		s.endNode()
 		s.endChild()
 	}
 	s.endNode()

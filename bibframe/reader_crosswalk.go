@@ -89,8 +89,10 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	}
 	fields = append(fields, noteFields(g, work)...)
 	fields = append(fields, noteFields(g, inst)...)
-	for _, u := range locators(g, inst) {
-		add(codex.NewDataField("856", '4', '0', codex.NewSubfield('u', u)))
+	for _, loc := range g.Objects(inst, pLocator) {
+		if f, ok := locatorField(g, loc); ok {
+			add(f)
+		}
 	}
 
 	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Tag < fields[j].Tag })
@@ -897,15 +899,34 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
-// locators returns the bf:electronicLocator URIs (IRI references or literals).
-func locators(g *rdf.Graph, inst rdf.Term) []string {
-	var out []string
-	for _, o := range g.Objects(inst, pLocator) {
-		if o.Value != "" {
-			out = append(out, o.Value)
+// locatorField reconstructs one 856 from a bf:electronicLocator node: the node
+// IRI is $u, its rdfs:label $3 materials, a literal bf:note $z, and a bf:note node
+// typed bf:noteType "link text" the $y link text.
+func locatorField(g *rdf.Graph, loc rdf.Term) (codex.Field, bool) {
+	if loc.Value == "" {
+		return codex.Field{}, false
+	}
+	subs := []codex.Subfield{codex.NewSubfield('u', loc.Value)}
+	if m := literal(g, loc, pLabel); m != "" {
+		subs = append(subs, codex.NewSubfield('3', m))
+	}
+	var note, linkText string
+	for _, n := range g.Objects(loc, pNote) {
+		if n.IsLiteral() {
+			note = n.Value // literal bf:note -> $z
+			continue
+		}
+		if literal(g, n, pNoteType) == locatorNoteType {
+			linkText = literal(g, n, pLabel) // typed bf:note node -> $y
 		}
 	}
-	return out
+	if note != "" {
+		subs = append(subs, codex.NewSubfield('z', note))
+	}
+	if linkText != "" {
+		subs = append(subs, codex.NewSubfield('y', linkText))
+	}
+	return codex.NewDataField("856", '4', '0', subs...), true
 }
 
 // ---- title helpers ----

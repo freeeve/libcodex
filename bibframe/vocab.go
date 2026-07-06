@@ -34,6 +34,10 @@ func (q qname) fullIRI() string {
 	return nsIRI(q.ns) + q.local
 }
 
+// empty reports whether q is the zero qname, i.e. a node emitted without an
+// rdf:type (an rdf:Description in RDF/XML, an empty @type in JSON-LD).
+func (q qname) empty() bool { return q == qname{} }
+
 func nsIRI(ns string) string {
 	switch ns {
 	case nsBF:
@@ -80,6 +84,7 @@ var (
 	qcContribution           = qname{nsBF, "Contribution", "bf:Contribution", bfNS + "Contribution"}
 	qcPrimaryContribution    = qname{nsBFLC, "PrimaryContribution", "bflc:PrimaryContribution", primaryContribution}
 	qcRelation               = qname{nsBF, "Relation", "bf:Relation", classRelation}
+	qcDescription            = qname{nsRDF, "Description", "rdf:Description", rdfNS + "Description"}
 )
 
 // Predicate qnames.

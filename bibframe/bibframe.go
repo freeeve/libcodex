@@ -143,8 +143,20 @@ type Instance struct {
 	Issuance                string                  // mode of issuance (leader/07) -> bf:issuance IRI; optional
 	Notes                   []Note                  // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
 	Identifiers             []Identifier
-	ElectronicLocator       []string
+	ElectronicLocator       []ElectronicLocator
 	Admin                   *AdminMetadata
+}
+
+// ElectronicLocator is one 856 access link: the URL plus the display context real
+// vendor records carry alongside it. On the graph it is an rdf:Description node
+// (the URL as its IRI) hanging off bf:electronicLocator, with Materials as
+// rdfs:label, Note as a literal bf:note, and LinkText as a bf:note node typed
+// bf:noteType "link text".
+type ElectronicLocator struct {
+	URL       string // $u -- the access URL (the node IRI)
+	Materials string // $3 -- materials specified, e.g. "Image", "Thumbnail", "Excerpt"; the display label
+	Note      string // $z -- public note
+	LinkText  string // $y -- link text to display in place of the URL
 }
 
 // DigitalCharacteristic is one 347 digital-file characteristic: the bflc class
@@ -421,13 +433,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			}
 			g.appendIdentifier("Identifier", trimISBD(f.SubfieldValue('a')), source, "", "")
 		case "856":
-			for _, sf := range f.Subfields {
-				if sf.Code == 'u' {
-					if v := strings.TrimRight(sf.Value, " "); v != "" {
-						g.Instance.ElectronicLocator = append(g.Instance.ElectronicLocator, v)
-					}
-				}
-			}
+			g.appendLocator(f)
 		}
 	}
 
@@ -894,6 +900,24 @@ func hasSubdivision(f codex.Field) bool {
 		}
 	}
 	return false
+}
+
+// appendLocator records an 856 access link: one ElectronicLocator per $u, each
+// carrying the field's $3 materials, $z public note and $y link text.
+func (g *BIBFRAME) appendLocator(f codex.Field) {
+	materials := strings.TrimRight(f.SubfieldValue('3'), " ")
+	note := strings.TrimRight(f.SubfieldValue('z'), " ")
+	linkText := strings.TrimRight(f.SubfieldValue('y'), " ")
+	for _, u := range f.SubfieldValues('u') {
+		if u = strings.TrimRight(u, " "); u != "" {
+			g.Instance.ElectronicLocator = append(g.Instance.ElectronicLocator, ElectronicLocator{
+				URL:       u,
+				Materials: materials,
+				Note:      note,
+				LinkText:  linkText,
+			})
+		}
+	}
 }
 
 func (g *BIBFRAME) appendClassification(value, class, source string) {
