@@ -1,12 +1,16 @@
-# 091 -- codex CLI (inspect / convert / validate / stats)
+# 091 -- libcodex CLI (inspect / convert / validate / stats)
 
 Filed and completed 2026-07-06, out of the task 090 investigation: poking at a
 real OverDrive .mrc export by hand made a small command-line front-end for the
 library's codecs obviously useful.
 
+Note: the binary and its directory were renamed from `codex` to `libcodex`
+(the `codex` name collides with OpenAI's CLI product); the Go module path and
+the `codex` library package identifier are unchanged.
+
 ## What shipped
 
-`cmd/codex` -- a single binary wiring the existing format codecs behind four
+`cmd/libcodex` -- a single binary wiring the existing format codecs behind four
 subcommands. Input format auto-detects from the leading bytes when `-i` is
 omitted; with no file arguments each subcommand reads stdin.
 
@@ -33,8 +37,8 @@ omitted; with no file arguments each subcommand reads stdin.
 
 ## Files
 
-- cmd/codex/{main,registry,input,cat,convert,validate,stats}.go
-- cmd/codex/codex_test.go -- 82% statement coverage; exercised against the real
+- cmd/libcodex/{main,registry,input,cat,convert,validate,stats}.go
+- cmd/libcodex/libcodex_test.go -- 82% statement coverage; exercised against the real
   ME-15711 OverDrive export during development.
 
 ## Possible follow-ups

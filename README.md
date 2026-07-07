@@ -132,20 +132,20 @@ w.Close()
 
 Any of the 4 × 4 source/target combinations works and preserves the model.
 
-## Command-line tool (`codex`)
+## Command-line tool (`libcodex`)
 
 The same codecs are wrapped in a small CLI for shell use — inspecting,
 transcoding, validating and profiling records without writing Go:
 
 ```sh
-go install github.com/freeeve/libcodex/cmd/codex@latest
+go install github.com/freeeve/libcodex/cmd/libcodex@latest
 ```
 
 ```sh
-codex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]   readable dump
-codex convert   [-i fmt] -o fmt [file...]                      transcode
-codex validate  [-i fmt] [file...]                             structural check
-codex stats     [-i fmt] [file...]                             field/leader report
+libcodex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]   readable dump
+libcodex convert   [-i fmt] -o fmt [file...]                      transcode
+libcodex validate  [-i fmt] [file...]                             structural check
+libcodex stats     [-i fmt] [file...]                             field/leader report
 ```
 
 The input format is auto-detected from the leading bytes when `-i` is omitted,
@@ -153,14 +153,14 @@ and with no file arguments each subcommand reads stdin, so commands compose in a
 pipe:
 
 ```sh
-codex cat -t 084,650 catalog.mrc          # dump only classification/subject fields
-codex convert -o bibframe catalog.mrc     # MARC → BIBFRAME RDF/XML on stdout
-codex convert -o marcjson catalog.mrc | codex stats   # transcode, then profile
+libcodex cat -t 084,650 catalog.mrc          # dump only classification/subject fields
+libcodex convert -o bibframe catalog.mrc     # MARC → BIBFRAME RDF/XML on stdout
+libcodex convert -o marcjson catalog.mrc | libcodex stats   # transcode, then profile
 ```
 
 `convert` targets every registered output format (the four MARC serializations
 plus `bibframe`, `mods`, `dublincore`, `schemaorg`, `ris` and `bibtex`). See
-[`cmd/codex/README.md`](cmd/codex/README.md) for the full format table and
+[`cmd/libcodex/README.md`](cmd/libcodex/README.md) for the full format table and
 per-subcommand detail.
 
 ## Export converters

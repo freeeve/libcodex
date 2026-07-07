@@ -232,8 +232,8 @@ func TestVersion(t *testing.T) {
 	if err := run("version", nil, &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(out.String(), "codex ") {
-		t.Errorf("version output = %q, want a \"codex <version>\" line", out.String())
+	if !strings.HasPrefix(out.String(), "libcodex ") {
+		t.Errorf("version output = %q, want a \"libcodex <version>\" line", out.String())
 	}
 }
 

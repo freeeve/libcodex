@@ -1,7 +1,7 @@
 # Test binaries and build output
 *.test
 *.exe
-/codex
+/libcodex
 
 # Profiling and coverage output
 *.prof

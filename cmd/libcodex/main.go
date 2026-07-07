@@ -1,11 +1,11 @@
-// Command codex is a small toolkit for inspecting and converting the
-// bibliographic records libcodex reads and writes. It wires the library's format
-// codecs behind four subcommands:
+// Command libcodex is a small toolkit for inspecting and converting the
+// bibliographic records the libcodex library reads and writes. It wires the
+// format codecs behind four subcommands:
 //
-//	codex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]
-//	codex convert   [-i fmt] -o fmt [file...]
-//	codex validate  [-i fmt] [file...]
-//	codex stats     [-i fmt] [file...]
+//	libcodex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]
+//	libcodex convert   [-i fmt] -o fmt [file...]
+//	libcodex validate  [-i fmt] [file...]
+//	libcodex stats     [-i fmt] [file...]
 //
 // Input format is auto-detected when -i is omitted. With no file arguments each
 // subcommand reads standard input.
@@ -23,13 +23,13 @@ var version = "dev"
 
 // usageText is the top-level help, listing the registered input/output formats.
 func usageText() string {
-	return `codex -- inspect and convert bibliographic records
+	return `libcodex -- inspect and convert bibliographic records
 
 usage:
-  codex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]   readable dump
-  codex convert   [-i fmt] -o fmt [file...]                      transcode
-  codex validate  [-i fmt] [file...]                             structural check
-  codex stats     [-i fmt] [file...]                             field/leader report
+  libcodex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]   readable dump
+  libcodex convert   [-i fmt] -o fmt [file...]                      transcode
+  libcodex validate  [-i fmt] [file...]                             structural check
+  libcodex stats     [-i fmt] [file...]                             field/leader report
 
   -i is the input format (auto-detected when omitted).
   input formats:  ` + formatNames(readers) + `
@@ -46,7 +46,7 @@ func main() {
 	}
 	cmd, args := os.Args[1], os.Args[2:]
 	if err := run(cmd, args, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "codex "+cmd+": "+err.Error())
+		fmt.Fprintln(os.Stderr, "libcodex "+cmd+": "+err.Error())
 		os.Exit(1)
 	}
 }
@@ -67,7 +67,7 @@ func run(cmd string, args []string, stdout io.Writer) error {
 		fmt.Fprintln(stdout, usageText())
 		return nil
 	case "version", "-v", "--version":
-		fmt.Fprintln(stdout, "codex "+version)
+		fmt.Fprintln(stdout, "libcodex "+version)
 		return nil
 	default:
 		return fmt.Errorf("unknown subcommand %q (try: cat, convert, validate, stats)", cmd)
