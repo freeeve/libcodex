@@ -217,6 +217,42 @@ func TestBibframeSniff(t *testing.T) {
 	}
 }
 
+// TestSniffRDFTextForms guards the fix for the leading-'<' ambiguity: N-Triples,
+// N-Quads and Turtle all begin with a term that is not an XML tag and must route
+// to the bibframe reader, not marcxml. JSON-LD must likewise not be taken for
+// MARC-in-JSON.
+func TestSniffRDFTextForms(t *testing.T) {
+	cases := map[string]string{
+		"ntriples-iri":   `<https://homosaurus.org/v4/homoit0000001> <http://purl.org/dc/terms/identifier> "x" .`,
+		"ntriples-blank": `_:b0 <http://id.loc.gov/ontologies/bibframe/mainTitle> "T" .`,
+		"nquads":         `<http://x/s> <http://x/p> <http://x/o> <http://x/g> .`,
+		"turtle-prefix":  "@prefix bf: <http://id.loc.gov/ontologies/bibframe/> .\nbf:x a bf:Work .",
+		"turtle-sparql":  "PREFIX bf: <http://id.loc.gov/ontologies/bibframe/>\nbf:x a bf:Work .",
+		"jsonld":         `{"@context":{},"@graph":[{"@id":"#w","@type":"bf:Work"}]}`,
+	}
+	for name, doc := range cases {
+		if got := sniff(bufio.NewReader(strings.NewReader(doc))); got != "bibframe" {
+			t.Errorf("%s: sniff = %q, want bibframe", name, got)
+		}
+	}
+	// A MARCXML document that starts with a bare <record> (no xml declaration) must
+	// still read as marcxml, not be mistaken for RDF.
+	if got := sniff(bufio.NewReader(strings.NewReader(`<record><leader>x</leader></record>`))); got != "marcxml" {
+		t.Errorf("bare <record> sniff = %q, want marcxml", got)
+	}
+}
+
+// TestSniffNTriplesFileEndToEnd runs cat over an N-Triples document (the shape
+// that previously mis-detected as marcxml and errored); it must decode without an
+// XML error via the bibframe reader.
+func TestSniffNTriplesFileEndToEnd(t *testing.T) {
+	nt := `<https://homosaurus.org/v4/homoit0000001> <http://www.w3.org/2004/02/skos/core#prefLabel> "Test" .` + "\n"
+	path := writeTemp(t, "v.nt", []byte(nt))
+	if err := run("cat", []string{path}, &bytes.Buffer{}); err != nil {
+		t.Errorf("cat over N-Triples errored (regression): %v", err)
+	}
+}
+
 func TestHelp(t *testing.T) {
 	var out bytes.Buffer
 	if err := run("help", nil, &out); err != nil {

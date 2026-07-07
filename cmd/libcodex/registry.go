@@ -92,29 +92,60 @@ func newWriter(format string, w io.Writer) (codex.RecordWriter, error) {
 }
 
 // sniff peeks the leading bytes of br to guess the serialization: an ISO 2709
-// leader (five digits), an XML document (marcxml vs bibframe RDF/XML), a JSON
-// array/object (marcjson), or an mrk "=LDR" line. It returns "" when the format
-// is not recognized. The bufio.Reader is left unconsumed.
+// leader (five digits), an mrk "=LDR" line, JSON (marcjson vs BIBFRAME JSON-LD),
+// or one of the RDF text forms — Turtle, N-Triples/N-Quads and RDF/XML all route
+// to the bibframe reader, which then autodetects its own sub-format, while plain
+// MARCXML routes to marcxml. Returns "" when the format is not recognized. The
+// bufio.Reader is left unconsumed.
 func sniff(br *bufio.Reader) string {
-	head, _ := br.Peek(512)
+	head, _ := br.Peek(1024)
 	head = bytes.TrimPrefix(head, []byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM
-	trimmed := strings.TrimLeft(string(head), " \t\r\n")
+	s := strings.TrimLeft(string(head), " \t\r\n")
 	switch {
-	case trimmed == "":
+	case s == "":
 		return ""
-	case strings.HasPrefix(trimmed, "=LDR") || strings.HasPrefix(trimmed, "=00"):
+	case strings.HasPrefix(s, "=LDR") || strings.HasPrefix(s, "=00"):
 		return "mrk"
-	case trimmed[0] == '{' || trimmed[0] == '[':
-		return "marcjson"
-	case trimmed[0] == '<':
-		if strings.Contains(trimmed, "RDF") || strings.Contains(trimmed, "bf:") {
-			return "bibframe"
+	case s[0] == '{' || s[0] == '[':
+		if looksJSONLD(s) {
+			return "bibframe" // BIBFRAME JSON-LD, not MARC-in-JSON
 		}
-		return "marcxml"
-	case len(trimmed) >= 5 && isDigits(trimmed[:5]):
+		return "marcjson"
+	case strings.HasPrefix(s, "@prefix"), strings.HasPrefix(s, "@base"),
+		strings.HasPrefix(s, "PREFIX"), strings.HasPrefix(s, "BASE"),
+		strings.HasPrefix(s, "_:"):
+		return "bibframe" // Turtle directive or an N-Triples blank-node subject
+	case s[0] == '<':
+		return sniffAngle(s)
+	case len(s) >= 5 && isDigits(s[:5]):
 		return "iso2709"
 	}
 	return ""
+}
+
+// looksJSONLD reports whether a JSON document carries JSON-LD keywords, which
+// distinguish a BIBFRAME graph from a MARC-in-JSON record (`leader`/`fields`).
+func looksJSONLD(s string) bool {
+	return strings.Contains(s, "@context") || strings.Contains(s, "@graph") ||
+		strings.Contains(s, "@id") || strings.Contains(s, "@type")
+}
+
+// sniffAngle classifies a document that begins with '<': an RDF term IRI
+// (`<scheme://…>` or `<urn:…>`) marks Turtle/N-Triples/N-Quads, an rdf:RDF /
+// bibframe marker marks RDF/XML — both handled by the bibframe reader — and
+// anything else is plain MARCXML.
+func sniffAngle(s string) string {
+	first := s
+	if i := strings.IndexAny(s, "> \t\r\n"); i >= 0 {
+		first = s[:i]
+	}
+	if strings.Contains(first, "://") || strings.HasPrefix(first, "<urn:") {
+		return "bibframe" // an N-Triples/N-Quads/Turtle subject IRI
+	}
+	if strings.Contains(s, "rdf:RDF") || strings.Contains(s, "/bibframe/") || strings.Contains(s, "bf:") {
+		return "bibframe" // BIBFRAME RDF/XML
+	}
+	return "marcxml"
 }
 
 // isDigits reports whether every byte of s is an ASCII digit.
