@@ -146,6 +146,7 @@ libcodex cat       [-i fmt] [-t tags] [-n N] [--json] [file...]   readable dump
 libcodex convert   [-i fmt] -o fmt [file...]                      transcode
 libcodex validate  [-i fmt] [file...]                             structural check
 libcodex stats     [-i fmt] [file...]                             field/leader report
+libcodex skos      [-o fmt] [-n N] [file...]                      SKOS vocab view / to MARC authority
 ```
 
 The input format is auto-detected from the leading bytes when `-i` is omitted,
@@ -320,6 +321,28 @@ authors := unimarc.Authors(recs[0]) // 700/701/710 …
 m := unimarc.ToMARC21(recs[0])      // re-tag 200→245, 010→020, 700→100, …
 b, _ := schemaorg.Encode(m)         // …then any exporter accepts it
 ```
+
+## Reading SKOS vocabularies (`skos`)
+
+Controlled vocabularies — subject thesauri like [homosaurus](https://homosaurus.org),
+LCSH or FAST — are published as [SKOS](https://www.w3.org/TR/skos-reference/)
+concept schemes in RDF, and they are the authority side of the subject headings
+the crosswalk reads in a bib record. The `skos` package parses a concept scheme
+(any RDF serialization, autodetected via the `rdf` package) and crosswalks each
+`skos:Concept` to a MARC 21 **authority** record:
+
+```go
+concepts, _ := skos.Parse(data)     // []skos.Concept, broader/narrower resolved
+rec := concepts[0].Record()         // MARC authority: 150 heading, 450/550 tracings, 024 URI
+recs := skos.Records(concepts)      // …then any exporter accepts them
+```
+
+`skos:prefLabel` (English-preferred) becomes the `150` established heading, other
+labels `450` see-from tracings, `broader`/`narrower`/`related` the `550` see-also
+tracings (`$w g`/`$w h` for the hierarchy, with the target heading and `$0` IRI),
+and the concept IRI a `024 … $2 uri`. The `libcodex skos` command prints a concept
+view (with a summary header that surfaces IRI/scheme version drift) or converts to
+MARC authority records in any output format.
 
 ## Accessors
 

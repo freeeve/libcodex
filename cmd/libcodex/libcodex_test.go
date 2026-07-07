@@ -253,6 +253,61 @@ func TestSniffNTriplesFileEndToEnd(t *testing.T) {
 	}
 }
 
+// skosFixture is a two-concept SKOS scheme in N-Triples, with a version mismatch
+// baked in (v4 IRIs, a v3 inScheme) to exercise the summary header.
+const skosFixture = `<https://ex.org/v4/a1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2004/02/skos/core#Concept> .
+<https://ex.org/v4/a1> <http://purl.org/dc/terms/identifier> "a1" .
+<https://ex.org/v4/a1> <http://www.w3.org/2004/02/skos/core#prefLabel> "Alpha"@en .
+<https://ex.org/v4/a1> <http://www.w3.org/2004/02/skos/core#altLabel> "A-one"@en .
+<https://ex.org/v4/a1> <http://www.w3.org/2004/02/skos/core#broader> <https://ex.org/v4/b1> .
+<https://ex.org/v4/a1> <http://www.w3.org/2004/02/skos/core#inScheme> <https://ex.org/v3> .
+<https://ex.org/v4/b1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2004/02/skos/core#Concept> .
+<https://ex.org/v4/b1> <http://purl.org/dc/terms/identifier> "b1" .
+<https://ex.org/v4/b1> <http://www.w3.org/2004/02/skos/core#prefLabel> "Beta"@en .
+<https://ex.org/v4/b1> <http://www.w3.org/2004/02/skos/core#inScheme> <https://ex.org/v4> .
+`
+
+func TestSkosView(t *testing.T) {
+	path := writeTemp(t, "v.nt", []byte(skosFixture))
+	var out bytes.Buffer
+	if err := run("skos", []string{path}, &out); err != nil {
+		t.Fatal(err)
+	}
+	s := out.String()
+	for _, want := range []string{
+		"# 2 concepts",
+		"IRI base:",
+		"[mixed]", // the v3/v4 inScheme split is flagged
+		"a1  Alpha [en]",
+		"broader: Beta (b1)",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("skos view missing %q:\n%s", want, s)
+		}
+	}
+}
+
+func TestSkosConvertToMARC(t *testing.T) {
+	path := writeTemp(t, "v.nt", []byte(skosFixture))
+	var out bytes.Buffer
+	if err := run("skos", []string{"-o", "marcxml", path}, &out); err != nil {
+		t.Fatal(err)
+	}
+	recs, err := codex.ReadAll(marcxml.NewReader(&out))
+	if err != nil {
+		t.Fatalf("reading converted authority records: %v", err)
+	}
+	if len(recs) != 2 {
+		t.Fatalf("got %d authority records, want 2", len(recs))
+	}
+	if recs[0].Leader().RecordType() != 'z' {
+		t.Errorf("record is not an authority (leader/06 = %c)", recs[0].Leader().RecordType())
+	}
+	if got := recs[0].SubfieldValue("150", 'a'); got != "Alpha" {
+		t.Errorf("150 $a = %q, want Alpha", got)
+	}
+}
+
 func TestHelp(t *testing.T) {
 	var out bytes.Buffer
 	if err := run("help", nil, &out); err != nil {

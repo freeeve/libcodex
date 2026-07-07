@@ -6,6 +6,7 @@
 //	libcodex convert   [-i fmt] -o fmt [file...]
 //	libcodex validate  [-i fmt] [file...]
 //	libcodex stats     [-i fmt] [file...]
+//	libcodex skos      [-o fmt] [-n N] [file...]
 //
 // Input format is auto-detected when -i is omitted. With no file arguments each
 // subcommand reads standard input.
@@ -30,6 +31,7 @@ usage:
   libcodex convert   [-i fmt] -o fmt [file...]                      transcode
   libcodex validate  [-i fmt] [file...]                             structural check
   libcodex stats     [-i fmt] [file...]                             field/leader report
+  libcodex skos      [-o fmt] [-n N] [file...]                      SKOS vocab view / to MARC authority
 
   -i is the input format (auto-detected when omitted).
   input formats:  ` + formatNames(readers) + `
@@ -63,6 +65,8 @@ func run(cmd string, args []string, stdout io.Writer) error {
 		return runValidate(args, stdout)
 	case "stats":
 		return runStats(args, stdout)
+	case "skos":
+		return runSkos(args, stdout)
 	case "help", "-h", "--help":
 		fmt.Fprintln(stdout, usageText())
 		return nil
