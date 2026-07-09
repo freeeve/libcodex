@@ -76,10 +76,17 @@ const (
 	pGenerationProcess      = bfNS + "generationProcess"
 	pChangeDate             = bfNS + "changeDate"
 	pDescriptionConventions = bfNS + "descriptionConventions"
+	pDescriptionModifier    = bfNS + "descriptionModifier"
+	pDescriptionLanguage    = bfNS + "descriptionLanguage"
 	pAssigner               = bfNS + "assigner"
 	classAdminMetadata      = bfNS + "AdminMetadata"
 	classGenerationProcess  = bfNS + "GenerationProcess"
 	classLocal              = bfNS + "Local"
+
+	// internalNoteType types a bf:Note holding a MARC field verbatim, in marcKey
+	// form ("040  $aDLC$beng"). LoC marc2bibframe2 preserves the whole 040 this
+	// way, which is the only carrier for subfields BIBFRAME does not model ($c).
+	internalNoteType = mnotetypeNS + "internal"
 
 	// A source/scheme node on an identifier or classification.
 	pSource     = bfNS + "source"

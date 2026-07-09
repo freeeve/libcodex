@@ -23,7 +23,7 @@ import (
 // implies present after Encode -> Decode.
 var coreTags = []string{
 	"001", "006", "007", "008",
-	"010", "020", "022", "024", "041", "050", "072", "082",
+	"010", "020", "022", "024", "040", "041", "050", "072", "082",
 	"100", "130", "240", "245", "246", "250", "260", "300", "306",
 	// 264 _4 (copyright) survives via bf:copyrightDate; provision-typed 264s
 	// (ind2 0-3) collapse into 260 by documented convention.
@@ -44,9 +44,8 @@ var transformedTags = map[string]string{
 // lostTags are knowingly dropped by the crosswalk (the stale guard: if one
 // starts surviving, move it to coreTags and update downstream's table).
 // 003/005 are carried only as AdminMetadata provenance, deliberately not
-// reverse-crosswalked; 040 reconstruction would fabricate provenance (081
-// non-goal); 310 (frequency) is simply unimplemented.
-var lostTags = []string{"003", "005", "040", "310"}
+// reverse-crosswalked; 310 (frequency) is simply unimplemented.
+var lostTags = []string{"003", "005", "310"}
 
 // kitchenSink builds a record populating every tag the crosswalk knows plus the
 // transformed and lost ones, with repeats where fields are repeatable.

@@ -61,6 +61,9 @@ const (
 	// 040 $a); conventionsVocab names a description-convention IRI from 040 $e.
 	orgVocab         = "http://id.loc.gov/vocabulary/organizations/"
 	conventionsVocab = "http://id.loc.gov/vocabulary/descriptionConventions/"
+	// mnotetypeNS types the internal bf:Note that carries a MARC field verbatim
+	// (LoC marc2bibframe2 records the whole 040 this way, in marcKey form).
+	mnotetypeNS = "http://id.loc.gov/vocabulary/mnotetype/"
 	// issuanceVocab names a mode-of-issuance IRI from a leader/07 bibliographic level
 	// (e.g. .../issuance/mono, .../issuance/serl).
 	issuanceVocab = "http://id.loc.gov/vocabulary/issuance/"
@@ -260,7 +263,18 @@ type AdminMetadata struct {
 	ControlNumber          string   // field 001
 	ControlOrg             string   // field 003 -- the agency that assigned the 001
 	ChangeDate             string   // field 005, as an xsd:dateTime string
+	OrigAgency             string   // field 040 $a -- the original cataloging agency
+	DescriptionLanguage    string   // field 040 $b -- the language of the description
+	Transcriber            string   // field 040 $c -- the transcribing agency
+	Modifiers              []string // field 040 $d (repeatable) -- the modifying agencies
 	DescriptionConventions []string // field 040 $e (e.g. "rda"), one per $e
+}
+
+// hasCatalogingSource reports whether the AdminMetadata carries any part of a
+// field 040, i.e. whether decoding should regenerate one.
+func (am *AdminMetadata) hasCatalogingSource() bool {
+	return am.OrigAgency != "" || am.DescriptionLanguage != "" || am.Transcriber != "" ||
+		len(am.Modifiers) > 0 || len(am.DescriptionConventions) > 0
 }
 
 // generatorLabel names this library as the bf:GenerationProcess that produced
@@ -278,13 +292,21 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	var transcribed, uniform Title
 	var provFields []codex.Field
 	var coded006, coded007 []string
-	var descConventions []string
+	var catSource AdminMetadata
 	for _, f := range fields {
 		switch f.Tag {
 		case "040":
+			catSource.OrigAgency = trimISBD(f.SubfieldValue('a'))
+			catSource.DescriptionLanguage = trimISBD(f.SubfieldValue('b'))
+			catSource.Transcriber = trimISBD(f.SubfieldValue('c'))
+			for _, d := range f.SubfieldValues('d') {
+				if v := trimISBD(d); v != "" {
+					catSource.Modifiers = append(catSource.Modifiers, v)
+				}
+			}
 			for _, e := range f.SubfieldValues('e') {
 				if v := trimISBD(e); v != "" {
-					descConventions = append(descConventions, v)
+					catSource.DescriptionConventions = append(catSource.DescriptionConventions, v)
 				}
 			}
 		case "245":
@@ -460,12 +482,11 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	// Every record carries admin metadata: the generation process marks it as
 	// libcodex output, alongside the control number, change date and cataloging
 	// conventions the record itself provides.
-	g.Instance.Admin = &AdminMetadata{
-		ControlNumber:          r.ControlField("001"),
-		ControlOrg:             strings.TrimSpace(r.ControlField("003")),
-		ChangeDate:             formatMARC005(r.ControlField("005")),
-		DescriptionConventions: descConventions,
-	}
+	admin := catSource
+	admin.ControlNumber = r.ControlField("001")
+	admin.ControlOrg = strings.TrimSpace(r.ControlField("003"))
+	admin.ChangeDate = formatMARC005(r.ControlField("005"))
+	g.Instance.Admin = &admin
 	g.addLanguages(r)
 	return g
 }

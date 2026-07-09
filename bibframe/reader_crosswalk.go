@@ -18,6 +18,9 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	if id := controlNumber(work.Value); id != "" {
 		add(codex.NewControlField("001", id))
 	}
+	if f, ok := catalogingSourceField(g, work, inst); ok {
+		add(f)
+	}
 
 	instTitle := titleOf(g, work, inst, hasInst)
 	contribs, hasPrimary := contributions(g, work)
@@ -528,6 +531,119 @@ func appendThesaurusAndAuthority(subs []codex.Subfield, sub2, authority string) 
 		subs = append(subs, codex.NewSubfield('0', authority))
 	}
 	return subs
+}
+
+// catalogingSourceField reconstructs field 040 from the record's bf:AdminMetadata.
+// The internal bf:Note carries the whole field in marcKey form, so it is preferred
+// and yields the field exactly; a graph without one (hand-built, or a third-party
+// BIBFRAME) falls back to the modelled properties, which cover every subfield but
+// $c. A graph carrying no cataloging source at all yields no 040 rather than a
+// fabricated one.
+func catalogingSourceField(g *rdf.Graph, work, inst rdf.Term) (codex.Field, bool) {
+	// LoC marc2bibframe2 hangs several bf:AdminMetadata nodes off a record (one per
+	// 005/008 status event); only one carries the 040, so scan them all.
+	var admins []rdf.Term
+	for _, subj := range []rdf.Term{inst, work} {
+		admins = append(admins, g.Objects(subj, pAdminMetadata)...)
+	}
+	for _, admin := range admins {
+		if f, ok := field040FromNote(g, admin); ok {
+			return f, true
+		}
+	}
+	for _, admin := range admins {
+		if f, ok := field040FromProperties(g, admin); ok {
+			return f, true
+		}
+	}
+	return codex.Field{}, false
+}
+
+// field040FromNote recovers field 040 from the AdminMetadata's internal bf:Note,
+// whose rdfs:label holds the field in marcKey form.
+func field040FromNote(g *rdf.Graph, admin rdf.Term) (codex.Field, bool) {
+	for _, note := range g.Objects(admin, pNote) {
+		if !g.HasType(note, internalNoteType) {
+			continue
+		}
+		if f, ok := parseMARCKey(literal(g, note, pLabel)); ok && f.Tag == "040" {
+			return f, true
+		}
+	}
+	return codex.Field{}, false
+}
+
+// field040FromProperties rebuilds field 040 from the AdminMetadata's modelled
+// properties, in canonical $a $b $d... $e subfield order. $c has no BIBFRAME
+// property, so it cannot be recovered here.
+func field040FromProperties(g *rdf.Graph, admin rdf.Term) (codex.Field, bool) {
+	var subs []codex.Subfield
+	if a := agencyCode(g, mustNode(g, admin, pAssigner)); a != "" {
+		subs = append(subs, codex.NewSubfield('a', a))
+	}
+	if l := vocabCode(g, mustNode(g, admin, pDescriptionLanguage)); l != "" {
+		subs = append(subs, codex.NewSubfield('b', l))
+	}
+	for _, m := range g.Objects(admin, pDescriptionModifier) {
+		if c := agencyCode(g, m); c != "" {
+			subs = append(subs, codex.NewSubfield('d', c))
+		}
+	}
+	for _, dc := range g.Objects(admin, pDescriptionConventions) {
+		if c := vocabCode(g, dc); c != "" {
+			subs = append(subs, codex.NewSubfield('e', c))
+		}
+	}
+	if len(subs) == 0 {
+		return codex.Field{}, false
+	}
+	return codex.NewDataField("040", ' ', ' ', subs...), true
+}
+
+// agencyCode reads a cataloging agency's MARC organization code: its bf:code, else
+// the last segment of its organizations-vocabulary IRI, which is the code lowercased.
+func agencyCode(g *rdf.Graph, node rdf.Term) string {
+	if c := literal(g, node, pCode); c != "" {
+		return c
+	}
+	if node.IsIRI() {
+		return strings.ToUpper(rdf.LocalName(node.Value))
+	}
+	return ""
+}
+
+// vocabCode reads a controlled term's code: its bf:code, else the last segment of
+// its vocabulary IRI, which for languages and description conventions is the code.
+func vocabCode(g *rdf.Graph, node rdf.Term) string {
+	if c := literal(g, node, pCode); c != "" {
+		return c
+	}
+	if node.IsIRI() {
+		return rdf.LocalName(node.Value)
+	}
+	return ""
+}
+
+// parseMARCKey parses a marcKey literal -- three tag characters, two indicator
+// characters (a blank indicator is a space), then "$<code><value>" per subfield,
+// as in "040  $aDLC$beng" -- into a data field. A literal too short to hold a
+// subfield, or whose subfields do not start where the indicators end, is not a
+// marcKey.
+func parseMARCKey(key string) (codex.Field, bool) {
+	if len(key) < 6 || key[5] != '$' {
+		return codex.Field{}, false
+	}
+	var subs []codex.Subfield
+	for _, s := range strings.Split(key[6:], "$") {
+		if s == "" {
+			continue
+		}
+		subs = append(subs, codex.NewSubfield(s[0], s[1:]))
+	}
+	if len(subs) == 0 {
+		return codex.Field{}, false
+	}
+	return codex.NewDataField(key[0:3], key[3], key[4], subs...), true
 }
 
 // identifierFields reverses bf:identifiedBy into 020/022/024, restoring the

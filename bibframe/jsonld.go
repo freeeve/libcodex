@@ -7,6 +7,7 @@ import "unicode/utf8"
 const jsonldContext = `{"@context":{` +
 	`"bf":"` + bfNS + `",` +
 	`"bflc":"` + bflcNS + `",` +
+	`"mnotetype":"` + mnotetypeNS + `",` +
 	`"rdf":"` + rdfNS + `",` +
 	`"rdfs":"` + rdfsNS + `"}`
 

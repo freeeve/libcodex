@@ -9,10 +9,11 @@ package bibframe
 // hand-written emitters had.
 
 const (
-	nsBF   = "bf"
-	nsBFLC = "bflc"
-	nsRDF  = "rdf"
-	nsRDFS = "rdfs"
+	nsBF        = "bf"
+	nsBFLC      = "bflc"
+	nsRDF       = "rdf"
+	nsRDFS      = "rdfs"
+	nsMNoteType = "mnotetype"
 )
 
 // qname is a prefixed name. pfx ("bf:Work") and iri (the full IRI) are set for
@@ -48,6 +49,8 @@ func nsIRI(ns string) string {
 		return rdfNS
 	case nsRDFS:
 		return rdfsNS
+	case nsMNoteType:
+		return mnotetypeNS
 	}
 	return ""
 }
@@ -85,6 +88,10 @@ var (
 	qcPrimaryContribution    = qname{nsBFLC, "PrimaryContribution", "bflc:PrimaryContribution", primaryContribution}
 	qcRelation               = qname{nsBF, "Relation", "bf:Relation", classRelation}
 	qcDescription            = qname{nsRDF, "Description", "rdf:Description", rdfNS + "Description"}
+
+	// qcInternalNote is the rdf:type of the bf:Note that carries a MARC field
+	// verbatim. It is an extra type on a bf:Note node, never a node class of its own.
+	qcInternalNote = qname{nsMNoteType, "internal", "mnotetype:internal", internalNoteType}
 )
 
 // Predicate qnames.
@@ -145,6 +152,8 @@ var (
 	qpChangeDate             = qname{nsBF, "changeDate", "bf:changeDate", pChangeDate}
 	qpAssigner               = qname{nsBF, "assigner", "bf:assigner", pAssigner}
 	qpDescriptionConventions = qname{nsBF, "descriptionConventions", "bf:descriptionConventions", pDescriptionConventions}
+	qpDescriptionModifier    = qname{nsBF, "descriptionModifier", "bf:descriptionModifier", pDescriptionModifier}
+	qpDescriptionLanguage    = qname{nsBF, "descriptionLanguage", "bf:descriptionLanguage", pDescriptionLanguage}
 	qpSource                 = qname{nsBF, "source", "bf:source", pSource}
 	qpQualifier              = qname{nsBF, "qualifier", "bf:qualifier", pQualifier}
 	qpStatus                 = qname{nsBF, "status", "bf:status", pStatus}

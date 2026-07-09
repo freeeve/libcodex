@@ -1,5 +1,7 @@
 package bibframe
 
+import "strings"
+
 // This file is the single source of truth for the BIBFRAME Work/Instance node
 // shape. One traversal (emitWork/emitInstance and the emit* node helpers) walks a
 // record's BIBFRAME, calling a sink; three sinks (in shape_render.go) turn those
@@ -624,7 +626,11 @@ func provisionSubclass(class string) qname {
 }
 
 // emitAdmin emits the bf:AdminMetadata provenance node: the generation-process
-// marker plus the control number, change date and cataloging conventions.
+// marker plus the control number, change date and the field 040 cataloging
+// source. The 040 subfields follow LoC marc2bibframe2's mapping -- $a bf:assigner,
+// $b bf:descriptionLanguage, $d bf:descriptionModifier, $e bf:descriptionConventions
+// -- alongside an internal bf:Note holding the whole field in marcKey form, which
+// is what carries $c (a transcribing agency has no BIBFRAME property).
 func emitAdmin(s sink, am *AdminMetadata) {
 	s.beginChild(qpAdminMetadata)
 	s.beginNode(qcAdminMetadata, iriVal{}, qname{})
@@ -634,10 +640,28 @@ func emitAdmin(s sink, am *AdminMetadata) {
 	if am.ChangeDate != "" {
 		s.litTyped(qpChangeDate, am.ChangeDate, xsdDateTime)
 	}
+	emitAgency(s, qpAssigner, am.OrigAgency)
+	if am.DescriptionLanguage != "" {
+		s.beginChild(qpDescriptionLanguage)
+		s.beginNode(qcLanguage, langIRIVal(am.DescriptionLanguage), qname{})
+		s.lit(qpCode, am.DescriptionLanguage)
+		s.endNode()
+		s.endChild()
+	}
+	for _, m := range am.Modifiers {
+		emitAgency(s, qpDescriptionModifier, m)
+	}
 	for _, dc := range am.DescriptionConventions {
 		s.beginChild(qpDescriptionConventions)
 		s.beginNode(qcDescriptionConventions, rdaIRIVal(conventionsVocab, dc), qname{})
 		s.lit(qpCode, dc)
+		s.endNode()
+		s.endChild()
+	}
+	if key := marcKey040(am); key != "" {
+		s.beginChild(qpNote)
+		s.beginNode(qcNote, iriVal{}, qcInternalNote)
+		s.lit(qpLabel, key)
 		s.endNode()
 		s.endChild()
 	}
@@ -651,6 +675,49 @@ func emitAdmin(s sink, am *AdminMetadata) {
 	}
 	s.endNode()
 	s.endChild()
+}
+
+// emitAgency attaches a cataloging agency to the AdminMetadata under pred: an
+// organizations-vocabulary IRI when the code is IRI-safe, plus the raw code as
+// bf:code. An empty code emits nothing.
+func emitAgency(s sink, pred qname, code string) {
+	if code == "" {
+		return
+	}
+	s.beginChild(pred)
+	s.beginNode(qcAgent, orgIRIVal(code), qname{})
+	s.lit(qpCode, code)
+	s.endNode()
+	s.endChild()
+}
+
+// marcKey040 renders the AdminMetadata's field 040 in LoC's marcKey form --
+// the tag, both (blank) indicators, then "$<code><value>" per subfield in
+// canonical $a $b $c $d... $e order. It is the round-trip carrier for the whole
+// field, so it is empty when the record had no 040.
+func marcKey040(am *AdminMetadata) string {
+	if !am.hasCatalogingSource() {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("040  ")
+	sub := func(code byte, val string) {
+		if val != "" {
+			b.WriteByte('$')
+			b.WriteByte(code)
+			b.WriteString(val)
+		}
+	}
+	sub('a', am.OrigAgency)
+	sub('b', am.DescriptionLanguage)
+	sub('c', am.Transcriber)
+	for _, m := range am.Modifiers {
+		sub('d', m)
+	}
+	for _, dc := range am.DescriptionConventions {
+		sub('e', dc)
+	}
+	return b.String()
 }
 
 // emitAssigner attaches a bf:assigner agent (the cataloging agency named by 003) to

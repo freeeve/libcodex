@@ -239,12 +239,23 @@ remains a tracked checklist in its task file.
   already read datatypes). AdminMetadata stays forward-only provenance (not reversed
   to MARC, excluded from the round-trip by `normalize`), so this changed no goldens
   and needs no reverse.
-- GAP (low), deferred [069] -- 040 $b (`bf:descriptionLanguage`), 042
-  (`bf:descriptionAuthentication`) still unhandled.
+- RESOLVED [094] -- 040 $b -> `bf:descriptionLanguage` (a `bf:Language` on the
+  languages vocabulary), matching m2b's live template.
+- GAP (low), deferred [069] -- 042 (`bf:descriptionAuthentication`) still unhandled.
 - DIVERGENCE (low) -- 856 ind2 not consulted (ind2=2 -> `bf:supplementaryContent`,
   ToC -> `bf:tableOfContents`); no `bf:Item`/secondary Electronic Instance. **[072]**
-- MATCH-by-omission -- 040 $a/$d assigner/modifier are commented out in current
-  m2b, so our not emitting them is consistent.
+- SUPERSET [094] -- 040 $a -> `bf:assigner` and $d -> `bf:descriptionModifier` are
+  commented out in current m2b; we emit both, in m2b's own commented-out node shape
+  (organizations IRI + `bf:code`). Two deliberate divergences: we emit one
+  `bf:descriptionModifier` per $d, where m2b's dead code keeps only the last, and
+  we emit `bf:assigner` for $a even when the agency is not DLC (m2b's dead code
+  mints an IRI only for DLC).
+- MATCH [094] -- 040 is also preserved whole as a `bf:Note` typed
+  `mnotetype/internal` whose `rdfs:label` is the field in marcKey form, exactly as
+  m2b does. This is the only carrier for 040 $c (a transcribing agency has no
+  BIBFRAME property, and m2b has no template for it), so it is what makes 040
+  round-trip field-exact. Decode prefers the note and falls back to the modelled
+  properties for a graph that lacks one.
 
 ---
 
@@ -268,7 +279,8 @@ Tier 2 -- medium value/effort:
 | 066 | Provision | 264 ind2 subclass + copyright + 008 country place + `bflc:simple*` |
 | 067 | Physical/RDA | 336 content + leader/06 fallback; 337/338 RDA IRIs; 300 extent split |
 | 068 | Language | `bf:code`/`bf:part` shape; drop `rdfs:label`=code; 041 $b/$h |
-| 069 | AdminMetadata | 003 assigner, 040 $e node + all $e, 005 `xsd:dateTime`, 040 $b / 042 |
+| 069 | AdminMetadata | 003 assigner, 040 $e node + all $e, 005 `xsd:dateTime`, 042 |
+| 094 | AdminMetadata | 040 $a/$b/$c/$d agency chain + internal note; 040 regenerated on decode |
 | 070 | Leader typing | leader/07 issuance + Monograph/Serial; i/j audio subclasses; q Hub |
 | 071 | Titles | 245 nonSortNum; uniform $n/$p; 246 variant titles |
 
