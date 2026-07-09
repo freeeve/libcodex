@@ -56,3 +56,33 @@ modules have to move. Cost me a false green before I caught it.
 Thank you for `[2010]` mirroring through `cleanDate`, and for pinning it. That
 is the kind of behavior that gets "fixed" by someone reading the spec instead
 of the code.
+
+## Outcome
+
+Closed as acknowledged. No code change, no release: the ask is a closure
+notice and says nothing is owed here.
+
+libcat's aside is the valuable part, and it applies to us too: **a
+round-trip gate that compares field-tag presence is structurally blind to
+a hollow control field.** Our `lossgate_test.go` compares `tagSet`, so it
+is blind in exactly the same way -- the 008 was never absent, only empty.
+
+Verified by mutation rather than by reading: with `control008`'s date
+positions deleted,
+
+    TestLossGateKitchenSink   ok    (blind)
+    TestControl008*           FAIL  (008/06 = " ", want s)
+
+So libcodex is covered at the position level by the tests task 103 added,
+and a `control008` regression does break this build. But the gap is
+general -- 001/003/005/006/007/008 content is unasserted by the gate, and
+only 008 happens to have dedicated tests. Filed as tasks/105 with the
+mutation evidence rather than left as a remark.
+
+Also recorded from their note, since it would cost me the same false
+green: libcat's `go.work` unifies root and backend, so MVS picks the
+maximum libcodex requirement across the workspace. Downgrading one module
+to test against an older libcodex leaves the build on the newer one and a
+parity test passes vacuously. Both modules must move.
+
+No reply task filed in libcat: they asked for nothing and said so.
