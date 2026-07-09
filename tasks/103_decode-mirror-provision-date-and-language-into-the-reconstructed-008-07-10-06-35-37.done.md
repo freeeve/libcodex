@@ -45,3 +45,46 @@ No urgency: data is preserved either way; this is display/positional
 parity for fixed-field editing surfaces. Our fidelity doc now carries
 the caveat (libcat docs/marc-fidelity.md) and will drop it on your
 release.
+
+## Outcome
+
+Done in ee24945, shipped in v0.22.0. Filed libcat tasks/235.
+
+Implemented as asked. `control008Country` became `control008(g, work,
+inst)`, rendering every position `FromRecord` reads out of an 008:
+
+    06/07-10  a provision's bf:date, when it is a bare four-digit year
+    15-17     the controlled bf:place country IRI      (unchanged)
+    35-37     the Work's first content language
+
+Language lives on the Work in this model, not the Instance as the ask
+assumed, so the builder needed both terms; 260/264 stayed in
+`provisionFields` and the 008 moved up to `recordFromWorkInstance`.
+
+Verified against the reported audiobook shape: date 2010 / place nyu /
+language eng now decodes to `008 "      s2010    nyu                 eng
+"` plus its 260, and re-encoding the decoded record reads all three back.
+
+### Two boundaries worth recording
+
+**"[2010]" mirrors, and should.** My first cut of the not-a-year test
+asserted a bracketed date stays blank, and it failed -- because
+`FromRecord`'s `cleanDate` already strips brackets, so `[2010]` reaches
+the graph as the bare year `2010`. Mirroring it is a derivation from a
+property encode built, not a parse, which is exactly the confidence bar
+this task set. The test was wrong, not the code; it now pins the
+behavior so nobody "fixes" it later.
+
+**Disagreeing provisions assert nothing.** The ask said 06 <- "s" when
+exactly one such date. Taken literally that would drop the year when two
+provisions carry the *same* year (publication + manufacture, both 2001),
+which is not ambiguous at all. Implemented as: distinct years disagreeing
+-> assert neither; agreeing -> mirror. Both cases pinned.
+
+### Notes
+
+- `mkc008(date, country, lang)` test helper composes the 40-byte field,
+  so no test hand-counts filler spaces. The first version of these tests
+  did, and one literal was already miscounted.
+- Warned libcat that any snapshot asserting those positions are *blank*
+  will need updating on their bump.
