@@ -93,17 +93,15 @@ func (v *GraphView) subjectIndex() map[Term][]int32 {
 	return spo
 }
 
-// Len returns the number of statements in the view's graph. It scans the dataset
-// rather than caching a count, so it allocates nothing.
-func (v *GraphView) Len() int {
-	n := 0
-	for i := range v.d.Quads {
-		if v.d.Quads[i].G == v.graph {
-			n++
-		}
-	}
-	return n
-}
+// Len returns the number of statements in the view's graph. It reads the
+// dataset's cached per-graph counts, so it costs no scan after the first call on
+// that dataset, however many graphs are asked about.
+func (v *GraphView) Len() int { return v.d.GraphLen(v.graph) }
+
+// Empty reports whether the view's graph holds no statements. Like Len it answers
+// from the dataset's cached counts, so a consumer that reads a graph only when it
+// is populated — an editorial overlay, say — pays nothing to skip an absent one.
+func (v *GraphView) Empty() bool { return !v.d.HasGraph(v.graph) }
 
 // GraphTerm returns the graph term this view is scoped to.
 func (v *GraphView) GraphTerm() Term { return v.graph }
@@ -113,12 +111,18 @@ func (v *GraphView) GraphTerm() Term { return v.graph }
 // Triple value at a time from the dataset's quads; the only allocation is the
 // iterator closure itself, a fixed ~56 bytes per call regardless of graph size.
 //
-// Each yielded triple costs one function call, and each quad costs a graph-term
-// comparison, so a hand-written loop over Dataset.Quads is a reasonable thing to
-// reach for on a very large walk. Do not assume it is faster: in this package's
-// Corpus/Grain/SingleGraph Triples benchmarks the iterator beats the hand-written
-// loop at both corpus and per-grain scale, even against a single-graph dataset
-// whose direct loop needs no filter at all. Measure your own walk first.
+// The cost that matters is the pass, not the yield. Triples filters the whole
+// dataset, so walking it is one full-dataset pass per view — reading N graphs out
+// of one dataset costs N passes, even for graphs that turn out to be empty. Code
+// that consumes several graphs at once can beat that by fusing the dispatch into
+// a single hand-written pass over Dataset.Quads switching on each quad's graph
+// term. Use Empty to skip a graph without walking it at all: it reads the
+// dataset's cached counts and never scans.
+//
+// Per-triple overhead, by contrast, is not worth avoiding: in this package's
+// Corpus/Grain/SingleGraph Triples benchmarks the iterator beats an equivalent
+// hand-written single-graph loop at both corpus and per-grain scale, even against
+// a single-graph dataset whose loop needs no filter at all.
 func (v *GraphView) Triples() iter.Seq[Triple] {
 	return func(yield func(Triple) bool) {
 		for i := range v.d.Quads {

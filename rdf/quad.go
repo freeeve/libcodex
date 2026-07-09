@@ -20,10 +20,73 @@ func (q Quad) Triple() Triple { return Triple{q.S, q.P, q.O} }
 // returns; it is how provenance (which source a statement came from) is carried.
 type Dataset struct {
 	Quads []Quad
+
+	counts    []graphCount // lazy statement count per graph term, built in one pass
+	countsGen int          // len(Quads) when counts was built, to detect appends
+}
+
+// graphCount is one graph term's statement count. The counts are a slice, not a
+// map: a dataset carries a handful of provenance graphs, so a linear scan over a
+// few entries beats hashing a Term (three strings) for every quad in the dataset.
+type graphCount struct {
+	g Term
+	n int
 }
 
 // Add appends a quad.
 func (d *Dataset) Add(s, p, o, g Term) { d.Quads = append(d.Quads, Quad{s, p, o, g}) }
+
+// graphCounts returns the statement count of every graph term, built lazily in a
+// single pass and shared by every view of this dataset. One pass answers how big
+// each graph is, so code reading several graphs — or probing for an empty one —
+// need not scan the dataset once per graph.
+func (d *Dataset) graphCounts() []graphCount {
+	if d.counts != nil && d.countsGen == len(d.Quads) {
+		return d.counts
+	}
+	counts := make([]graphCount, 0, 4)
+	last := 0 // quads of one graph cluster, so the previous hit usually hits again
+	for i := range d.Quads {
+		g := d.Quads[i].G
+		if last < len(counts) && counts[last].g == g {
+			counts[last].n++
+			continue
+		}
+		found := false
+		for j := range counts {
+			if counts[j].g == g {
+				counts[j].n++
+				last, found = j, true
+				break
+			}
+		}
+		if !found {
+			counts = append(counts, graphCount{g, 1})
+			last = len(counts) - 1
+		}
+	}
+	d.counts, d.countsGen = counts, len(d.Quads)
+	return counts
+}
+
+// GraphLen returns the number of statements in the given graph term; pass a
+// zero-value term for the default graph. It reads a cached per-graph count, so
+// after the first call on a dataset it costs no scan — asking about several
+// graphs, or about a graph that turns out to be empty, is one pass in total
+// rather than one pass per graph.
+func (d *Dataset) GraphLen(graph Term) int {
+	for _, c := range d.graphCounts() {
+		if c.g == graph {
+			return c.n
+		}
+	}
+	return 0
+}
+
+// HasGraph reports whether the dataset carries any statement in the given graph
+// term. Like GraphLen it answers from the cached counts rather than scanning, so
+// skipping an absent graph is free.
+func (d *Dataset) HasGraph(graph Term) bool { return d.GraphLen(graph) > 0 }
 
 // Graph returns the triples belonging to the given graph term as a Graph; pass a
 // zero-value term for the default graph. It copies one Triple per matching quad,
@@ -40,15 +103,16 @@ func (d *Dataset) Graph(graph Term) *Graph {
 }
 
 // Graphs returns the distinct graph terms present in the dataset, in first-seen
-// order — the set of provenance sources.
+// order — the set of provenance sources. It reads the same cached counts GraphLen
+// does, which record each graph on first sight, so repeated calls cost no scan.
 func (d *Dataset) Graphs() []Term {
-	var out []Term
-	seen := map[Term]bool{}
-	for _, q := range d.Quads {
-		if !seen[q.G] {
-			seen[q.G] = true
-			out = append(out, q.G)
-		}
+	counts := d.graphCounts()
+	if len(counts) == 0 {
+		return nil
+	}
+	out := make([]Term, len(counts))
+	for i, c := range counts {
+		out[i] = c.g
 	}
 	return out
 }

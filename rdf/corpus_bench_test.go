@@ -278,6 +278,100 @@ func BenchmarkGrainTriplesDirect(b *testing.B) {
 	benchTriplesDirect(b, d, graph)
 }
 
+// The next three benchmarks reproduce libcat's merge shape (task 100): read a
+// populated feed graph and an *empty* editorial overlay out of one dataset. It is
+// the case that exposed the real cost of a view — one full-dataset pass per view,
+// including for the graph that turns out to be empty.
+
+// mergeDataset is a corpus whose editorial overlay graph carries no statements,
+// the common no-editorial case libcat's projector merges.
+func mergeDataset(b *testing.B) (d *Dataset, feed, editorial Term) {
+	b.Helper()
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	return d, NewIRI("http://catalog.example.org/graphs/feed"),
+		NewIRI("http://catalog.example.org/graphs/editorial")
+}
+
+// BenchmarkMergeFused is libcat's shipping hand-written merge: one count pass
+// switching on the graph term, then one append pass for feed, with the editorial
+// pass skipped entirely when the count says zero. Two passes.
+func BenchmarkMergeFused(b *testing.B) {
+	d, feed, editorial := mergeDataset(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		nf, ne := 0, 0
+		for i := range d.Quads {
+			switch d.Quads[i].G {
+			case feed:
+				nf++
+			case editorial:
+				ne++
+			}
+		}
+		out := make([]Triple, 0, nf+ne)
+		for i := range d.Quads {
+			if q := &d.Quads[i]; q.G == feed {
+				out = append(out, q.Triple())
+			}
+		}
+		if ne > 0 {
+			for i := range d.Quads {
+				if q := &d.Quads[i]; q.G == editorial {
+					out = append(out, q.Triple())
+				}
+			}
+		}
+		sinkLen = len(out)
+	}
+}
+
+// BenchmarkMergeViewsNoSkip is the view version libcat removed: Len on each view
+// plus a Triples walk on each, with no emptiness check. The counts pass is one,
+// shared, but the editorial graph is still walked across the whole dataset only to
+// yield nothing. Three passes.
+func BenchmarkMergeViewsNoSkip(b *testing.B) {
+	d, feed, editorial := mergeDataset(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		d.counts = nil // each merge sees a freshly parsed dataset, so pay the counts pass
+		fv, ev := d.GraphView(feed), d.GraphView(editorial)
+		out := make([]Triple, 0, fv.Len()+ev.Len())
+		for tr := range fv.Triples() {
+			out = append(out, tr)
+		}
+		for tr := range ev.Triples() {
+			out = append(out, tr)
+		}
+		sinkLen = len(out)
+	}
+}
+
+// BenchmarkMergeViewsEmptySkip is the same merge written against the view API as
+// it now stands: Len and Empty read the dataset's cached counts (one shared pass),
+// and the empty editorial graph is skipped without a walk. Two passes, the same
+// pass count as the fused hand-written merge.
+func BenchmarkMergeViewsEmptySkip(b *testing.B) {
+	d, feed, editorial := mergeDataset(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		d.counts = nil // each merge sees a freshly parsed dataset, so pay the counts pass
+		fv, ev := d.GraphView(feed), d.GraphView(editorial)
+		out := make([]Triple, 0, fv.Len()+ev.Len())
+		for tr := range fv.Triples() {
+			out = append(out, tr)
+		}
+		if !ev.Empty() {
+			for tr := range ev.Triples() {
+				out = append(out, tr)
+			}
+		}
+		sinkLen = len(out)
+	}
+}
+
 // BenchmarkCorpusIndex builds the lazy subject index over a corpus-scale graph
 // — the index half of the profile task 083 tracks. Each iteration starts from
 // a fresh Graph so the cached index is rebuilt.

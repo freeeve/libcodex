@@ -123,6 +123,89 @@ func TestGraphViewReindexesAfterAdd(t *testing.T) {
 	}
 }
 
+// TestGraphLenAndEmpty covers the cached per-graph counts: every graph's size is
+// answered from one shared pass, an absent graph is empty rather than an error,
+// and Graphs() still reports first-seen order off the same cache (task 100).
+func TestGraphLenAndEmpty(t *testing.T) {
+	d, feed, edit := viewDataset()
+	absent := NewIRI("http://ex/graphs/absent")
+
+	for _, tc := range []struct {
+		graph Term
+		want  int
+	}{
+		{feed, 5},
+		{edit, 2},
+		{Term{}, 1}, // the default graph
+		{absent, 0},
+	} {
+		if got := d.GraphLen(tc.graph); got != tc.want {
+			t.Errorf("GraphLen(%v) = %d, want %d", tc.graph.Value, got, tc.want)
+		}
+		if got, want := d.HasGraph(tc.graph), tc.want > 0; got != want {
+			t.Errorf("HasGraph(%v) = %v, want %v", tc.graph.Value, got, want)
+		}
+		if got, want := d.GraphView(tc.graph).Empty(), tc.want == 0; got != want {
+			t.Errorf("GraphView(%v).Empty() = %v, want %v", tc.graph.Value, got, want)
+		}
+		if got := d.GraphView(tc.graph).Len(); got != tc.want {
+			t.Errorf("GraphView(%v).Len() = %d, want %d", tc.graph.Value, got, tc.want)
+		}
+	}
+
+	// Graphs() reads the same cache and must keep first-seen order.
+	want := []Term{feed, edit, {}}
+	if got := d.Graphs(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Graphs() = %v, want %v", got, want)
+	}
+}
+
+// TestGraphCountsInvalidateOnAdd guards the cache the same way the view's index is
+// guarded: appending must not be answered from a stale count.
+func TestGraphCountsInvalidateOnAdd(t *testing.T) {
+	d, feed, _ := viewDataset()
+	fresh := NewIRI("http://ex/graphs/fresh")
+
+	if d.GraphLen(feed) != 5 || d.HasGraph(fresh) {
+		t.Fatal("unexpected starting counts")
+	}
+	d.Add(NewIRI("http://ex/w9"), NewIRI(TypeIRI), NewIRI("http://ex/Work"), feed)
+	d.Add(NewIRI("http://ex/w9"), NewIRI(TypeIRI), NewIRI("http://ex/Work"), fresh)
+
+	if got := d.GraphLen(feed); got != 6 {
+		t.Errorf("GraphLen(feed) after Add = %d, want 6", got)
+	}
+	if !d.HasGraph(fresh) {
+		t.Error("HasGraph(fresh) false after adding a quad in that graph")
+	}
+	if d.GraphView(fresh).Empty() {
+		t.Error("view of a newly added graph still reports empty")
+	}
+	if n := len(d.Graphs()); n != 4 {
+		t.Errorf("Graphs() = %d terms after Add, want 4", n)
+	}
+}
+
+// TestGraphLenMatchesScan cross-checks the cached counts against a plain scan over
+// a corpus, so a bug in the last-hit fast path cannot pass unnoticed.
+func TestGraphLenMatchesScan(t *testing.T) {
+	d, err := ParseNQuads(corpusNQ(50))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range d.Graphs() {
+		want := 0
+		for _, q := range d.Quads {
+			if q.G == g {
+				want++
+			}
+		}
+		if got := d.GraphLen(g); got != want {
+			t.Errorf("GraphLen(%q) = %d, want %d", g.Value, got, want)
+		}
+	}
+}
+
 // TestGraphViewTriplesEarlyExit confirms the iterator honors an early break
 // rather than walking the whole graph.
 func TestGraphViewTriplesEarlyExit(t *testing.T) {
