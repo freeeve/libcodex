@@ -73,6 +73,9 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	for _, f := range provisionFields(g, inst) {
 		add(f)
 	}
+	if f, ok := control008(g, work, inst); ok {
+		add(f)
+	}
 	for _, f := range physicalFields(g, inst) {
 		add(f)
 	}
@@ -1007,23 +1010,16 @@ func langCode(g *rdf.Graph, l rdf.Term) string {
 }
 
 // provisionFields reverses the Instance's provision activities into 260 statements
-// (one per node), plus a reconstructed 008 carrying the country of the first node
-// that has one, and a 264 _4 for a bf:copyrightDate. Provision classes collapse to
+// (one per node) and a 264 _4 for a bf:copyrightDate. Provision classes collapse to
 // the generic 260 rather than typed 264 indicators, keeping the transcribed
-// statement front and centre in this library's flatter model.
+// statement front and centre in this library's flatter model. The 008 positions
+// these nodes also feed are rendered by control008.
 func provisionFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
 	var fields []codex.Field
-	country := ""
 	for _, prov := range g.Objects(inst, pProvision) {
 		if subs := provision26XSubfields(g, prov); len(subs) > 0 {
 			fields = append(fields, codex.NewDataField("260", ' ', ' ', subs...))
 		}
-		if country == "" {
-			country = countryCode(g, prov)
-		}
-	}
-	if country != "" {
-		fields = append(fields, codex.NewControlField("008", control008Country(country)))
 	}
 	if cd := literal(g, inst, pCopyright); cd != "" {
 		fields = append(fields, codex.NewDataField("264", ' ', '4', codex.NewSubfield('c', cd)))
@@ -1072,13 +1068,91 @@ func countryCode(g *rdf.Graph, prov rdf.Term) string {
 	return ""
 }
 
-// control008Country renders a minimal 40-byte 008 whose only populated field is the
-// country at 15-17, so the reconstructed record carries the place back into the
-// forward crosswalk without fabricating date or language positions.
-func control008Country(code string) string {
+// control008 renders the partial 40-byte 008 the graph supports, mirroring exactly
+// the positions the forward crosswalk reads out of an 008: the publication date at
+// 06-10, the country at 15-17, and the language at 35-37. Each is a derivation from
+// a property FromRecord built out of that position, so decode returns the record to
+// the same fixed field rather than fabricating one; positions the graph cannot
+// speak to stay blank. It reports false when the graph populates none of them.
+func control008(g *rdf.Graph, work, inst rdf.Term) (codex.Field, bool) {
 	b := []byte(strings.Repeat(" ", 40))
-	copy(b[15:18], code)
-	return string(b)
+	populated := false
+	if year := soleProvisionYear(g, inst); year != "" {
+		b[6] = 's' // single known date, the only status this reconstruction can assert
+		copy(b[7:11], year)
+		populated = true
+	}
+	if code := provisionCountry(g, inst); code != "" {
+		copy(b[15:18], code)
+		populated = true
+	}
+	if code := primaryLanguage(g, work); code != "" {
+		copy(b[35:38], code)
+		populated = true
+	}
+	if !populated {
+		return codex.Field{}, false
+	}
+	return codex.NewControlField("008", string(b)), true
+}
+
+// provisionCountry returns the country code of the first provision node that names
+// one through a controlled bf:place IRI.
+func provisionCountry(g *rdf.Graph, inst rdf.Term) string {
+	for _, prov := range g.Objects(inst, pProvision) {
+		if code := countryCode(g, prov); code != "" {
+			return code
+		}
+	}
+	return ""
+}
+
+// soleProvisionYear returns the publication year for 008/07-10: the one plain
+// four-digit year the Instance's provision activities agree on. A date that is not
+// a bare year (an open range, a bracketed guess, a month) is left to the 260 $c
+// rather than parsed, and provisions disagreeing on the year yield nothing, since
+// the reconstruction cannot say which one 008 meant.
+func soleProvisionYear(g *rdf.Graph, inst rdf.Term) string {
+	year := ""
+	for _, prov := range g.Objects(inst, pProvision) {
+		d := firstNonEmpty(literal(g, prov, pDate), literal(g, prov, pSimpleDate))
+		if !isYear(d) {
+			continue
+		}
+		if year != "" && year != d {
+			return "" // two provisions, two different years: ambiguous
+		}
+		year = d
+	}
+	return year
+}
+
+// isYear reports whether s is a bare four-digit year.
+func isYear(s string) bool {
+	if len(s) != 4 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// primaryLanguage returns the code for 008/35-37: the Work's first content
+// language, skipping a language of the original (041 $h), which the 008 slot never
+// holds.
+func primaryLanguage(g *rdf.Graph, work rdf.Term) string {
+	for _, l := range g.Objects(work, pLanguage) {
+		if literal(g, l, pPart) == "original" {
+			continue
+		}
+		if code := langCode(g, l); code != "" {
+			return code
+		}
+	}
+	return ""
 }
 
 // firstNonEmpty returns the first non-empty string, or "".

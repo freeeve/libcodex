@@ -244,6 +244,14 @@ remains a tracked checklist in its task file.
 - GAP (low), deferred [069] -- 042 (`bf:descriptionAuthentication`) still unhandled.
 - DIVERGENCE (low) -- 856 ind2 not consulted (ind2=2 -> `bf:supplementaryContent`,
   ToC -> `bf:tableOfContents`); no `bf:Item`/secondary Electronic Instance. **[072]**
+- RESOLVED [103] -- the reconstructed 008 now mirrors every position the forward
+  crosswalk reads out of one, not just the country: 06/07-10 from a provision's
+  date when it is a bare four-digit year (two provisions naming different years
+  assert neither), 15-17 from the controlled `bf:place` country IRI, 35-37 from
+  the Work's first content language (never a 041 $h language of the original).
+  Still derive-don't-fabricate: a date that is not a bare year stays in the 260
+  $c, positions the graph cannot speak to stay blank, and a graph naming none of
+  the three emits no 008 at all.
 - RESOLVED [102] -- 490 $v -> `bf:seriesEnumeration` (m2b's predicate for it,
   ConvSpec-Process6-Series.xsl), a literal on the Instance beside
   `bf:seriesStatement`. It was previously packed into the statement after an ISBD
