@@ -62,3 +62,50 @@ From libcat's 104: their `go.work` unifies root and backend, so MVS picks the
 maximum libcodex requirement across the workspace. Downgrading one module leaves
 the build on the newer version and a parity test passes vacuously. Both modules
 have to move. Same trap applies to any workspace check here.
+
+## Outcome
+
+Done in ef80f89. Test-only; no release (see below).
+
+`controlClaims` in `lossgate_test.go` names the positions the reverse crosswalk
+reconstructs per control field:
+
+    001   whole value
+    006   00 form of material
+    007   00 category, 01 specific material designation
+    008   06 date type, 07-10 date 1, 15-17 place, 35-37 language
+
+Each claim is checked **both ways**: a claimed position must return the source's
+value, and an unclaimed position must return blank. The second half is the stale
+guard the ask wanted -- new work populating a position has to move the table, the
+same contract `lostTags` has when a tag starts surviving.
+
+### Verified by mutation, not by construction
+
+Three separate regressions, each caught with a located message:
+
+    control008 drops the date       -> 008/06 date type = " ", want "s"
+                                       008/07-10 date 1 = "    ", want "1993"
+    control008 fills an unclaimed   -> 008 position 38 = '0', which controlClaims
+      position                         says the crosswalk cannot reconstruct
+    007 category corrupted          -> 007/00 category = "z", want "c"
+
+The first passed the gate before this change, which is the whole point.
+
+006/007 turned out to round-trip byte-exact for the kitchen sink, but the claims
+are written to the positions the crosswalk actually *asserts* (006/00, 007/00-01)
+rather than to full equality, so the table states the contract instead of
+recording an accident.
+
+### No release
+
+Test-only: no API, behavior, or documentation surface changes, so a tag would
+carry nothing for consumers. libcodex v0.22.0 remains current. Departing from the
+usual ship-on-land rule deliberately, not by omission.
+
+### Scope held
+
+003/005 stay out: they are `lostTags`, carried as AdminMetadata provenance and
+deliberately not reverse-crosswalked. Extending the same treatment to *data*
+fields (subfield-level value comparison) was not attempted -- the tag tables plus
+the per-field round-trip tests cover those, and no evidence says otherwise.
