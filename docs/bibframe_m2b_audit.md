@@ -218,9 +218,9 @@ remains a tracked checklist in its task file.
 - RESOLVED [081] -- downstream-driven round-trip batch (filed from libcat's
   fidelity gate): 511/521 -> typed Work notes (`performers`/`audience`), 533/538 ->
   typed Instance notes (`reproduction`/`systemDetails`), with note labels now
-  joining every subfield (a multi-subfield 533 keeps its details); 490 ->
-  `bf:seriesStatement` on the Instance (volume rejoined after " ; ", split back on
-  decode); 776 `$z` -> a `bf:Isbn` on the associated resource (the OverDrive
+  joining every subfield (a multi-subfield 533 keeps its details); 490 $a ->
+  `bf:seriesStatement` on the Instance (see [102] for $v); 776 `$z` -> a
+  `bf:Isbn` on the associated resource (the OverDrive
   print/ebook pairing shape, previously dropped); 306 -> `bf:duration`; 347 $a/$b
   -> `bf:digitalCharacteristic` -> `bflc:FileType`/`bflc:EncodingFormat`. Repeated
   `bf:relatedTo`/`bf:relation` children now serialize as JSON-LD arrays -- the
@@ -244,6 +244,22 @@ remains a tracked checklist in its task file.
 - GAP (low), deferred [069] -- 042 (`bf:descriptionAuthentication`) still unhandled.
 - DIVERGENCE (low) -- 856 ind2 not consulted (ind2=2 -> `bf:supplementaryContent`,
   ToC -> `bf:tableOfContents`); no `bf:Item`/secondary Electronic Instance. **[072]**
+- RESOLVED [102] -- 490 $v -> `bf:seriesEnumeration` (m2b's predicate for it,
+  ConvSpec-Process6-Series.xsl), a literal on the Instance beside
+  `bf:seriesStatement`. It was previously packed into the statement after an ISBD
+  " ; " and split back on decode, which silently corrupted a series title that
+  itself contained " ; " (`"Aims ; and methods"` decoded to $a "Aims" / $v "and
+  methods"). A repeated $v keeps the first.
+- DIVERGENCE (low), deliberate [102] -- m2b routes 490 through a grouped series
+  entity (`bf:title`/`bf:Title` per group, with `groupNum` pairing the
+  enumeration); we keep the flat `bf:seriesStatement` literal on the Instance,
+  which is what downstream libcat's editor reads. Because flat sibling literals
+  cannot say which statement an enumeration belongs to, we emit one
+  `bf:seriesEnumeration` per statement in the same order -- including an empty
+  literal for a 490 with no $v -- so position pairs them. Decode pairs by position
+  when the counts match, pairs a lone statement with a lone enumeration (the shape
+  a third-party graph writes), and otherwise drops the enumerations rather than
+  attributing them to the wrong series.
 - SUPERSET [094] -- 040 $a -> `bf:assigner` and $d -> `bf:descriptionModifier` are
   commented out in current m2b; we emit both, in m2b's own commented-out node shape
   (organizations IRI + `bf:code`). Two deliberate divergences: we emit one

@@ -1,9 +1,11 @@
 package bibframe
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/freeeve/libcodex"
+	"github.com/freeeve/libcodex/rdf"
 )
 
 // TestSpecializedNotesForward covers the 081 note tags: routing (511/521 -> Work,
@@ -83,8 +85,12 @@ func TestSeriesStatementRoundTrip(t *testing.T) {
 	if len(g.Instance.SeriesStatements) != 2 {
 		t.Fatalf("series statements = %+v, want 2", g.Instance.SeriesStatements)
 	}
-	if g.Instance.SeriesStatements[0] != "Sally Lockhart mysteries ; bk. 2" {
-		t.Errorf("statement with volume = %q", g.Instance.SeriesStatements[0])
+	// $v is a separate bf:seriesEnumeration, not packed into the statement (task 102).
+	if g.Instance.SeriesStatements[0] != "Sally Lockhart mysteries" {
+		t.Errorf("statement with volume = %q, want the title alone", g.Instance.SeriesStatements[0])
+	}
+	if want := []string{"bk. 2", ""}; !reflect.DeepEqual(g.Instance.SeriesEnumerations, want) {
+		t.Errorf("enumerations = %q, want %q (aligned with the statements)", g.Instance.SeriesEnumerations, want)
 	}
 
 	encoded, err := Encode(rec)
@@ -110,6 +116,90 @@ func TestSeriesStatementRoundTrip(t *testing.T) {
 	}
 	if !sawVolume || !sawPlain {
 		t.Errorf("490 reconstruction: volume=%v plain=%v (%+v)", sawVolume, sawPlain, fields)
+	}
+}
+
+// TestSeriesTitleContainingSeparator is the bug the old packed statement had: a
+// series title that itself contains " ; " was split on it, inventing a $v out of
+// the second half of the title. The enumeration is now its own literal, so a
+// title with a semicolon survives untouched (task 102).
+func TestSeriesTitleContainingSeparator(t *testing.T) {
+	const title = "Aims ; and methods"
+	rec := recordWith(codex.NewDataField("490", '0', ' ', codex.NewSubfield('a', title)))
+
+	g := FromRecord(rec)
+	if got := g.Instance.SeriesStatements; len(got) != 1 || got[0] != title {
+		t.Fatalf("statement = %q, want [%q]", got, title)
+	}
+	if anyNonEmpty(g.Instance.SeriesEnumerations) {
+		t.Errorf("enumerations = %q, want none (the 490 had no $v)", g.Instance.SeriesEnumerations)
+	}
+
+	encoded, err := Encode(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recs, err := Decode(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := countFields(recs[0], "490")
+	if len(fields) != 1 {
+		t.Fatalf("490 fields = %+v, want 1", fields)
+	}
+	if got := fields[0].SubfieldValue('a'); got != title {
+		t.Errorf("$a = %q, want %q (the title must not be split on its own separator)", got, title)
+	}
+	if got := fields[0].SubfieldValue('v'); got != "" {
+		t.Errorf("$v = %q, want none: no $v was ever present", got)
+	}
+}
+
+// TestSeriesEnumerationsFor pins the pairing rules for the flat, unordered
+// bf:seriesEnumeration shape: pair by position when the counts line up, pair a
+// lone statement with a lone enumeration, and otherwise drop rather than guess.
+func TestSeriesEnumerationsFor(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		stmts, enums []string
+		want         []string
+	}{
+		{"aligned, ours", []string{"A", "B"}, []string{"v1", ""}, []string{"v1", ""}},
+		{"aligned, both present", []string{"A", "B"}, []string{"v1", "v2"}, []string{"v1", "v2"}},
+		{"single pair, third-party graph", []string{"A"}, []string{"v1"}, []string{"v1"}},
+		{"no enumerations", []string{"A", "B"}, nil, []string{"", ""}},
+		{"ambiguous: fewer enums than stmts", []string{"A", "B"}, []string{"v1"}, []string{"", ""}},
+		{"ambiguous: more enums than stmts", []string{"A"}, []string{"v1", "v2"}, []string{""}},
+		{"no statements", nil, []string{"v1"}, []string{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := seriesEnumerationsFor(tc.stmts, tc.enums)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("seriesEnumerationsFor(%q, %q) = %q, want %q", tc.stmts, tc.enums, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestSeriesEnumerationPredicate confirms $v lands on the LoC predicate, as a
+// literal on the Instance beside bf:seriesStatement (task 102).
+func TestSeriesEnumerationPredicate(t *testing.T) {
+	rec := recordWith(codex.NewDataField("490", '0', ' ',
+		codex.NewSubfield('a', "Firebrand fiction ;"), codex.NewSubfield('v', "bk. 2")))
+
+	graph, err := rdf.ParseNTriples(mustEncodeNT(t, rec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	insts := graph.SubjectsOfType(classInstance)
+	if len(insts) != 1 {
+		t.Fatalf("want 1 Instance, got %d", len(insts))
+	}
+	if got, _ := graph.Literal(insts[0], pSeriesEnumeration); got != "bk. 2" {
+		t.Errorf("bf:seriesEnumeration = %q, want %q", got, "bk. 2")
+	}
+	if got, _ := graph.Literal(insts[0], pSeriesStatement); got != "Firebrand fiction" {
+		t.Errorf("bf:seriesStatement = %q, want the title alone", got)
 	}
 }
 

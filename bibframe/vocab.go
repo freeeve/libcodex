@@ -130,6 +130,7 @@ var (
 	qpResponsibilityStmt     = qname{nsBF, "responsibilityStatement", "bf:responsibilityStatement", pRespStmt}
 	qpEditionStatement       = qname{nsBF, "editionStatement", "bf:editionStatement", pEdition}
 	qpSeriesStatement        = qname{nsBF, "seriesStatement", "bf:seriesStatement", pSeriesStatement}
+	qpSeriesEnumeration      = qname{nsBF, "seriesEnumeration", "bf:seriesEnumeration", pSeriesEnumeration}
 	qpDuration               = qname{nsBF, "duration", "bf:duration", pDuration}
 	qpDigitalCharacteristic  = qname{nsBF, "digitalCharacteristic", "bf:digitalCharacteristic", pDigitalCharacteristic}
 	qpProvisionActivity      = qname{nsBF, "provisionActivity", "bf:provisionActivity", pProvision}

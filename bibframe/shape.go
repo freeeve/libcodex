@@ -274,6 +274,15 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 		s.lit(qpEditionStatement, in.EditionStatement)
 	}
 	s.litList(qpSeriesStatement, in.SeriesStatements)
+	// bf:seriesEnumeration literals are flat siblings of bf:seriesStatement (LoC's
+	// shape), which cannot say which statement a given enumeration belongs to. They
+	// are therefore emitted one per statement, in the same order, so position pairs
+	// them -- including an empty literal for a 490 that carried no $v, without which
+	// a record whose 490s only sometimes carry one could not be paired back up. When
+	// no 490 carried a $v, nothing is emitted at all.
+	if anyNonEmpty(in.SeriesEnumerations) {
+		s.litList(qpSeriesEnumeration, in.SeriesEnumerations)
+	}
 	if len(in.Provisions) > 0 {
 		s.beginList(qpProvisionActivity)
 		for i := range in.Provisions {
@@ -378,6 +387,16 @@ func emitVariantTitle(s sink, vt VariantTitle) {
 		s.lit(qpVariantType, vt.VariantType)
 	}
 	s.endNode()
+}
+
+// anyNonEmpty reports whether vals holds at least one non-empty string.
+func anyNonEmpty(vals []string) bool {
+	for _, v := range vals {
+		if v != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // emitLabeled emits the ubiquitous "[a class; rdfs:label label]" node used for

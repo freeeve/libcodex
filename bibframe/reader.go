@@ -53,6 +53,7 @@ const (
 	pRespStmt              = bfNS + "responsibilityStatement"
 	pEdition               = bfNS + "editionStatement"
 	pSeriesStatement       = bfNS + "seriesStatement"
+	pSeriesEnumeration     = bfNS + "seriesEnumeration"
 	pDuration              = bfNS + "duration"
 	pDigitalCharacteristic = bfNS + "digitalCharacteristic"
 	pProvision             = bfNS + "provisionActivity"

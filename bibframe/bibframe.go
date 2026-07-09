@@ -134,20 +134,23 @@ type Instance struct {
 	VariantTitles           []VariantTitle // 246 cover/spine titles
 	ResponsibilityStatement string
 	EditionStatement        string
-	SeriesStatements        []string // 490 -> bf:seriesStatement
-	Provisions              []Provision
-	CopyrightDate           string // 264 _4 $c -> bf:copyrightDate; optional
-	Extent                  []string
-	Dimensions              []string                // 300 $c -> bf:dimensions
-	Duration                []string                // 306 $a playing times -> bf:duration
-	Media                   []RDATerm               // RDA media types (337) -> bf:media
-	Carrier                 []RDATerm               // RDA carrier types (338) -> bf:carrier
-	DigitalCharacteristics  []DigitalCharacteristic // 347 -> bf:digitalCharacteristic
-	Issuance                string                  // mode of issuance (leader/07) -> bf:issuance IRI; optional
-	Notes                   []Note                  // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
-	Identifiers             []Identifier
-	ElectronicLocator       []ElectronicLocator
-	Admin                   *AdminMetadata
+	SeriesStatements        []string // 490 $a -> bf:seriesStatement
+	// SeriesEnumerations holds each 490's volume designation (490 $v ->
+	// bf:seriesEnumeration), positionally aligned with SeriesStatements.
+	SeriesEnumerations     []string
+	Provisions             []Provision
+	CopyrightDate          string // 264 _4 $c -> bf:copyrightDate; optional
+	Extent                 []string
+	Dimensions             []string                // 300 $c -> bf:dimensions
+	Duration               []string                // 306 $a playing times -> bf:duration
+	Media                  []RDATerm               // RDA media types (337) -> bf:media
+	Carrier                []RDATerm               // RDA carrier types (338) -> bf:carrier
+	DigitalCharacteristics []DigitalCharacteristic // 347 -> bf:digitalCharacteristic
+	Issuance               string                  // mode of issuance (leader/07) -> bf:issuance IRI; optional
+	Notes                  []Note                  // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
+	Identifiers            []Identifier
+	ElectronicLocator      []ElectronicLocator
+	Admin                  *AdminMetadata
 }
 
 // ElectronicLocator is one 856 access link: the URL plus the display context real
@@ -370,8 +373,11 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 				}
 			}
 		case "490":
+			// The enumeration is recorded only alongside a statement, so the two
+			// slices stay positionally aligned and the reverse crosswalk can pair them.
 			if stmt := seriesStatement(f); stmt != "" {
 				g.Instance.SeriesStatements = append(g.Instance.SeriesStatements, stmt)
+				g.Instance.SeriesEnumerations = append(g.Instance.SeriesEnumerations, trimISBD(f.SubfieldValue('v')))
 			}
 		case "306":
 			for _, d := range f.SubfieldValues('a') {
@@ -1400,25 +1406,14 @@ func noteLabel(f codex.Field) string {
 	return strings.Join(parts, " ")
 }
 
-// seriesStatement renders a 490 as one bf:seriesStatement literal: the series
-// title ($a) with the volume designation ($v) appended after the ISBD " ; "
-// separator, which the reverse crosswalk splits on.
+// seriesStatement renders a 490's series title ($a) as one bf:seriesStatement
+// literal. The volume designation ($v) is a separate bf:seriesEnumeration, as in
+// LoC marc2bibframe2, rather than being packed in after an ISBD " ; " separator:
+// a series title may itself contain " ; ", which a packed statement cannot be
+// split back apart on. A repeated $v keeps the first, which is what pairs one
+// enumeration with one statement.
 func seriesStatement(f codex.Field) string {
-	stmt := trimISBD(f.SubfieldValue('a'))
-	if v := trimISBD(f.SubfieldValue('v')); v != "" && stmt != "" {
-		stmt += " ; " + v
-	}
-	return stmt
-}
-
-// splitSeriesStatement inverts seriesStatement, splitting a statement at its
-// last " ; " into title and volume. A statement without the separator is all
-// title.
-func splitSeriesStatement(stmt string) (title, volume string) {
-	if i := strings.LastIndex(stmt, " ; "); i >= 0 {
-		return stmt[:i], stmt[i+3:]
-	}
-	return stmt, ""
+	return trimISBD(f.SubfieldValue('a'))
 }
 
 // appendDigitalCharacteristics reads a 347 field's file type ($a) and encoding

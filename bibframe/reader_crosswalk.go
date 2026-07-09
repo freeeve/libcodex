@@ -59,8 +59,10 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	if ed := literal(g, inst, pEdition); ed != "" {
 		add(codex.NewDataField("250", ' ', ' ', codex.NewSubfield('a', ed)))
 	}
-	for _, stmt := range literalsOf(g, inst, pSeriesStatement) {
-		add(seriesField(stmt))
+	stmts := literalsOf(g, inst, pSeriesStatement)
+	enums := seriesEnumerationsFor(stmts, allLiteralsOf(g, inst, pSeriesEnumeration))
+	for i, stmt := range stmts {
+		add(seriesField(stmt, enums[i]))
 	}
 	if f := durationField(g, inst); f != nil {
 		add(*f)
@@ -236,15 +238,38 @@ func codedFields(g *rdf.Graph, inst rdf.Term, leaderType byte) []codex.Field {
 	return fields
 }
 
-// seriesField reverses one bf:seriesStatement literal into a 490, splitting the
-// volume designation back out of the statement.
-func seriesField(stmt string) codex.Field {
-	title, volume := splitSeriesStatement(stmt)
-	subs := []codex.Subfield{codex.NewSubfield('a', title)}
+// seriesField reverses one bf:seriesStatement literal into a 490, with its paired
+// bf:seriesEnumeration (empty for none) as $v.
+func seriesField(stmt, volume string) codex.Field {
+	subs := []codex.Subfield{codex.NewSubfield('a', stmt)}
 	if volume != "" {
 		subs = append(subs, codex.NewSubfield('v', volume))
 	}
 	return codex.NewDataField("490", '0', ' ', subs...)
+}
+
+// seriesEnumerationsFor pairs each bf:seriesStatement with its
+// bf:seriesEnumeration, returning one volume designation (possibly empty) per
+// statement.
+//
+// The two are flat sibling literals on the Instance -- LoC's shape -- which
+// cannot say which statement a given enumeration belongs to, so they are paired
+// only where the pairing is unambiguous. A graph this package wrote carries one
+// enumeration per statement (empty where a 490 had no $v), which pairs by
+// position. A graph written by hand or by another producer commonly carries a
+// single series and a single enumeration, which pairs too. Anything else -- more
+// enumerations than statements, or several statements with fewer enumerations --
+// cannot be attributed, and the enumerations are dropped rather than guessed onto
+// the wrong series.
+func seriesEnumerationsFor(stmts, enums []string) []string {
+	out := make([]string, len(stmts))
+	switch {
+	case len(enums) == len(stmts):
+		copy(out, enums)
+	case len(stmts) == 1 && len(enums) == 1:
+		out[0] = enums[0]
+	}
+	return out
 }
 
 // durationField reverses the Instance's bf:duration literals into one 306 with a
@@ -914,6 +939,19 @@ func literalsOf(g *rdf.Graph, subject rdf.Term, predicate string) []string {
 	var out []string
 	for _, o := range g.Objects(subject, predicate) {
 		if o.IsLiteral() && o.Value != "" {
+			out = append(out, o.Value)
+		}
+	}
+	return out
+}
+
+// allLiteralsOf is literalsOf without the empty-value filter, for a predicate
+// whose empty literal is meaningful -- bf:seriesEnumeration emits one as a
+// positional placeholder for a 490 that carried no $v.
+func allLiteralsOf(g *rdf.Graph, subject rdf.Term, predicate string) []string {
+	var out []string
+	for _, o := range g.Objects(subject, predicate) {
+		if o.IsLiteral() {
 			out = append(out, o.Value)
 		}
 	}
