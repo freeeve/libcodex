@@ -228,6 +228,14 @@ remains a tracked checklist in its task file.
   matrix (`lossgate_test.go`), which round-trips a fully populated record and the
   realdata corpus through all four serializations and pins every tag as
   kept/transformed/lost.
+- RESOLVED [105] -- the loss gate compared tag *presence*, so a control field
+  could come back present and hollow and still pass; that is how the 008 gap
+  [103] went unnoticed until a downstream consumer hit it. `controlClaims` now
+  names, per control field, the positions the reverse crosswalk reconstructs
+  (006/00, 007/00-01, 008/06, 07-10, 15-17, 35-37; 001 whole). A claimed position
+  must return the source's value and an unclaimed one must return blank -- the
+  second half being the stale guard, so new work populating a position must move
+  the table, exactly as a newly surviving tag must move `lostTags`.
 - RESOLVED [069] -- 003 is read into `AdminMetadata.ControlOrg` and attached to the
   001 `bf:Local` as a `bf:assigner` agent (organizations-vocabulary IRI when the
   code is IRI-safe, plus `bf:code`). Only emitted when 003 is present -- no DLC

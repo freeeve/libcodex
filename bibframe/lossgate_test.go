@@ -1,8 +1,11 @@
 package bibframe
 
 import (
+	"maps"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/freeeve/libcodex"
@@ -46,6 +49,80 @@ var transformedTags = map[string]string{
 // 003/005 are carried only as AdminMetadata provenance, deliberately not
 // reverse-crosswalked; 310 (frequency) is simply unimplemented.
 var lostTags = []string{"003", "005", "310"}
+
+// A control field can survive the round-trip present but hollow: the tag tables
+// above compare presence, so an 008 that comes back with every position blank
+// passes them. That is exactly the shape of the bug task 103 fixed, and only a
+// dedicated test caught it. controlClaims closes the gap by naming, per control
+// field, the positions the reverse crosswalk claims to reconstruct.
+//
+// The claim is checked both ways: a claimed position must come back with the
+// source's value, and an unclaimed position must come back blank. The second half
+// is the stale guard -- when new crosswalk work populates a position, this table
+// must move, the way lostTags must move when a tag starts surviving.
+//
+// 001 is compared whole and handled separately. 003/005 are lostTags: carried as
+// AdminMetadata provenance and deliberately not reverse-crosswalked.
+type claim struct {
+	name       string
+	start, end int // half-open byte range within the control field
+}
+
+var controlClaims = map[string][]claim{
+	// codedFields rebuilds 006 from an electronic media type: position 00 only.
+	"006": {{"00 form of material", 0, 1}},
+	// codedFields rebuilds 007 from a carrier: category + specific material designation.
+	"007": {{"00 category", 0, 1}, {"01 specific material designation", 1, 2}},
+	// control008 renders exactly the positions FromRecord reads back out (task 103).
+	"008": {
+		{"06 date type", 6, 7},
+		{"07-10 date 1", 7, 11},
+		{"15-17 place", 15, 18},
+		{"35-37 language", 35, 38},
+	},
+}
+
+// at returns the half-open byte range of s, padded with blanks when s is short, so
+// a claim never panics on a truncated control field.
+func at(s string, start, end int) string {
+	b := []byte(strings.Repeat(" ", end-start))
+	for i := start; i < end && i < len(s); i++ {
+		b[i-start] = s[i]
+	}
+	return string(b)
+}
+
+// assertControlFields checks every controlClaims entry against a round-tripped
+// record: claimed positions carry the source's value, unclaimed positions are
+// blank. A control field the source never had, or that the crosswalk drops
+// entirely, is the tag tables' business and is skipped here.
+func assertControlFields(t *testing.T, src, got *codex.Record) {
+	t.Helper()
+	if s, g := src.ControlField("001"), got.ControlField("001"); s != g {
+		t.Errorf("001 = %q, want %q", g, s)
+	}
+	for _, tag := range slices.Sorted(maps.Keys(controlClaims)) {
+		s, g := src.ControlField(tag), got.ControlField(tag)
+		if s == "" || g == "" {
+			continue
+		}
+		claimed := map[int]bool{}
+		for _, c := range controlClaims[tag] {
+			for i := c.start; i < c.end; i++ {
+				claimed[i] = true
+			}
+			if want, have := at(s, c.start, c.end), at(g, c.start, c.end); have != want {
+				t.Errorf("%s/%s = %q, want %q (in %q, out %q)", tag, c.name, have, want, s, g)
+			}
+		}
+		for i := range len(g) {
+			if !claimed[i] && g[i] != ' ' {
+				t.Errorf("%s position %02d = %q, which controlClaims says the crosswalk cannot reconstruct -- "+
+					"if new work populates it, add it to the table (out %q)", tag, i, g[i], g)
+			}
+		}
+	}
+}
 
 // kitchenSink builds a record populating every tag the crosswalk knows plus the
 // transformed and lost ones, with repeats where fields are repeatable.
@@ -155,7 +232,9 @@ func gate(t *testing.T, rec *codex.Record, encode func(*codex.Record) ([]byte, e
 
 // TestLossGateKitchenSink asserts, across every BIBFRAME serialization, that
 // each coreTag survives the round-trip, each transformed tag lands on its
-// documented target, and each lost tag stays lost (the stale guard).
+// documented target, each lost tag stays lost (the stale guard), and each
+// control field comes back with the positions controlClaims says it does -- a
+// surviving tag is not the same as a surviving value.
 func TestLossGateKitchenSink(t *testing.T) {
 	sink := kitchenSink()
 	src := tagSet(sink)
@@ -166,7 +245,9 @@ func TestLossGateKitchenSink(t *testing.T) {
 	}
 	for name, encode := range bfFormats {
 		t.Run(name, func(t *testing.T) {
-			got := tagSet(gate(t, sink, encode))
+			decoded := gate(t, sink, encode)
+			assertControlFields(t, sink, decoded)
+			got := tagSet(decoded)
 			for _, tag := range coreTags {
 				if src[tag] && !got[tag] {
 					t.Errorf("core tag %s lost", tag)
