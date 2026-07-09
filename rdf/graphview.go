@@ -109,8 +109,16 @@ func (v *GraphView) Len() int {
 func (v *GraphView) GraphTerm() Term { return v.graph }
 
 // Triples iterates the view's statements in document order, projecting each quad
-// onto its triple. It allocates nothing: no index is built and no slice is
-// materialized, one Triple value is yielded at a time from the dataset's quads.
+// onto its triple. It builds no index and materializes no slice, yielding one
+// Triple value at a time from the dataset's quads; the only allocation is the
+// iterator closure itself, a fixed ~56 bytes per call regardless of graph size.
+//
+// Each yielded triple costs one function call, and each quad costs a graph-term
+// comparison, so a hand-written loop over Dataset.Quads is a reasonable thing to
+// reach for on a very large walk. Do not assume it is faster: in this package's
+// Corpus/Grain/SingleGraph Triples benchmarks the iterator beats the hand-written
+// loop at both corpus and per-grain scale, even against a single-graph dataset
+// whose direct loop needs no filter at all. Measure your own walk first.
 func (v *GraphView) Triples() iter.Seq[Triple] {
 	return func(yield func(Triple) bool) {
 		for i := range v.d.Quads {

@@ -165,6 +165,119 @@ func BenchmarkCorpusDatasetGraphViewQuery(b *testing.B) {
 	}
 }
 
+// The next four benchmarks measure what libcat reported in task 099: the
+// per-triple call overhead of the iter.Seq yielded by GraphView.Triples, against
+// a direct loop over the dataset's quads. The overhead is per triple, so it is
+// visible on a corpus-scale walk and immaterial at per-grain sizes.
+
+// sinkLen keeps the walk benchmarks from being optimized away. It accumulates a
+// scalar rather than storing the Triple, so the two loops are compared on their
+// iteration cost and not on a 168-byte copy into a global that dwarfs it.
+var sinkLen int
+
+func benchTriplesIter(b *testing.B, d *Dataset, graph Term) {
+	v := d.GraphView(graph)
+	b.ReportAllocs()
+	for b.Loop() {
+		n := 0
+		for t := range v.Triples() {
+			n += len(t.S.Value)
+		}
+		sinkLen = n
+	}
+}
+
+func benchTriplesDirect(b *testing.B, d *Dataset, graph Term) {
+	b.ReportAllocs()
+	for b.Loop() {
+		n := 0
+		for i := range d.Quads {
+			if q := &d.Quads[i]; q.G == graph {
+				t := q.Triple() // materialize the same value Triples() yields
+				n += len(t.S.Value)
+			}
+		}
+		sinkLen = n
+	}
+}
+
+// grainDataset is one grain's worth of quads (~200), the size libcat's
+// per-grain paths walk.
+func grainDataset(b *testing.B) (*Dataset, Term) {
+	b.Helper()
+	d, err := ParseNQuads(corpusNQ(6))
+	if err != nil {
+		b.Fatal(err)
+	}
+	return d, NewIRI("http://catalog.example.org/graphs/feed")
+}
+
+func BenchmarkCorpusTriplesIter(b *testing.B) {
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	benchTriplesIter(b, d, NewIRI("http://catalog.example.org/graphs/feed"))
+}
+
+func BenchmarkCorpusTriplesDirect(b *testing.B) {
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	benchTriplesDirect(b, d, NewIRI("http://catalog.example.org/graphs/feed"))
+}
+
+// singleGraphDataset models libcat's merge path (task 099): a dataset with only
+// one graph, which a direct loop can walk with no graph filter at all. Compared
+// against the iterator over the same dataset it isolates the cost of
+// GraphView.Triples's per-quad graph-term comparison from the iter.Seq yield.
+// Measured on Go 1.25 / M3 Max the iterator still wins, so the per-quad filter
+// does not explain the iterator overhead libcat reported at 12.7M quads.
+func singleGraphDataset(b *testing.B) (*Dataset, Term) {
+	b.Helper()
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	graph := NewIRI("http://catalog.example.org/graphs/feed")
+	one := &Dataset{Quads: make([]Quad, 0, len(d.Quads))}
+	for _, q := range d.Quads {
+		if q.G == graph {
+			one.Quads = append(one.Quads, q)
+		}
+	}
+	return one, graph
+}
+
+func BenchmarkSingleGraphTriplesIter(b *testing.B) {
+	d, graph := singleGraphDataset(b)
+	benchTriplesIter(b, d, graph)
+}
+
+func BenchmarkSingleGraphTriplesUnfiltered(b *testing.B) {
+	d, _ := singleGraphDataset(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		n := 0
+		for i := range d.Quads {
+			t := d.Quads[i].Triple()
+			n += len(t.S.Value)
+		}
+		sinkLen = n
+	}
+}
+
+func BenchmarkGrainTriplesIter(b *testing.B) {
+	d, graph := grainDataset(b)
+	benchTriplesIter(b, d, graph)
+}
+
+func BenchmarkGrainTriplesDirect(b *testing.B) {
+	d, graph := grainDataset(b)
+	benchTriplesDirect(b, d, graph)
+}
+
 // BenchmarkCorpusIndex builds the lazy subject index over a corpus-scale graph
 // — the index half of the profile task 083 tracks. Each iteration starts from
 // a fresh Graph so the cached index is rebuilt.
