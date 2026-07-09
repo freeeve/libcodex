@@ -91,6 +91,82 @@ func TestSubjectSKOSNative(t *testing.T) {
 	}
 }
 
+// TestSubjectMultilingualLabel covers a SKOS concept whose prefLabel exists in
+// several languages: exactly one heading, with the English label, regardless of the
+// order the languages appear in the graph (task 096).
+func TestSubjectMultilingualLabel(t *testing.T) {
+	for _, pred := range []string{pPrefLabel, pLabel} {
+		g := &rdf.Graph{}
+		work := rdf.NewIRI("http://example.org/w")
+		subj := rdf.NewIRI("http://id.loc.gov/authorities/subjects/sh00000001")
+		g.Add(work, rdf.NewIRI(pSubject), subj)
+		// Spanish first, so document order alone would pick the wrong one.
+		g.Add(subj, rdf.NewIRI(pred), rdf.NewLiteral("Queer joy (es)", "es", ""))
+		g.Add(subj, rdf.NewIRI(pred), rdf.NewLiteral("Queer joy", "en", ""))
+		g.Add(subj, rdf.NewIRI(pred), rdf.NewLiteral("Queer joy (fr)", "fr", ""))
+
+		fields := subjectFields(g, work)
+		if len(fields) != 1 {
+			t.Fatalf("%s: %d headings, want 1 per term: %+v", pred, len(fields), fields)
+		}
+		if got := fields[0].SubfieldValue('a'); got != "Queer joy" {
+			t.Errorf("%s: $a = %q, want the English label", pred, got)
+		}
+	}
+}
+
+// TestPreferredLabel pins the label-pick order: exact English, then an English
+// subtag, then an untagged literal, then the lowest language tag. The last two
+// keep the pick deterministic when no English label exists, since RDF document
+// order is not meaningful.
+func TestPreferredLabel(t *testing.T) {
+	// lit builds a node carrying one rdfs:label per (value, lang) pair.
+	lit := func(pairs ...[2]string) (*rdf.Graph, rdf.Term) {
+		g := &rdf.Graph{}
+		node := rdf.NewIRI("http://example.org/n")
+		for _, p := range pairs {
+			g.Add(node, rdf.NewIRI(pLabel), rdf.NewLiteral(p[0], p[1], ""))
+		}
+		return g, node
+	}
+	for _, tc := range []struct {
+		name  string
+		pairs [][2]string
+		want  string
+	}{
+		{"exact english beats subtag", [][2]string{{"colour", "en-GB"}, {"color", "en"}}, "color"},
+		{"english beats untagged", [][2]string{{"plain", ""}, {"color", "en"}}, "color"},
+		{"english subtag beats untagged", [][2]string{{"plain", ""}, {"colour", "en-GB"}}, "colour"},
+		{"untagged beats other languages", [][2]string{{"couleur", "fr"}, {"plain", ""}}, "plain"},
+		{"lowest language tag when no english", [][2]string{{"kleur", "nl"}, {"couleur", "fr"}}, "couleur"},
+		{"lowest tag is order independent", [][2]string{{"couleur", "fr"}, {"kleur", "nl"}}, "couleur"},
+		{"case insensitive language tag", [][2]string{{"couleur", "fr"}, {"color", "EN"}}, "color"},
+		{"no labels", nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g, node := lit(tc.pairs...)
+			if got := preferredLabel(g, node, pLabel); got != tc.want {
+				t.Errorf("preferredLabel = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestSubjectRepeatedEdge confirms a bf:subject edge repeated in the serialization
+// yields one heading, not two: RDF is a set (task 096).
+func TestSubjectRepeatedEdge(t *testing.T) {
+	g := &rdf.Graph{}
+	work := rdf.NewIRI("http://example.org/w")
+	subj := rdf.NewIRI("http://id.loc.gov/authorities/subjects/sh85021262")
+	g.Add(work, rdf.NewIRI(pSubject), subj)
+	g.Add(work, rdf.NewIRI(pSubject), subj)
+	g.Add(subj, rdf.NewIRI(pPrefLabel), rdf.NewLiteral("Cats", "en", ""))
+
+	if fields := subjectFields(g, work); len(fields) != 1 {
+		t.Errorf("%d headings for a repeated bf:subject edge, want 1: %+v", len(fields), fields)
+	}
+}
+
 // TestSourceFromIRI spot-checks the well-known authority-prefix table.
 func TestSourceFromIRI(t *testing.T) {
 	cases := map[string]string{

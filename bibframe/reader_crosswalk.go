@@ -413,13 +413,20 @@ func contribTag(class string, primary bool) string {
 }
 
 // subjectFields reverses bf:subject into 6xx fields, re-splitting the "--"-joined
-// heading of topical and geographic subjects into $a and $x subdivisions.
+// heading of topical and geographic subjects into $a and $x subdivisions. Each
+// subject term yields exactly one heading, even when it carries labels in several
+// languages or the graph repeats the bf:subject edge.
 func subjectFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 	var fields []codex.Field
+	seen := make(map[rdf.Term]bool)
 	for _, s := range g.Objects(work, pSubject) {
-		label := literal(g, s, pLabel)
+		if seen[s] { // RDF is a set: a repeated bf:subject edge is one subject
+			continue
+		}
+		seen[s] = true
+		label := preferredLabel(g, s, pLabel)
 		if label == "" {
-			label = literal(g, s, pPrefLabel) // read the SKOS shape natively
+			label = preferredLabel(g, s, pPrefLabel) // read the SKOS shape natively
 		}
 		if label == "" {
 			continue
@@ -453,6 +460,37 @@ func subjectFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		}
 	}
 	return fields
+}
+
+// preferredLabel picks the single label to render as a heading from the literals a
+// node carries under predicate, which a SKOS concept may hold in several languages.
+// English wins ("en", then any "en-*" subtag), then an untagged literal, then the
+// lowest language tag lexicographically. The last two steps matter because document
+// order is not meaningful in RDF: without them the heading would depend on which
+// language the serializer happened to write first.
+func preferredLabel(g *rdf.Graph, node rdf.Term, predicate string) string {
+	var enSubtag, untagged, lowest, lowestLang string
+	for _, o := range g.Objects(node, predicate) {
+		if !o.IsLiteral() || o.Value == "" {
+			continue
+		}
+		lang := strings.ToLower(o.Lang)
+		switch {
+		case lang == "en":
+			return o.Value
+		case strings.HasPrefix(lang, "en-"):
+			if enSubtag == "" {
+				enSubtag = o.Value
+			}
+		case lang == "":
+			if untagged == "" {
+				untagged = o.Value
+			}
+		case lowestLang == "" || lang < lowestLang:
+			lowestLang, lowest = lang, o.Value
+		}
+	}
+	return firstNonEmpty(enSubtag, untagged, lowest)
 }
 
 // sourceFromIRI derives a subject thesaurus code from a well-known authority IRI
