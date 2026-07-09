@@ -16,6 +16,13 @@
 //     materialize (e.g. the multi-gigabyte Library of Congress authority dumps).
 //     JSON-LD is whole-document only.
 //
+// A parsed N-Quads document is a Dataset. Reading one of its named graphs has two
+// modes: Dataset.Graph materializes the graph's triples as a Graph, while
+// Dataset.GraphView answers the same queries (the GraphQuery surface) over
+// positions into the dataset's own quads, copying no triple. Prefer the view for
+// read-only access at corpus scale, where the copy dominates the allocation
+// profile.
+//
 // The parsers target the constructs real-world RDF uses rather than the whole of
 // each specification; see each parser's documentation for what is and isn't
 // handled (notably, relative-IRI resolution against a document base is not

@@ -26,7 +26,9 @@ type Dataset struct {
 func (d *Dataset) Add(s, p, o, g Term) { d.Quads = append(d.Quads, Quad{s, p, o, g}) }
 
 // Graph returns the triples belonging to the given graph term as a Graph; pass a
-// zero-value term for the default graph.
+// zero-value term for the default graph. It copies one Triple per matching quad,
+// so a caller that only reads the result should use GraphView instead, which
+// answers the same queries over the dataset's quads without copying.
 func (d *Dataset) Graph(graph Term) *Graph {
 	g := &Graph{}
 	for _, q := range d.Quads {

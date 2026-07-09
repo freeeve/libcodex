@@ -61,6 +61,10 @@ func corpusNQ(works int) []byte {
 
 const corpusWorks = 10_000
 
+// bfWorkClass is the rdf:type the corpus gives its Work subjects, probed by the
+// graph-split benchmarks.
+const bfWorkClass = "http://id.loc.gov/ontologies/bibframe/Work"
+
 // BenchmarkCorpusParseNQuads parses the corpus-scale document — the parse half
 // of the profile task 083 tracks.
 func BenchmarkCorpusParseNQuads(b *testing.B) {
@@ -85,6 +89,78 @@ func BenchmarkCorpusParseNQuadsShared(b *testing.B) {
 		d, err := ParseNQuadsShared(data)
 		if err != nil || len(d.Quads) == 0 {
 			b.Fatalf("parse: %v (%d quads)", err, len(d.Quads))
+		}
+	}
+}
+
+// BenchmarkCorpusDatasetGraph splits one named graph out of a corpus-scale
+// dataset the materializing way: Dataset.Graph copies a Triple per matching
+// quad. It is the allocator libcat's profile (task 098) found at the top of both
+// its per-grain scan and its projection paths.
+func BenchmarkCorpusDatasetGraph(b *testing.B) {
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	feed := NewIRI("http://catalog.example.org/graphs/feed")
+	b.ReportAllocs()
+	for b.Loop() {
+		g := d.Graph(feed)
+		if len(g.SubjectsOfType(bfWorkClass)) == 0 {
+			b.Fatal("no works in the feed graph")
+		}
+	}
+}
+
+// BenchmarkCorpusDatasetGraphView is the same split-and-query through the
+// zero-copy view, which indexes int32 positions into the dataset's own quads.
+func BenchmarkCorpusDatasetGraphView(b *testing.B) {
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	feed := NewIRI("http://catalog.example.org/graphs/feed")
+	b.ReportAllocs()
+	for b.Loop() {
+		v := d.GraphView(feed)
+		if len(v.SubjectsOfType(bfWorkClass)) == 0 {
+			b.Fatal("no works in the feed graph")
+		}
+	}
+}
+
+// BenchmarkCorpusDatasetGraphQuery and its View counterpart cover the other half
+// of the split-and-read pattern: the subject-keyed lookups (Object/Literal), which
+// do build a subject index on both paths. This is the shape libcat's per-grain
+// ScanGrain runs, so the view must win here too and not only on the scans.
+func BenchmarkCorpusDatasetGraphQuery(b *testing.B) {
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	feed := NewIRI("http://catalog.example.org/graphs/feed")
+	probe := NewIRI("http://catalog.example.org/works/w1")
+	b.ReportAllocs()
+	for b.Loop() {
+		g := d.Graph(feed)
+		if _, ok := g.Object(probe, TypeIRI); !ok {
+			b.Fatal("probe subject missing")
+		}
+	}
+}
+
+func BenchmarkCorpusDatasetGraphViewQuery(b *testing.B) {
+	d, err := ParseNQuads(corpusNQ(corpusWorks))
+	if err != nil {
+		b.Fatal(err)
+	}
+	feed := NewIRI("http://catalog.example.org/graphs/feed")
+	probe := NewIRI("http://catalog.example.org/works/w1")
+	b.ReportAllocs()
+	for b.Loop() {
+		v := d.GraphView(feed)
+		if _, ok := v.Object(probe, TypeIRI); !ok {
+			b.Fatal("probe subject missing")
 		}
 	}
 }
