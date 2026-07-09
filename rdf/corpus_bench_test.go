@@ -11,7 +11,7 @@ import (
 // items) carrying 4-10 triples each, IRIs sharing long prefixes, literals with
 // occasional escapes, language tags and typed dates, spread across two named
 // graphs. At 10,000 works it is ~325k quads / ~50MB — the scale the projector
-// in libcatalog runs at.
+// in libcat runs at.
 func corpusNQ(works int) []byte {
 	const (
 		bf    = "http://id.loc.gov/ontologies/bibframe/"

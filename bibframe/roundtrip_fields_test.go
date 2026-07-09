@@ -40,7 +40,7 @@ func TestSpecializedNotesForward(t *testing.T) {
 }
 
 // TestSpecializedNotesRoundTrip encodes the full extended note family and asserts
-// each returns to its original tag on decode (the libcatalog loss-gate check).
+// each returns to its original tag on decode (the libcat loss-gate check).
 func TestSpecializedNotesRoundTrip(t *testing.T) {
 	rec := recordWith(
 		codex.NewDataField("511", '0', ' ', codex.NewSubfield('a', "Narrator: Jim Dale.")),

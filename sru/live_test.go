@@ -10,7 +10,7 @@ import (
 	codex "github.com/freeeve/libcodex"
 )
 
-// The live tests below drive the public, anonymous SRU endpoints libcatalog
+// The live tests below drive the public, anonymous SRU endpoints libcat
 // seeds as default copy-cataloging targets (backend/copycat DefaultTargets).
 // They touch the open internet, so they are opt-in:
 //

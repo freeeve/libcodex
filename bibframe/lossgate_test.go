@@ -13,7 +13,7 @@ import (
 )
 
 // This file is the crosswalk's measured loss gate, mirroring the downstream
-// libcatalog fidelity table (its roundtrip_test.go): a fully populated record
+// libcat fidelity table (its roundtrip_test.go): a fully populated record
 // round-trips through every BIBFRAME serialization and each MARC tag is
 // asserted to survive, transform, or stay lost exactly as documented. When new
 // crosswalk work makes a "lost" tag survive, the stale guard fails, forcing the

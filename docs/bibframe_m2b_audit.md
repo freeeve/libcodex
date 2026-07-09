@@ -215,7 +215,7 @@ remains a tracked checklist in its task file.
   derive-don't-fabricate shape as the partial 008 reconstruction. Unmapped
   categories (maps, globes, microforms, ...) remain enumerated in
   `tasks/082_bibframe_006_007_coded_fields.done.md`.
-- RESOLVED [081] -- downstream-driven round-trip batch (filed from libcatalog's
+- RESOLVED [081] -- downstream-driven round-trip batch (filed from libcat's
   fidelity gate): 511/521 -> typed Work notes (`performers`/`audience`), 533/538 ->
   typed Instance notes (`reproduction`/`systemDetails`), with note labels now
   joining every subfield (a multi-subfield 533 keeps its details); 490 ->
