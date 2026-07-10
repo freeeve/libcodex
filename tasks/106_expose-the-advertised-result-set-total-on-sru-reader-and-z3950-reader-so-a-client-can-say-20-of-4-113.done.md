@@ -92,3 +92,59 @@ for i := 0; i < 20; i++ { rd.Read() }
 
 Same shape for `z3950.NewClient(...).NewReader(...)`, where the value is sitting
 in `rd.total`.
+
+## Outcome
+
+Done in f946c68, shipped in v0.23.0.
+
+`Total() int` on both `sru.Reader` and `z3950.Reader`, with the `-1` sentinel the
+ask suggested:
+
+```go
+// Total reports the number of records the server said the result set holds, or
+// -1 when that is unknown ... Zero is a real answer, meaning the search
+// matched nothing.
+func (rd *Reader) Total() int
+```
+
+Three decisions, in the order the ask raised them:
+
+**Sentinel over `(int, bool)`.** `-1` reads cleanly at the call site
+(`if rd.Total() >= 0`) and keeps the accessor a plain getter, which matters for
+the interface below.
+
+**`codex.RecordCounter`, not `codex.RecordReader`.** The ask left the call to
+libcodex and flagged that widening `RecordReader` would break other
+implementors. It would, so it did not happen. Instead:
+
+```go
+// RecordCounter is the optional interface a RecordReader implements when its
+// source announces the size of the result set up front.
+type RecordCounter interface{ Total() int }
+```
+
+Both readers carry a compile-time assertion against it. libcat's type assertion
+can now name a real interface rather than an anonymous `interface{ Total() int }`,
+and the two protocols answer identically behind `codex.RecordReader`.
+
+**Omitted `numberOfRecords` really was conflated with zero.** The ask was right
+that this needed handling, and the bug was one level below the reader:
+`sru.Response.NumberOfRecords` is an `int` unmarshalled straight from the XML, so
+an absent element and `<numberOfRecords>0</numberOfRecords>` both landed on `0`.
+The `xmlResponse` field is now a `*int` and `Response` carries an unexported
+`countKnown`; the reader only adopts a count the server actually sent. A server
+that omits the element leaves `Total()` at `-1` for the life of the stream --
+libcat should keep its warning for that case, since the count is genuinely
+unavailable, not zero. `Response.NumberOfRecords` keeps its type and its meaning
+for direct `SearchRetrieve` callers.
+
+Z39.50 needed less: `rd.total` already held `res.Count` from the searchResponse,
+which is mandatory in the protocol. It now initializes to `-1` so "before the
+search ran" is distinguishable, and after any successful fetch the value is never
+unknown.
+
+Tests in `sru/total_test.go` and `z3950/total_test.go` cover pre-fetch `-1`, an
+empty result set giving `0`, a failed fetch leaving `-1`, retrieval through
+`codex.RecordCounter`, and -- for SRU -- a response with `numberOfRecords`
+stripped staying `-1` while still paging correctly. Each was checked by mutating
+the fix and confirming the test fails.
