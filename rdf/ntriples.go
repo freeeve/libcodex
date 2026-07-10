@@ -13,8 +13,16 @@ import (
 // It exists so that a truncated document is an error rather than a smaller graph.
 // A parser that skips what it cannot read turns a half-written dump into a
 // well-formed, wrong answer, and no caller downstream can tell.
+//
+// Line counts from the start of the input actually handed to the parser, which is
+// not the document when a caller feeds it one chunk at a time: a bad line in the
+// third 1MB chunk of a large dump is reported at its offset within that chunk, and
+// the number looks entirely plausible. Parse a chunked document through
+// [NewDecoder] instead -- it reads across an [io.Reader] and numbers lines
+// continuously -- or add the chunk's line base to Line before showing it to
+// anyone.
 type SyntaxError struct {
-	Line int    // 1-based line number
+	Line int    // 1-based, relative to the input given to the parser; see the type doc
 	Text string // the offending line, trimmed
 }
 

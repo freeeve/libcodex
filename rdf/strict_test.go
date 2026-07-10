@@ -117,6 +117,33 @@ func TestSyntaxErrorNamesTheLateLine(t *testing.T) {
 	wantSyntaxError(t, func() error { _, err := ParseNTriples([]byte(b.String())); return err }(), 10)
 }
 
+// TestSyntaxErrorLineIsRelativeToTheInput pins the hazard libcat hit (task 117):
+// a bulk parser numbers from the start of the bytes it was given, so a caller
+// chunking a large dump gets a plausible-looking wrong line. The streaming decoder
+// reads across the chunks and numbers continuously, which is the answer.
+func TestSyntaxErrorLineIsRelativeToTheInput(t *testing.T) {
+	const good = "<http://a> <http://b> <http://c> .\n"
+	chunk1 := strings.Repeat(good, 5)
+	chunk2 := strings.Repeat(good, 2) + "<http://broken \n" // document line 8
+
+	// Bulk, one chunk at a time: line 3 of chunk2, not line 8 of the document.
+	_, err := ParseNTriples([]byte(chunk2))
+	wantSyntaxError(t, err, 3)
+
+	// Streamed across both chunks: the document's own line number.
+	d := NewDecoder(io.MultiReader(strings.NewReader(chunk1), strings.NewReader(chunk2)), NTriples)
+	for {
+		_, err := d.Decode()
+		if errors.Is(err, io.EOF) {
+			t.Fatal("decoder reached EOF without reporting the malformed line")
+		}
+		if err != nil {
+			wantSyntaxError(t, err, 8)
+			return
+		}
+	}
+}
+
 // TestParseReturnsWhatItReadBeforeFailing documents that the partial graph is
 // still returned alongside the error: a caller inspecting it must not mistake it
 // for the whole document, which is exactly why the error exists.
