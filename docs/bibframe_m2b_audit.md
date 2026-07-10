@@ -191,18 +191,29 @@ remains a tracked checklist in its task file.
   so they cannot collide on one object key. The long tail (508/511/521/524/525/
   533/534/502/506/540/538, 520 ind1 nuance) stays a tracked checklist in
   `tasks/072_bibframe_5xx_notes.done.md`.
-- RESOLVED [073] -- the common 76x-78x linking entries land as
+- RESOLVED [073, 116] -- the common 76x-78x linking entries land as
   `bf:relation -> bf:Relation`: a `bf:relationship` vocabulary IRI plus a
   `bf:associatedResource -> bf:Work` carrying the linked resource's title, optional
-  creator and ISSN. 780/785 refine the relationship by second indicator (continues/
-  supersedes/absorbed/... and their succeeding inverses); 773 -> `partOf`, 776 ->
-  `otherPhysicalFormat`. `Work.Relations` and the `linkRelations` table drive both
-  directions; the associated Work is a flat blank node (no minted IRI, a deliberate
-  divergence -- see the note below), skipped as a standalone record on decode. The
-  remaining tags (760/762/765/767/770/772/774/775/777/786/787, and the 8xx series
-  added entries) stay a tracked checklist in
-  `tasks/073_bibframe_linking_entries.done.md`; 490 is mapped, as its own
-  `bf:relation` -> `bf:Series` (see [110]).
+  creator and ISSN. The relationship IRIs are marc2bibframe2's own
+  (ConvSpec-760-788-Links.xsl) and resolve at id.loc.gov: 773 -> `partof`, 776 ->
+  `otherphysicalformat`, and 780/785 by second indicator (780 ind2 0 ->
+  `continuationof`, 5/6 -> `absorptionof`, ...; 785 0/8 -> `continuedby`, 4/5 ->
+  `absorbedby`, ...). LC's terms collapse several indicators onto one, so the map
+  is not reversible; each `bf:Relation` therefore carries the whole source field
+  verbatim in an internal `bf:Note` (marcKey form, `mnotetype/internal`), exactly
+  as 040 does, and decode reconstructs the exact tag, indicators and subfields
+  from it. `relationCodeFor` is the forward map; `relationFromProperties` decodes a
+  note-absent third-party graph approximately, at each term's canonical indicator.
+  The associated Work is a flat blank node (no minted IRI, a deliberate divergence
+  -- see the note below), skipped as a standalone record on decode. The remaining
+  tags (760/762/765/767/770/772/774/775/777/786/787, and the 8xx series added
+  entries) stay a tracked checklist in `tasks/073_bibframe_linking_entries.done.md`
+  and [113]; 490 is mapped, as its own `bf:relation` -> `bf:Series` (see [110]).
+
+  Until v0.27.0 these IRIs were invented camelCase (`continues`,
+  `otherPhysicalFormat`) that 404 at id.loc.gov; the bijective table that produced
+  them round-tripped the indicator but matched no consumer using LC's vocabulary.
+  The marcKey note is what lets the correct, lossy terms stay lossless.
 
   Because 490 and the linking entries share the Work's one `bf:relation` list, a
   consumer must discriminate on `bf:relationship` before reading a relation node.

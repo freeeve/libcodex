@@ -184,41 +184,82 @@ func relatedWorkFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 	return fields
 }
 
-// relationFields reverses a Work's bf:relation nodes into 76x-78x linking fields:
-// the tag and second indicator come from the bf:relationship code, and the linked
-// resource's creator ($a), title ($t) and ISSN ($x) come from its
-// bf:associatedResource Work. It inverts emitRelation.
+// relationFields reverses a Work's bf:relation nodes into 76x-78x linking fields.
+// A relation libcodex wrote carries an internal note holding the source field in
+// marcKey form, which reconstructs it exactly -- the relationship term alone
+// cannot, since it collapses several second indicators. For a third-party graph
+// with no such note, relationFromProperties approximates the field from the
+// relationship term and the associated resource. Series relations (from 490) are
+// left to seriesFields; their term is not a linking-entry code.
 func relationFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 	var fields []codex.Field
 	for _, rel := range g.Objects(work, pRelation) {
-		tag, ind2, ok := relationField(relationshipCode(g, rel))
-		if !ok {
+		if f, ok := relationFromNote(g, rel); ok {
+			fields = append(fields, f)
 			continue
 		}
-		res, ok := g.Object(rel, pAssociatedResource)
-		if !ok {
-			continue
+		if f, ok := relationFromProperties(g, rel); ok {
+			fields = append(fields, f)
 		}
-		var subs []codex.Subfield
-		if name := associatedName(g, res); name != "" {
-			subs = append(subs, codex.NewSubfield('a', name))
-		}
-		if title := firstTitle(g, res).MainTitle; title != "" {
-			subs = append(subs, codex.NewSubfield('t', title))
-		}
-		issn, isbn := associatedIdentifiers(g, res)
-		if issn != "" {
-			subs = append(subs, codex.NewSubfield('x', issn))
-		}
-		if isbn != "" {
-			subs = append(subs, codex.NewSubfield('z', isbn))
-		}
-		if len(subs) == 0 {
-			continue
-		}
-		fields = append(fields, codex.NewDataField(tag, ' ', ind2, subs...))
 	}
 	return fields
+}
+
+// relationFromNote reconstructs the exact linking field from a relation's internal
+// marcKey note, when it carries one for a 76x-78x tag.
+func relationFromNote(g *rdf.Graph, rel rdf.Term) (codex.Field, bool) {
+	for _, note := range g.Objects(rel, pNote) {
+		if !g.HasType(note, internalNoteType) {
+			continue
+		}
+		if f, ok := parseMARCKey(literal(g, note, pLabel)); ok && isLinkingTag(f.Tag) {
+			return f, true
+		}
+	}
+	return codex.Field{}, false
+}
+
+// relationFromProperties approximates a linking field from the relationship term
+// and the associated resource, for a graph without the marcKey note. The second
+// indicator is the canonical one for the term, so a collapsed distinction cannot
+// be recovered here.
+func relationFromProperties(g *rdf.Graph, rel rdf.Term) (codex.Field, bool) {
+	tag, ind2, ok := relationField(relationshipCode(g, rel))
+	if !ok {
+		return codex.Field{}, false
+	}
+	res, ok := g.Object(rel, pAssociatedResource)
+	if !ok {
+		return codex.Field{}, false
+	}
+	var subs []codex.Subfield
+	if name := associatedName(g, res); name != "" {
+		subs = append(subs, codex.NewSubfield('a', name))
+	}
+	if title := firstTitle(g, res).MainTitle; title != "" {
+		subs = append(subs, codex.NewSubfield('t', title))
+	}
+	issn, isbn := associatedIdentifiers(g, res)
+	if issn != "" {
+		subs = append(subs, codex.NewSubfield('x', issn))
+	}
+	if isbn != "" {
+		subs = append(subs, codex.NewSubfield('z', isbn))
+	}
+	if len(subs) == 0 {
+		return codex.Field{}, false
+	}
+	return codex.NewDataField(tag, ' ', ind2, subs...), true
+}
+
+// isLinkingTag reports whether tag is one of the 76x-78x linking entries this
+// crosswalk carries as a bf:relation.
+func isLinkingTag(tag string) bool {
+	switch tag {
+	case "773", "776", "780", "785":
+		return true
+	}
+	return false
 }
 
 // codedFields rebuilds minimal 006/007 control fields from the Instance's RDA

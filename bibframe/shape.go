@@ -484,6 +484,16 @@ func emitRelation(s sink, rel Relation) {
 	}
 	s.endNode()
 	s.endChild()
+	// The collapsed relationship term cannot recover the source field's exact
+	// indicators or its non-access-point subfields, so the whole field rides along
+	// verbatim in an internal note, exactly as 040 does.
+	if rel.MARCKey != "" {
+		s.beginChild(qpNote)
+		s.beginNode(qcNote, iriVal{}, qcInternalNote)
+		s.lit(qpLabel, rel.MARCKey)
+		s.endNode()
+		s.endChild()
+	}
 	s.endNode()
 }
 

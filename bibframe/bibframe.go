@@ -136,12 +136,20 @@ type RelatedWork struct {
 // carrying a bf:relationship vocabulary IRI and a bf:associatedResource -> bf:Work,
 // modeled flat (a blank associated Work labeled with the linked resource's title)
 // rather than m2b's IRI-minted Hub target.
+//
+// Relationship is one of marc2bibframe2's relationship-vocabulary terms
+// (ConvSpec-760-788-Links.xsl), which are the IRIs id.loc.gov actually serves --
+// lowercase, and collapsing several MARC second indicators onto one term (780
+// ind2 5 and 6 both become "absorptionof"). Because that mapping is not
+// reversible, MARCKey carries the source field verbatim so decode reconstructs
+// its exact tag, indicators and subfields, the same lossless carrier 040 uses.
 type Relation struct {
-	Relationship string // bf:relationship code (e.g. "continues", "otherPhysicalFormat")
+	Relationship string // bf:relationship vocabulary term (e.g. "continuationof", "otherphysicalformat")
 	Name         string // linked resource creator ($a); optional
 	Title        string // linked resource title ($t, or $s); the primary access point
 	ISSN         string // linked resource ISSN ($x) -> bf:Issn; optional
 	ISBN         string // linked resource ISBN ($z) -> bf:Isbn; optional (776 print/ebook pairing)
+	MARCKey      string // the source field in marcKey form, the round-trip carrier; "" when built by hand
 }
 
 // Series is one transcribed series statement (490), modeled as marc2bibframe2
@@ -652,7 +660,26 @@ func (g *BIBFRAME) appendRelation(f codex.Field) {
 		Title:        title,
 		ISSN:         issn,
 		ISBN:         isbn,
+		MARCKey:      marcKeyOf(f),
 	})
+}
+
+// marcKeyOf renders a field in LoC's marcKey form -- the tag, both indicators,
+// then "$<code><value>" per subfield in field order. It is the verbatim,
+// order-preserving carrier a lossy mapping keeps alongside its BIBFRAME view so
+// the field can be reconstructed exactly. A subfield value containing '$' cannot
+// be represented; that is marcKey's own limitation, shared with LoC.
+func marcKeyOf(f codex.Field) string {
+	var b strings.Builder
+	b.WriteString(f.Tag)
+	b.WriteByte(f.Ind1)
+	b.WriteByte(f.Ind2)
+	for _, s := range f.Subfields {
+		b.WriteByte('$')
+		b.WriteByte(s.Code)
+		b.WriteString(s.Value)
+	}
+	return b.String()
 }
 
 // carrier007 pairs an RDA carrier code (338 $b) with the 007/00-01 category +
@@ -735,29 +762,28 @@ type linkRelation struct {
 	code string
 }
 
-// linkRelations maps the supported 76x-78x linking entries to relationship codes.
-// 780 (preceding) and 785 (succeeding) refine the code by their second indicator;
-// 773 (host item) and 776 (other physical format) map by tag alone (ind2 ' ').
+// linkRelations maps each relationship term back to a canonical (tag, ind2), for
+// decoding a graph that carries the term but not the marcKey note that would give
+// the exact field. Because marc2bibframe2 collapses several second indicators onto
+// one term, the reverse cannot recover the original ind2; each term names the
+// lowest indicator it stands for. A graph libcodex wrote always carries the note,
+// so this fallback runs only for third-party input. relationCodeFor is the
+// authoritative forward map.
 var linkRelations = []linkRelation{
-	{"780", '0', "continues"},
-	{"780", '1', "continuesInPart"},
-	{"780", '2', "supersedes"},
-	{"780", '3', "supersedesInPart"},
-	{"780", '4', "formedByUnionOf"},
-	{"780", '5', "absorbed"},
-	{"780", '6', "absorbedInPart"},
-	{"780", '7', "separatedFrom"},
-	{"785", '0', "continuedBy"},
-	{"785", '1', "continuedInPartBy"},
-	{"785", '2', "supersededBy"},
-	{"785", '3', "supersededInPartBy"},
-	{"785", '4', "absorbedBy"},
-	{"785", '5', "absorbedInPartBy"},
-	{"785", '6', "splitInto"},
-	{"785", '7', "mergedToForm"},
-	{"785", '8', "changedBackTo"},
-	{"773", ' ', "partOf"},
-	{"776", ' ', "otherPhysicalFormat"},
+	{"780", '0', "continuationof"},
+	{"780", '1', "continuedinpart"},
+	{"780", '4', "mergerof"},
+	{"780", '5', "absorptionof"},
+	{"780", '7', "separatedfrom"},
+	{"780", '2', "precededby"},
+	{"785", '0', "continuedby"},
+	{"785", '1', "continuedinpartby"},
+	{"785", '4', "absorbedby"},
+	{"785", '6', "splitinto"},
+	{"785", '7', "mergedtoform"},
+	{"785", '2', "succeededby"},
+	{"773", ' ', "partof"},
+	{"776", ' ', "otherphysicalformat"},
 }
 
 // relationCodeFor returns the bf:relationship code for a linking field and whether
@@ -765,22 +791,39 @@ var linkRelations = []linkRelation{
 // falling back to the tag's base (ind2 '0') code for an unrecognized indicator.
 func relationCodeFor(tag string, ind2 byte) (string, bool) {
 	switch tag {
-	case "773", "776":
-		for _, lr := range linkRelations {
-			if lr.tag == tag {
-				return lr.code, true
-			}
+	case "773":
+		return "partof", true
+	case "776":
+		return "otherphysicalformat", true
+	case "780": // preceding entry, per ConvSpec-760-788-Links.xsl
+		switch ind2 {
+		case '1':
+			return "continuedinpart", true
+		case '4':
+			return "mergerof", true
+		case '5', '6':
+			return "absorptionof", true
+		case '7':
+			return "separatedfrom", true
+		case '0':
+			return "continuationof", true
+		default: // 2, 3, 8
+			return "precededby", true
 		}
-	case "780", "785":
-		for _, lr := range linkRelations {
-			if lr.tag == tag && lr.ind2 == ind2 {
-				return lr.code, true
-			}
-		}
-		for _, lr := range linkRelations {
-			if lr.tag == tag && lr.ind2 == '0' {
-				return lr.code, true
-			}
+	case "785": // succeeding entry
+		switch ind2 {
+		case '1':
+			return "continuedinpartby", true
+		case '4', '5':
+			return "absorbedby", true
+		case '6':
+			return "splitinto", true
+		case '7':
+			return "mergedtoform", true
+		case '0', '8':
+			return "continuedby", true
+		default: // 2, 3
+			return "succeededby", true
 		}
 	}
 	return "", false
