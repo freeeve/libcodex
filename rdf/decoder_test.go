@@ -7,8 +7,10 @@ import (
 )
 
 // TestStreamingDecoder checks the streaming decoder yields each statement, skips
-// comment, blank and malformed lines, decodes escapes and language tags, and
-// tolerates the N-Quads graph term.
+// comment and blank lines, decodes escapes and language tags, and tolerates the
+// N-Quads graph term. The malformed trailing line is skipped only because the
+// decoder opts in with SkipMalformed; without it the stream fails (see
+// TestStreamingDecoderStrict).
 func TestStreamingDecoder(t *testing.T) {
 	doc := "# a comment\n" +
 		"<http://a> <http://b> <http://c> .\n" +
@@ -18,7 +20,7 @@ func TestStreamingDecoder(t *testing.T) {
 		"<http://a> <http://b3> <http://d> <http://graph> .\n" +
 		"garbage line that is not a triple\n"
 
-	d := NewDecoder(strings.NewReader(doc), NTriples)
+	d := NewDecoder(strings.NewReader(doc), NTriples).SkipMalformed(true)
 	var got []Triple
 	for {
 		tr, err := d.Decode()

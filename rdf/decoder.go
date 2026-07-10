@@ -36,6 +36,21 @@ const (
 type Decoder struct {
 	nextQuad func() (Quad, error)
 	stop     func() // signals the producer goroutine to stop early (nil for the line path)
+	skipBad  bool   // skip malformed lines instead of failing (line formats only)
+}
+
+// SkipMalformed makes the decoder skip lines it cannot parse instead of failing
+// on them, and returns the decoder so it can be chained onto [NewDecoder]. It
+// affects only the line-based formats (N-Triples, N-Quads); RDF/XML and Turtle
+// have always reported a syntax error.
+//
+// The default is to fail. A parser that skips what it cannot read turns a
+// truncated dump into a smaller, well-formed graph, and the caller has no way to
+// tell. Opt in only where the input is known to carry noise that is safe to drop
+// -- and where a short read is not a lie you would ship.
+func (d *Decoder) SkipMalformed(skip bool) *Decoder {
+	d.skipBad = skip
+	return d
 }
 
 // NewDecoder returns a streaming Decoder reading the given format from r.
@@ -51,26 +66,36 @@ func NewDecoder(r io.Reader, format Format) *Decoder {
 		})
 	default: // NTriples, NQuads
 		br := bufio.NewReader(r)
-		return &Decoder{nextQuad: func() (Quad, error) {
+		d := &Decoder{}
+		lineNo := 0
+		d.nextQuad = func() (Quad, error) {
 			for {
 				line, err := br.ReadString('\n')
 				if len(line) > 0 {
-					if q, ok := parseNQuadLine(line, nil); ok {
+					lineNo++
+					switch q, kind := parseNQuadLine(line, nil); kind {
+					case lineStatement:
 						return q, nil
+					case lineMalformed:
+						if !d.skipBad {
+							return Quad{}, &SyntaxError{Line: lineNo, Text: strings.TrimSpace(line)}
+						}
 					}
 				}
 				if err != nil {
 					return Quad{}, err // io.EOF at a clean end
 				}
 			}
-		}}
+		}
+		return d
 	}
 }
 
 // Decode returns the next triple, or io.EOF when the input is exhausted. Any
 // fourth (graph) term on an N-Quads line is dropped; use DecodeQuad to keep it.
-// Blank, comment and malformed lines/statements are skipped, so a stray line
-// never aborts a large stream.
+// Blank and comment lines are skipped; a malformed one is a *SyntaxError naming
+// the line, unless [Decoder.SkipMalformed] was set. io.EOF therefore means the
+// input ended, not that it ended and some of it was unreadable.
 func (d *Decoder) Decode() (Triple, error) {
 	q, err := d.nextQuad()
 	return q.Triple(), err

@@ -6,11 +6,47 @@ import (
 	"unicode/utf8"
 )
 
+// SyntaxError reports a line that is neither blank, nor a comment, nor a valid
+// N-Triples/N-Quads statement. Line is 1-based; Text is the offending line,
+// trimmed and truncated for the message.
+//
+// It exists so that a truncated document is an error rather than a smaller graph.
+// A parser that skips what it cannot read turns a half-written dump into a
+// well-formed, wrong answer, and no caller downstream can tell.
+type SyntaxError struct {
+	Line int    // 1-based line number
+	Text string // the offending line, trimmed
+}
+
+func (e *SyntaxError) Error() string {
+	text := e.Text
+	if len(text) > 64 {
+		text = text[:61] + "..."
+	}
+	return "rdf: line " + strconv.Itoa(e.Line) + ": malformed N-Triples/N-Quads statement: " + strconv.Quote(text)
+}
+
+// lineKind classifies one line of an N-Triples/N-Quads document. Blank and
+// comment lines carry no statement but are not errors; a malformed line is.
+// Collapsing the two into one "not a statement" bool is what let a truncated
+// document parse clean.
+type lineKind uint8
+
+const (
+	lineStatement lineKind = iota // a well-formed statement
+	lineIgnorable                 // blank or comment: no statement, no error
+	lineMalformed                 // not parseable as a statement
+)
+
 // ParseNTriples parses an N-Triples document (one "subject predicate object ."
 // statement per line) into a Graph. It also accepts N-Quads, ignoring any fourth
-// (graph) term. Blank, comment and malformed lines are skipped, so it is robust to
-// the trailing noise real-world dumps carry. One private copy of the input backs
-// every term, so data is free for reuse once it returns.
+// (graph) term. Blank and comment lines are skipped; a malformed line is a
+// *SyntaxError naming the line number, so a truncated document does not parse as
+// a smaller graph. One private copy of the input backs every term, so data is
+// free for reuse once it returns.
+//
+// Use [NewDecoder] with [Decoder.SkipMalformed] to tolerate the trailing noise
+// some real-world dumps carry.
 func ParseNTriples(data []byte) (*Graph, error) {
 	return parseNTriples(string(data))
 }
@@ -28,40 +64,45 @@ func parseNTriples(data string) (*Graph, error) {
 	// slice from the line count so it never grows.
 	g := &Graph{Triples: make([]Triple, 0, strings.Count(data, "\n")+1)}
 	var a arena
+	n := 0
 	for line := range strings.SplitSeq(data, "\n") {
-		if tr, ok := parseNTLine(line, &a); ok {
+		n++
+		switch tr, kind := parseNTLine(line, &a); kind {
+		case lineStatement:
 			g.Triples = append(g.Triples, tr)
+		case lineMalformed:
+			return g, &SyntaxError{Line: n, Text: strings.TrimSpace(line)}
 		}
 	}
 	return g, nil
 }
 
 // parseNTLine parses one N-Triples/N-Quads line into a triple, dropping any
-// fourth (graph) term. It returns false for blank, comment or malformed lines.
-func parseNTLine(line string, a *arena) (Triple, bool) {
-	q, ok := parseNQuadLine(line, a)
-	return q.Triple(), ok
+// fourth (graph) term.
+func parseNTLine(line string, a *arena) (Triple, lineKind) {
+	q, kind := parseNQuadLine(line, a)
+	return q.Triple(), kind
 }
 
 // parseNQuadLine parses one N-Triples/N-Quads line into a quad, keeping the
 // optional fourth (graph) term; a three-term line falls in the default graph
-// (zero-value G). It returns false for blank, comment or malformed lines.
-func parseNQuadLine(line string, a *arena) (Quad, bool) {
+// (zero-value G).
+func parseNQuadLine(line string, a *arena) (Quad, lineKind) {
 	s := strings.TrimSpace(line)
 	if s == "" || s[0] == '#' {
-		return Quad{}, false
+		return Quad{}, lineIgnorable
 	}
 	subj, s, ok := readNTTerm(s, a)
 	if !ok || subj.IsLiteral() { // a literal subject is not valid RDF
-		return Quad{}, false
+		return Quad{}, lineMalformed
 	}
 	pred, s, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
 	if !ok || !pred.IsIRI() {
-		return Quad{}, false
+		return Quad{}, lineMalformed
 	}
 	obj, s, ok := readNTTerm(strings.TrimLeft(s, " \t"), a)
 	if !ok {
-		return Quad{}, false
+		return Quad{}, lineMalformed
 	}
 	// The optional graph label is an IRI or blank node before the terminating
 	// '.'; a literal there is not a valid graph name and is ignored.
@@ -71,7 +112,7 @@ func parseNQuadLine(line string, a *arena) (Quad, bool) {
 			graph = g
 		}
 	}
-	return Quad{subj, pred, obj, graph}, true
+	return Quad{subj, pred, obj, graph}, lineStatement
 }
 
 // readNTTerm reads one term from the front of s, returning the term and the

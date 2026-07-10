@@ -8,14 +8,15 @@ import (
 
 // sharedParseDoc exercises every term shape the line-based parsers produce:
 // IRIs, blank nodes, plain / language-tagged / typed / escaped literals, named
-// graphs, and the skipped comment and malformed lines.
+// graphs, and a skipped comment. A malformed line is no longer skipped -- it is a
+// *SyntaxError (task 115) -- so strictness is exercised in decoder_test.go rather
+// than smuggled into this fixture.
 const sharedParseDoc = `# comment
 <http://example.org/s1> <http://example.org/p> "plain" .
 <http://example.org/s1> <http://example.org/p> "français"@fr <http://example.org/g1> .
 _:b1 <http://example.org/p> "42"^^<http://www.w3.org/2001/XMLSchema#integer> <http://example.org/g1> .
 <http://example.org/s2> <http://example.org/p> _:b1 .
 <http://example.org/s2> <http://example.org/p> "say \"hi\"\n" .
-not a statement
 `
 
 // TestParseNQuadsShared checks the zero-copy variant yields exactly the dataset

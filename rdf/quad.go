@@ -234,9 +234,14 @@ func ParseNQuadsShared(data []byte) (*Dataset, error) {
 func parseNQuads(data string) (*Dataset, error) {
 	d := &Dataset{Quads: make([]Quad, 0, strings.Count(data, "\n")+1)}
 	var a arena
+	n := 0
 	for line := range strings.SplitSeq(data, "\n") {
-		if q, ok := parseNQuadLine(line, &a); ok {
+		n++
+		switch q, kind := parseNQuadLine(line, &a); kind {
+		case lineStatement:
 			d.Quads = append(d.Quads, q)
+		case lineMalformed:
+			return d, &SyntaxError{Line: n, Text: strings.TrimSpace(line)}
 		}
 	}
 	return d, nil
