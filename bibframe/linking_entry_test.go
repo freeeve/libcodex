@@ -138,6 +138,63 @@ _:tit <http://id.loc.gov/ontologies/bibframe/mainTitle> "Online edition" .
 	}
 }
 
+// TestLinkingEntryAdditive76x covers the 76x linking tags added in piece 2 of task
+// 113 (765/767/770/772/774/775/777/786/787), which map by tag alone to LC's own
+// relationship terms. Each forward-maps to its term and round-trips back to its tag
+// through the marcKey note. 760/762 are excluded on purpose: their series/subseries
+// terms belong with the deferred series modeling.
+func TestLinkingEntryAdditive76x(t *testing.T) {
+	cases := []struct {
+		tag  string
+		want string
+	}{
+		{"765", "translationof"},
+		{"767", "translatedas"},
+		{"770", "supplement"},
+		{"772", "supplementto"},
+		{"774", "part"},
+		{"775", "otheredition"},
+		{"777", "issuedwith"},
+		{"786", "datasource"},
+		{"787", "relatedwork"},
+	}
+	for _, tc := range cases {
+		if got, ok := relationCodeFor(tc.tag, ' '); !ok || got != tc.want {
+			t.Errorf("relationCodeFor(%s, ' ') = %q, %v; want %q", tc.tag, got, ok, tc.want)
+		}
+		rec := recordWith(codex.NewDataField(tc.tag, '0', ' ',
+			codex.NewSubfield('t', "Related "+tc.tag), codex.NewSubfield('x', "9999-0000")))
+		encoded, err := Encode(rec)
+		if err != nil {
+			t.Fatalf("%s: Encode: %v", tc.tag, err)
+		}
+		recs, err := Decode(encoded)
+		if err != nil || len(recs) != 1 {
+			t.Fatalf("%s: Decode: %v (%d records)", tc.tag, err, len(recs))
+		}
+		if f := firstField(recs[0], tc.tag); f == nil ||
+			f.SubfieldValue('t') != "Related "+tc.tag || f.SubfieldValue('x') != "9999-0000" {
+			t.Errorf("%s not reconstructed; got %+v", tc.tag, f)
+		}
+	}
+}
+
+// TestLinkingEntry760NotRelation pins that 760/762 do NOT become bf:relations: their
+// series/subseries terms are reserved for the series modeling task 113 defers, so
+// routing them here would collide with the 490 series discrimination.
+func TestLinkingEntry760NotRelation(t *testing.T) {
+	for _, tag := range []string{"760", "762"} {
+		if _, ok := relationCodeFor(tag, ' '); ok {
+			t.Errorf("relationCodeFor(%s) is supported; 760/762 must stay with series modeling", tag)
+		}
+		g := FromRecord(recordWith(codex.NewDataField(tag, '0', ' ',
+			codex.NewSubfield('t', "Series title"))))
+		if len(g.Work.Relations) != 0 {
+			t.Errorf("%s produced relations %+v; want none", tag, g.Work.Relations)
+		}
+	}
+}
+
 // TestLinkingEntryRoundTrip encodes a record carrying preceding/succeeding/host/
 // other-format links and decodes it, asserting each returns to its 76x-78x tag with
 // the relationship-bearing second indicator and access-point subfields intact, and

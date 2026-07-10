@@ -256,7 +256,7 @@ func relationFromProperties(g *rdf.Graph, rel rdf.Term) (codex.Field, bool) {
 // crosswalk carries as a bf:relation.
 func isLinkingTag(tag string) bool {
 	switch tag {
-	case "773", "776", "780", "785":
+	case "765", "767", "770", "772", "773", "774", "775", "776", "777", "780", "785", "786", "787":
 		return true
 	}
 	return false

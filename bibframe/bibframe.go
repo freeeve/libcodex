@@ -395,7 +395,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			g.Instance.Media = append(g.Instance.Media, rdaTerm(f))
 		case "338":
 			g.Instance.Carrier = append(g.Instance.Carrier, rdaTerm(f))
-		case "773", "776", "780", "785":
+		case "765", "767", "770", "772", "773", "774", "775", "776", "777", "780", "785", "786", "787":
 			g.appendRelation(f)
 		case "500", "504", "511", "521", "533", "538", "546":
 			// Notes about the content (546 language, 511 performers, 521
@@ -784,17 +784,48 @@ var linkRelations = []linkRelation{
 	{"785", '2', "succeededby"},
 	{"773", ' ', "partof"},
 	{"776", ' ', "otherphysicalformat"},
+	{"765", ' ', "translationof"},
+	{"767", ' ', "translatedas"},
+	{"770", ' ', "supplement"},
+	{"772", ' ', "supplementto"},
+	{"774", ' ', "part"},
+	{"775", ' ', "otheredition"},
+	{"777", ' ', "issuedwith"},
+	{"786", ' ', "datasource"},
+	{"787", ' ', "relatedwork"},
 }
 
 // relationCodeFor returns the bf:relationship code for a linking field and whether
-// the tag is supported. 773/776 map by tag; 780/785 map by second indicator,
-// falling back to the tag's base (ind2 '0') code for an unrecognized indicator.
+// the tag is supported. The 76x tags (765/767/770/772/773/774/775/776/777/786/787)
+// map by tag alone; 780/785 map by second indicator, falling back to the tag's base
+// code for an unrecognized indicator. 760/762 are deliberately absent: they map to
+// relationship/series and subseries, which belong with the series modeling that
+// task 113 defers, not this linking-entry pass. Terms are LC's own
+// (ConvSpec-760-788-Links.xsl) and resolve at id.loc.gov.
 func relationCodeFor(tag string, ind2 byte) (string, bool) {
 	switch tag {
 	case "773":
 		return "partof", true
 	case "776":
 		return "otherphysicalformat", true
+	case "765": // original-language entry
+		return "translationof", true
+	case "767": // translation entry
+		return "translatedas", true
+	case "770": // supplement/special issue entry
+		return "supplement", true
+	case "772": // supplement parent entry
+		return "supplementto", true
+	case "774": // constituent unit entry
+		return "part", true
+	case "775": // other edition entry
+		return "otheredition", true
+	case "777": // issued-with entry
+		return "issuedwith", true
+	case "786": // data source entry
+		return "datasource", true
+	case "787": // other relationship entry
+		return "relatedwork", true
 	case "780": // preceding entry, per ConvSpec-760-788-Links.xsl
 		switch ind2 {
 		case '1':

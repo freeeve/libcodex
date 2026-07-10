@@ -191,12 +191,15 @@ remains a tracked checklist in its task file.
   so they cannot collide on one object key. The long tail (508/511/521/524/525/
   533/534/502/506/540/538, 520 ind1 nuance) stays a tracked checklist in
   `tasks/072_bibframe_5xx_notes.done.md`.
-- RESOLVED [073, 116] -- the common 76x-78x linking entries land as
+- RESOLVED [073, 116, 113] -- the 76x-78x linking entries land as
   `bf:relation -> bf:Relation`: a `bf:relationship` vocabulary IRI plus a
   `bf:associatedResource -> bf:Work` carrying the linked resource's title, optional
   creator and ISSN. The relationship IRIs are marc2bibframe2's own
-  (ConvSpec-760-788-Links.xsl) and resolve at id.loc.gov: 773 -> `partof`, 776 ->
-  `otherphysicalformat`, and 780/785 by second indicator (780 ind2 0 ->
+  (ConvSpec-760-788-Links.xsl) and resolve at id.loc.gov. The tag-only maps:
+  765 -> `translationof`, 767 -> `translatedas`, 770 -> `supplement`,
+  772 -> `supplementto`, 773 -> `partof`, 774 -> `part`, 775 -> `otheredition`,
+  776 -> `otherphysicalformat`, 777 -> `issuedwith`, 786 -> `datasource`,
+  787 -> `relatedwork`. 780/785 map by second indicator (780 ind2 0 ->
   `continuationof`, 5/6 -> `absorptionof`, ...; 785 0/8 -> `continuedby`, 4/5 ->
   `absorbedby`, ...). LC's terms collapse several indicators onto one, so the map
   is not reversible; each `bf:Relation` therefore carries the whole source field
@@ -205,10 +208,15 @@ remains a tracked checklist in its task file.
   from it. `relationCodeFor` is the forward map; `relationFromProperties` decodes a
   note-absent third-party graph approximately, at each term's canonical indicator.
   The associated Work is a flat blank node (no minted IRI, a deliberate divergence
-  -- see the note below), skipped as a standalone record on decode. The remaining
-  tags (760/762/765/767/770/772/774/775/777/786/787, and the 8xx series added
-  entries) stay a tracked checklist in `tasks/073_bibframe_linking_entries.done.md`
-  and [113]; 490 is mapped, as its own `bf:relation` -> `bf:Series` (see [110]).
+  -- see the note below), skipped as a standalone record on decode.
+
+  760/762 (main series / subseries entry) are deliberately NOT mapped here: LC maps
+  them to `relationship/series` and `subseries`, which would collide with the 490
+  series relation on the very `bf:relationship` IRI a consumer discriminates on. How
+  a 760 associated resource models (`bf:Series` vs the `bf:Hub` LC uses for 8xx) is
+  bound up with the series decision [113] defers, so they stay a tracked checklist in
+  `tasks/073_bibframe_linking_entries.done.md` and [113] alongside the 8xx series
+  added entries. 490 is mapped, as its own `bf:relation` -> `bf:Series` (see [110]).
 
   Until v0.27.0 these IRIs were invented camelCase (`continues`,
   `otherPhysicalFormat`) that 404 at id.loc.gov; the bijective table that produced
@@ -217,9 +225,11 @@ remains a tracked checklist in its task file.
 
   Because 490 and the linking entries share the Work's one `bf:relation` list, a
   consumer must discriminate on `bf:relationship` before reading a relation node.
-  Today only 773/776/780/785 emit one besides the series, so a record carrying a
-  490 and a 780 exercises that discrimination; 765 and 830 emit none, and a test
-  built from either cannot tell a working guard from a deleted one.
+  The 76x-78x tags (773/774/775/776/777/765/767/770/772/780/785/786/787) each emit a
+  non-series term, so a record carrying a 490 and any of them exercises that
+  discrimination. 830 still emits none (the 8xx series added entries are deferred),
+  so a guard test built from an 830 alone cannot tell a working guard from a deleted
+  one -- use a 765 or 780.
 - DIVERGENCE (structural) -- m2b mints per-field Work/Instance IRIs
   (`#Work760-1`-style) for each linked resource; this crosswalk keeps the flat model
   and emits the `bf:associatedResource` as a blank labeled `bf:Work`, consistent with
