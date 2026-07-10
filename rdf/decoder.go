@@ -54,6 +54,15 @@ func (d *Decoder) SkipMalformed(skip bool) *Decoder {
 }
 
 // NewDecoder returns a streaming Decoder reading the given format from r.
+//
+// For the line-based formats (N-Triples, N-Quads) the decoder reads a line at a
+// time and holds only one statement at once, so it streams a document of any size
+// in bounded memory -- with one caveat: a "line" is the bytes up to the next
+// newline, accumulated without limit, so input that never emits one grows a single
+// line until it exhausts memory. When r is untrusted, wrap it in an
+// [io.LimitReader], or a reader that caps bytes-since-newline, before handing it
+// over. The parser bounds what it holds per statement; it cannot bound what the
+// input calls one line.
 func NewDecoder(r io.Reader, format Format) *Decoder {
 	switch format {
 	case RDFXML:

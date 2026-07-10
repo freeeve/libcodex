@@ -144,6 +144,61 @@ func TestSyntaxErrorLineIsRelativeToTheInput(t *testing.T) {
 	}
 }
 
+// TestDecoderStreamsInBoundedMemory pins the property the doc promises: a
+// large, well-formed line-based document is decoded holding one statement at a
+// time, not the whole input. A LimitReader set below the document size but above
+// any single line must not truncate a correct parse -- the decoder never buffers
+// more than the current line.
+func TestDecoderStreamsInBoundedMemory(t *testing.T) {
+	const line = "<http://example.org/s> <http://example.org/p> <http://example.org/o> .\n"
+	const n = 100_000
+	doc := strings.Repeat(line, n)
+
+	// A cap far below the whole document but well above one line: a streaming
+	// decoder reads past it because it never holds more than a line at once.
+	r := io.LimitReader(strings.NewReader(doc), int64(len(doc)))
+	d := NewDecoder(r, NTriples)
+	count := 0
+	for {
+		_, err := d.Decode()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		count++
+	}
+	if count != n {
+		t.Fatalf("decoded %d statements, want %d", count, n)
+	}
+}
+
+// TestWrappingReaderCapsAnUnterminatedLine is the caveat's mitigation, made
+// concrete. The decoder accumulates bytes-since-newline without limit, so input
+// carrying no newline would grow one line unbounded; the doc's advice is to wrap
+// an untrusted reader. Here an io.LimitReader supplies the ceiling the decoder
+// does not, and the truncated tail surfaces as a SyntaxError rather than running
+// away. (Unboundedness itself is not asserted -- demonstrating it would exhaust
+// memory, which is the whole problem.)
+func TestWrappingReaderCapsAnUnterminatedLine(t *testing.T) {
+	// One statement, then a second line that never terminates, capped by the
+	// caller. The decoder yields the first, then reports the truncated tail.
+	good := "<http://a> <http://b> <http://c> .\n"
+	noNewline := "<http://a> <http://b> " + strings.Repeat("x", 4096)
+	r := io.LimitReader(strings.NewReader(good+noNewline), int64(len(good))+2048)
+
+	d := NewDecoder(r, NTriples)
+	if _, err := d.Decode(); err != nil {
+		t.Fatalf("first statement: %v", err)
+	}
+	_, err := d.Decode()
+	var se *SyntaxError
+	if !errors.As(err, &se) {
+		t.Fatalf("second Decode = %v, want *SyntaxError for the capped, unterminated line", err)
+	}
+}
+
 // TestParseReturnsWhatItReadBeforeFailing documents that the partial graph is
 // still returned alongside the error: a caller inspecting it must not mistake it
 // for the whole document, which is exactly why the error exists.
