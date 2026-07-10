@@ -21,19 +21,32 @@ type Reader struct {
 	i       int
 	next    int // startRecord of the next page to fetch (1-based)
 	fetched int // records received so far, bounding the pager when nextRecordPosition is omitted
+	total   int // numberOfRecords from the last page that reported one, else -1
 	done    bool
 	err     error
 }
 
-// compile-time assertion that Reader satisfies the core interface.
-var _ codex.RecordReader = (*Reader)(nil)
+// compile-time assertions that Reader satisfies the core interface and reports
+// its result-set size.
+var (
+	_ codex.RecordReader  = (*Reader)(nil)
+	_ codex.RecordCounter = (*Reader)(nil)
+)
 
 // NewReader returns a Reader over the result set for query, using the client's
 // default schema and page size. The context governs every underlying HTTP
 // request; cancel it to stop an in-progress stream.
 func (c *Client) NewReader(ctx context.Context, query string) *Reader {
-	return &Reader{c: c, ctx: ctx, req: Request{Query: query}, next: 1}
+	return &Reader{c: c, ctx: ctx, req: Request{Query: query}, next: 1, total: -1}
 }
+
+// Total reports the number of records the server said the result set holds, or
+// -1 when that is unknown: before the first successful fetch, and on servers
+// that omit numberOfRecords, which SRU 2.0 permits. Zero is a real answer,
+// meaning the search matched nothing. It satisfies [codex.RecordCounter], so a
+// caller holding a [codex.RecordReader] can ask without a type switch over the
+// protocols.
+func (rd *Reader) Total() int { return rd.total }
 
 // Read returns the next MARCXML record as a *codex.Record, fetching further pages
 // as needed, and io.EOF once the result set is exhausted. Records in a non-MARCXML
@@ -79,6 +92,9 @@ func (rd *Reader) fetch() error {
 	resp, err := rd.c.SearchRetrieve(rd.ctx, req)
 	if err != nil {
 		return err
+	}
+	if resp.countKnown {
+		rd.total = resp.NumberOfRecords
 	}
 	rd.buf = resp.Records
 	rd.i = 0

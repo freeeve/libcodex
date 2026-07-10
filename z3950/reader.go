@@ -18,23 +18,36 @@ type Reader struct {
 	ctx   context.Context
 	query Query
 	conn  *Conn
-	total int
+	total int // hit count from the search, or -1 before it runs
 	next  int // 1-based position of the next record to Present
 	buf   []Record
 	i     int
 	err   error
 }
 
-// compile-time assertion that Reader satisfies the core interface.
-var _ codex.RecordReader = (*Reader)(nil)
+// compile-time assertions that Reader satisfies the core interface and reports
+// its result-set size.
+var (
+	_ codex.RecordReader  = (*Reader)(nil)
+	_ codex.RecordCounter = (*Reader)(nil)
+)
 
 // NewReader returns a Reader over the result set for the query. The connection
 // is dialed lazily on the first Read and closed automatically at the end of the
 // result set or on error; call [Reader.Close] to abandon a stream early. The
 // context governs the dial and every request.
 func (c *Client) NewReader(ctx context.Context, q Query) *Reader {
-	return &Reader{c: c, ctx: ctx, query: q, next: 1}
+	return &Reader{c: c, ctx: ctx, query: q, next: 1, total: -1}
 }
+
+// Total reports the number of records the server said the result set holds, or
+// -1 before the first successful fetch, which is when the search runs. Zero is
+// a real answer, meaning the search matched nothing. A Z39.50 searchResponse
+// always carries a result count, so unlike SRU the value is never unknown once
+// a fetch has succeeded. It satisfies [codex.RecordCounter], so a caller
+// holding a [codex.RecordReader] can ask without a type switch over the
+// protocols.
+func (rd *Reader) Total() int { return rd.total }
 
 // Read returns the next decodable record, fetching further Present pages as
 // needed, and io.EOF once the result set is exhausted. Errors (including

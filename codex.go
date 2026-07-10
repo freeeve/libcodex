@@ -34,6 +34,22 @@ type RecordReader interface {
 	Read() (*Record, error)
 }
 
+// RecordCounter is the optional interface a [RecordReader] implements when its
+// source announces the size of the result set up front, as the SRU and Z39.50
+// search readers do. Test for it with a type assertion:
+//
+//	if rc, ok := r.(codex.RecordCounter); ok && rc.Total() >= 0 {
+//		log.Printf("%d hits", rc.Total())
+//	}
+//
+// Total reports the number of records the source says its result set holds, or
+// -1 when that is not known: before the first successful fetch, and for the
+// lifetime of a stream whose server never reports a count. Zero is a real
+// answer, meaning the result set is empty.
+type RecordCounter interface {
+	Total() int
+}
+
 // RecordWriter serializes MARC records to an underlying stream. Each format
 // subpackage provides an implementation.
 type RecordWriter interface {

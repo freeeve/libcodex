@@ -109,10 +109,15 @@ type Request struct {
 // Response is one parsed searchRetrieve response.
 type Response struct {
 	Version            string       // the server's reported protocol version
-	NumberOfRecords    int          // total hits in the result set
+	NumberOfRecords    int          // total hits in the result set; 0 when the server omits it, which SRU 2.0 permits
 	NextRecordPosition int          // start of the next page, or 0 when exhausted
 	Records            []Record     // the records on this page
 	Diagnostics        []Diagnostic // non-fatal or fatal diagnostics the server returned
+
+	// countKnown records whether numberOfRecords was present, which
+	// NumberOfRecords alone cannot say: an omitted count and an empty result
+	// set both read as 0. [Reader.Total] needs the distinction.
+	countKnown bool
 }
 
 // Err returns a *DiagnosticsError when the response carries diagnostics but no
@@ -263,7 +268,7 @@ func (c *Client) buildURL(r Request) (string, error) {
 // parse is namespace-agnostic (SRU servers use zs:/srw: prefixes inconsistently).
 type xmlResponse struct {
 	Version            string      `xml:"version"`
-	NumberOfRecords    int         `xml:"numberOfRecords"`
+	NumberOfRecords    *int        `xml:"numberOfRecords"` // pointer: absent is not the same as 0
 	NextRecordPosition int         `xml:"nextRecordPosition"`
 	Records            []xmlRecord `xml:"records>record"`
 	Diagnostics        []xmlDiag   `xml:"diagnostics>diagnostic"`
@@ -295,8 +300,11 @@ func parseResponse(body []byte) (*Response, error) {
 	}
 	out := &Response{
 		Version:            strings.TrimSpace(xr.Version),
-		NumberOfRecords:    xr.NumberOfRecords,
 		NextRecordPosition: xr.NextRecordPosition,
+	}
+	if xr.NumberOfRecords != nil {
+		out.NumberOfRecords = *xr.NumberOfRecords
+		out.countKnown = true
 	}
 	for _, d := range xr.Diagnostics {
 		out.Diagnostics = append(out.Diagnostics, Diagnostic{
