@@ -29,7 +29,10 @@
 // performed). There are no third-party dependencies.
 package rdf
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // Well-known IRIs.
 const (
@@ -86,12 +89,54 @@ type Triple struct {
 	S, P, O Term
 }
 
-// Graph is a set of triples with simple lookup helpers built on first use. Term
-// is comparable, so it indexes by subject term directly — no key strings.
+// Graph holds the triples of one RDF graph in document order, with simple
+// lookup helpers built on first use. Term is comparable, so it indexes by
+// subject term directly — no key strings.
+//
+// Triples is a list, not a set. RDF 1.1 defines a graph as "a set of RDF
+// triples", but a serialization is free to state the same triple more than
+// once, and real ones do: LC's own marc2bibframe2 output repeats a shared
+// agency or vocabulary node under every property that references it, so one of
+// their N-Triples files carries 449 lines for 389 distinct triples. Parsing
+// preserves what the document said, which keeps the parse allocation-light and
+// keeps redundant statements visible to a caller who cares. It also means
+// len(g.Triples) can exceed the triple count a set-backed parser such as rdflib
+// reports for the same document.
+//
+// The query helpers below hide that: [Graph.Objects] and [Graph.SubjectsOfType]
+// return each distinct answer once. Callers who want set semantics over the
+// triples themselves can call [Graph.Dedupe], and [Graph.Canonical] already
+// collapses duplicates on its way to canonical form.
 type Graph struct {
+	// Triples are in document order and may repeat; see the type doc.
 	Triples []Triple
 
 	spo map[Term][]int32 // subject -> positions in Triples, carved from one shared arena
+}
+
+// Dedupe removes duplicate triples in place, keeping the first occurrence of
+// each and preserving document order among the survivors, and reports how many
+// it removed. It gives the graph the set semantics RDF 1.1 ascribes to one, at
+// the cost of a hash of every triple — which is why parsing does not do it.
+func (g *Graph) Dedupe() int {
+	if len(g.Triples) < 2 {
+		return 0
+	}
+	seen := make(map[Triple]struct{}, len(g.Triples))
+	out := g.Triples[:0]
+	for _, t := range g.Triples {
+		if _, dup := seen[t]; dup {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	removed := len(g.Triples) - len(out)
+	if removed > 0 {
+		g.Triples = out
+		g.spo = nil // positions shifted; invalidate the index
+	}
+	return removed
 }
 
 // Add appends a triple.
@@ -130,9 +175,76 @@ func (g *Graph) index() {
 	g.spo = spo
 }
 
-// Objects returns the objects of every triple with the given subject and
-// predicate IRI, in document order.
+// Objects returns the distinct objects of every triple with the given subject
+// and predicate IRI, in document order. A document that states the same triple
+// twice yields that object once: the answer is a property's value set, not a
+// count of how often the document repeated itself.
 func (g *Graph) Objects(subject Term, predicate string) []Term {
+	g.index()
+	bucket := g.spo[subject]
+	var out []Term
+	seen := objectSet{hint: len(bucket)}
+	for _, i := range bucket {
+		if t := &g.Triples[i]; t.P.Kind == IRI && t.P.Value == predicate {
+			out = seen.append(out, t.O)
+		}
+	}
+	return out
+}
+
+// objectSetMapAbove is the result length past which objectSet stops scanning
+// linearly and builds a hash set. A property's value set is almost always a
+// handful of terms, so the scan wins for every realistic subject; the map only
+// exists so a pathological subject with thousands of objects cannot go
+// quadratic.
+const objectSetMapAbove = 16
+
+// objectSet accumulates the distinct objects of one (subject, predicate) as
+// they are found, cheaply for the small results that dominate and safely for
+// the large ones that do not. hint bounds the distinct objects from above --
+// the subject's whole index bucket -- and sizes the hash set in one allocation
+// if the result ever grows into one. The zero value degrades to an unsized map,
+// so callers should set hint.
+type objectSet struct {
+	seen map[Term]struct{}
+	hint int
+}
+
+// append adds o to out unless an equal term is already there, returning the
+// possibly-grown slice.
+func (s *objectSet) append(out []Term, o Term) []Term {
+	if s.seen != nil {
+		if _, dup := s.seen[o]; dup {
+			return out
+		}
+		s.seen[o] = struct{}{}
+		return append(out, o)
+	}
+	if slices.Contains(out, o) {
+		return out
+	}
+	if len(out) >= objectSetMapAbove {
+		s.seen = make(map[Term]struct{}, max(s.hint, len(out)+1))
+		for _, t := range out {
+			s.seen[t] = struct{}{}
+		}
+		s.seen[o] = struct{}{}
+	}
+	return append(out, o)
+}
+
+// ObjectsWithRepeats returns the objects of every triple with the given subject
+// and predicate IRI, statement for statement, in document order -- including a
+// term the document stated more than once.
+//
+// This is the raw list view, and it exists because [Graph.Triples] is a list.
+// Prefer [Graph.Objects]: a repeated statement carries no information in RDF, so
+// a caller that treats its multiplicity as meaningful is reading something the
+// abstract syntax does not say, and will disagree with any set-backed store that
+// touches the same document. The one honest use is inspecting a serialization as
+// written -- counting redundant statements, or round-tripping a positional
+// encoding that a conformant parser would already have flattened.
+func (g *Graph) ObjectsWithRepeats(subject Term, predicate string) []Term {
 	g.index()
 	var out []Term
 	for _, i := range g.spo[subject] {

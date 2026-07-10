@@ -951,9 +951,16 @@ func literalsOf(g *rdf.Graph, subject rdf.Term, predicate string) []string {
 // allLiteralsOf is literalsOf without the empty-value filter, for a predicate
 // whose empty literal is meaningful -- bf:seriesEnumeration emits one as a
 // positional placeholder for a 490 that carried no $v.
+//
+// It reads the repeats deliberately: bf:seriesEnumeration is positional, aligned
+// index-for-index with bf:seriesStatement, so two 490s carrying the same $v (or
+// no $v) must yield two literals rather than one. That is the same multiplicity
+// RDF's abstract syntax does not preserve, which is why the alignment survives
+// our own list-backed graph but not a round trip through a set-backed store.
+// See task 110.
 func allLiteralsOf(g *rdf.Graph, subject rdf.Term, predicate string) []string {
 	var out []string
-	for _, o := range g.Objects(subject, predicate) {
+	for _, o := range g.ObjectsWithRepeats(subject, predicate) {
 		if o.IsLiteral() {
 			out = append(out, o.Value)
 		}

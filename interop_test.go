@@ -29,6 +29,20 @@ type interopResult struct {
 	Error   string `json:"error"`
 }
 
+// distinctTriples counts the graph's triples as a set. rdflib reports the size
+// of an RDF graph, which RDF 1.1 defines as a set, so a document that states a
+// triple twice counts it once there. rdf.Graph deliberately keeps the document's
+// own list (see its doc), so the two are compared set-to-set rather than by
+// len(g.Triples), which would demand our writers never restate a shared node --
+// something LC's own marc2bibframe2 output does freely.
+func distinctTriples(g *rdf.Graph) int {
+	seen := make(map[rdf.Triple]struct{}, len(g.Triples))
+	for _, t := range g.Triples {
+		seen[t] = struct{}{}
+	}
+	return len(seen)
+}
+
 // TestInterop validates the library's generated output by reading it back with
 // independent, widely used parsers (pymarc, rdflib, bibtexparser, rispy), over the
 // real corpus. It is skipped unless those libraries are importable; the CI interop
@@ -97,8 +111,8 @@ func TestInterop(t *testing.T) {
 			t.Fatal(err)
 		}
 		// Our hand-rolled RDF/XML parser must agree with rdflib triple-for-triple.
-		if len(g.Triples) != r.Triples || r.Triples == 0 {
-			t.Errorf("RDF/XML triples: ours=%d rdflib=%d", len(g.Triples), r.Triples)
+		if n := distinctTriples(g); n != r.Triples || r.Triples == 0 {
+			t.Errorf("RDF/XML distinct triples: ours=%d rdflib=%d", n, r.Triples)
 		}
 	})
 
@@ -109,8 +123,8 @@ func TestInterop(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(g.Triples) != r.Triples || r.Triples == 0 {
-			t.Errorf("JSON-LD triples: ours=%d rdflib=%d", len(g.Triples), r.Triples)
+		if n := distinctTriples(g); n != r.Triples || r.Triples == 0 {
+			t.Errorf("JSON-LD distinct triples: ours=%d rdflib=%d", n, r.Triples)
 		}
 	})
 

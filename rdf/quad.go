@@ -15,10 +15,15 @@ type Quad struct {
 // Triple projects the quad onto its statement, dropping the graph term.
 func (q Quad) Triple() Triple { return Triple{q.S, q.P, q.O} }
 
-// Dataset is a set of quads — RDF statements each tagged with the graph they
-// belong to. It is the quad-level analogue of Graph and what ParseNQuads
-// returns; it is how provenance (which source a statement came from) is carried.
+// Dataset holds quads — RDF statements each tagged with the graph they belong
+// to — in document order. It is the quad-level analogue of Graph and what
+// ParseNQuads returns; it is how provenance (which source a statement came
+// from) is carried.
+//
+// Like [Graph.Triples], Quads is a list and may repeat a statement the document
+// stated twice; see the Graph doc for why parsing preserves that.
 type Dataset struct {
+	// Quads are in document order and may repeat; see the type doc.
 	Quads []Quad
 
 	counts    []graphCount // lazy statement count per graph term, built in one pass

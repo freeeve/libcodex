@@ -324,3 +324,48 @@ func TestDurationAndDigitalCharacteristics(t *testing.T) {
 		t.Errorf("347 not reconstructed; got %+v", f)
 	}
 }
+
+// TestSeriesIdenticalEnumerationRoundTrip pins the case that positional
+// bf:seriesEnumeration makes fragile: two 490s carrying the same $v encode to two
+// identical triples, and the alignment survives only because rdf.Graph keeps the
+// document's list. Decoding must read the repeats, not the distinct values, or
+// both $v vanish. See task 110 -- this is lossless through libcodex, and lossy
+// through any set-backed RDF store.
+func TestSeriesIdenticalEnumerationRoundTrip(t *testing.T) {
+	for name, rec := range map[string]*codex.Record{
+		"identical $v": recordWith(
+			codex.NewDataField("490", '1', ' ', codex.NewSubfield('a', "Series One"), codex.NewSubfield('v', "v. 2")),
+			codex.NewDataField("490", '1', ' ', codex.NewSubfield('a', "Series Two"), codex.NewSubfield('v', "v. 2")),
+		),
+		"neither has $v": recordWith(
+			codex.NewDataField("490", '1', ' ', codex.NewSubfield('a', "Series One")),
+			codex.NewDataField("490", '1', ' ', codex.NewSubfield('a', "Series Two")),
+		),
+	} {
+		t.Run(name, func(t *testing.T) {
+			encoded, err := Encode(rec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			recs, err := Decode(encoded)
+			if err != nil || len(recs) != 1 {
+				t.Fatalf("Decode: %v (%d records)", err, len(recs))
+			}
+			var got [][2]string
+			for _, f := range recs[0].Fields() {
+				if f.Tag == "490" {
+					got = append(got, [2]string{f.SubfieldValue('a'), f.SubfieldValue('v')})
+				}
+			}
+			var want [][2]string
+			for _, f := range rec.Fields() {
+				if f.Tag == "490" {
+					want = append(want, [2]string{f.SubfieldValue('a'), f.SubfieldValue('v')})
+				}
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("490s round-tripped as %v, want %v", got, want)
+			}
+		})
+	}
+}

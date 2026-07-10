@@ -135,13 +135,16 @@ func (v *GraphView) Triples() iter.Seq[Triple] {
 	}
 }
 
-// Objects returns the objects of every statement in this graph with the given
-// subject and predicate IRI, in document order.
+// Objects returns the distinct objects of every statement in this graph with the
+// given subject and predicate IRI, in document order. As with [Graph.Objects], a
+// repeated statement yields its object once.
 func (v *GraphView) Objects(subject Term, predicate string) []Term {
+	bucket := v.subjectIndex()[subject]
 	var out []Term
-	for _, i := range v.subjectIndex()[subject] {
+	seen := objectSet{hint: len(bucket)}
+	for _, i := range bucket {
 		if q := &v.d.Quads[i]; q.P.Kind == IRI && q.P.Value == predicate {
-			out = append(out, q.O)
+			out = seen.append(out, q.O)
 		}
 	}
 	return out
