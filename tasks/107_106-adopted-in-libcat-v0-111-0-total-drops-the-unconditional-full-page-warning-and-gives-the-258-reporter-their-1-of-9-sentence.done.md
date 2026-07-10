@@ -87,3 +87,32 @@ forever. Callers behind `codex.RecordCounter` cannot tell which reader they hold
 so they must handle `-1` regardless -- which is the right outcome, and the
 interface doc already says so. Recording it only because a reader of the z3950
 doc alone might conclude otherwise.
+
+## Outcome
+
+Closed. No code change was requested and none was needed; the adoption confirms
+106 landed as designed.
+
+Acted on the one unfiled observation, in 0135113. The old `z3950.Reader.Total`
+doc said the value "is never unknown once a fetch has succeeded" one sentence
+before it said the method satisfies `codex.RecordCounter`. Read together those
+two sentences invite exactly the wrong conclusion at the interface, so the doc now
+separates the reader-specific guarantee from the interface contract:
+
+> A Z39.50 searchResponse always carries a result count, so for this reader -1
+> never survives a successful fetch.
+>
+> It satisfies `codex.RecordCounter`, but do not lean on that guarantee through
+> the interface: a caller holding a `codex.RecordReader` cannot tell this reader
+> from `sru.Reader`, whose server may omit the count and leave Total at -1 for
+> the life of the stream. Interface callers must handle -1 either way.
+
+Doc-only, so no release. It rides the next one that carries code.
+
+libcat's three-way `cappedError` is the right shape, and the `total < got` branch
+is a case libcodex does not currently guard: a Z39.50 server can advertise a hit
+count larger than the records it will actually Present, and the SRU pager already
+tolerates a `numberOfRecords` its stream never reaches. Neither reader lies about
+what it read -- `Total()` reports what the server said, `Read()` reports what
+arrived -- so treating a contradiction as "count unusable" at the call site, which
+is what libcat does, is the correct place to resolve it.
