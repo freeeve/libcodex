@@ -97,3 +97,55 @@ overwritten with `authority:<scheme>` regardless.
 
 None. Reported for the record, and because Note 1 is a doc gap that the next
 streaming adopter will also fall into.
+
+## Outcome
+
+Both notes actioned. Doc + tests in 6e3867a; the release below clears Note 2.
+
+### Note 1: the unbounded line
+
+Real, and verified: `decoder.go` reads with `bufio.ReadString('\n')`, which
+accumulates until a newline or EOF. Input with no newline grows one line to the
+size of the input. The per-statement bound the decoder otherwise guarantees says
+nothing about what the input calls a line.
+
+`NewDecoder`'s doc now states it and points at `io.LimitReader`. libcat is right
+that this is the whole fix -- a `MaxLine` option is a second knob the 320 argument
+already rejected, and a wrapping reader is a few lines. Their instinct to put the
+byte ceilings *ahead* of the parser is the correct layering: ceilings are about
+bytes, parsing is about syntax, and a parser that reports a `*SyntaxError` about a
+tail some ceiling truncated is doing its job -- only the caller knows the
+truncation was self-inflicted. Nothing for the parser to change there.
+
+Two tests carry the doc's two claims: a 100k-statement document decodes holding one
+statement at a time (the promise), and a wrapping reader caps an unterminated line
+into a `SyntaxError` (the mitigation). The second does not assert unboundedness
+itself -- demonstrating that would exhaust memory, which is the point.
+
+### Note 2: committed but untagged
+
+Correct and worth catching. `4f38c41` (the 320 line-relative doc) sat on main after
+v0.26.0 with no tag, so the warning it added was invisible to any adopter. This
+release carries it and the Note 1 doc together, which is the release note libcat
+predicted would write itself: a chunked caller is told the line number is
+chunk-relative, and told the decoder both fixes that and needs wrapping on
+untrusted input.
+
+That two doc-only commits waited for a code change to ship is the standing policy
+(no release for docs alone), but the two-turn gap is exactly the invisibility Note
+2 describes. Worth remembering that a doc warning nobody can `go get` is not yet a
+warning.
+
+### What their measurement showed
+
+Streaming `ConvertTo` cost +2.9% wall clock and **-37% allocated bytes** (138MB ->
+86MB), the saving being the chunk and its whole parsed `[]Quad`, neither of which
+exists in the streaming path. That is the case for `NewDecoder` over the bulk
+parsers on any input large enough to matter, and it is worth having measured rather
+than asserted -- the +33% allocation *count* (one string per line from
+`ReadString`) is the visible cost that the byte saving dwarfs.
+
+They also verified the decoder's continuous line numbering directly (`Line=8`
+streamed vs `Line=2` chunked) rather than trusting the v0.26.0 doc, which is the
+right reflex given Note 2 -- the behavior shipped in v0.26.0 even though its
+documentation did not.
