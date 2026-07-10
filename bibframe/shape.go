@@ -174,10 +174,16 @@ func emitWorkBody(s sink, w *Work) {
 		}
 		s.endList()
 	}
-	if len(w.Relations) > 0 {
+	// Series statements and linking entries are both bf:relation on the Work, so
+	// they share one list; the bf:relationship IRI tells them apart.
+	if len(w.Relations) > 0 || len(w.Series) > 0 {
 		s.beginList(qpRelation)
 		for _, rel := range w.Relations {
 			emitRelation(s, rel)
+		}
+		describedStatus := map[string]bool{}
+		for _, ser := range w.Series {
+			emitSeries(s, ser, describedStatus)
 		}
 		s.endList()
 	}
@@ -272,16 +278,6 @@ func emitInstance(s sink, in *Instance, instBase, workBase string) {
 	}
 	if in.EditionStatement != "" {
 		s.lit(qpEditionStatement, in.EditionStatement)
-	}
-	s.litList(qpSeriesStatement, in.SeriesStatements)
-	// bf:seriesEnumeration literals are flat siblings of bf:seriesStatement (LoC's
-	// shape), which cannot say which statement a given enumeration belongs to. They
-	// are therefore emitted one per statement, in the same order, so position pairs
-	// them -- including an empty literal for a 490 that carried no $v, without which
-	// a record whose 490s only sometimes carry one could not be paired back up. When
-	// no 490 carried a $v, nothing is emitted at all.
-	if anyNonEmpty(in.SeriesEnumerations) {
-		s.litList(qpSeriesEnumeration, in.SeriesEnumerations)
 	}
 	if len(in.Provisions) > 0 {
 		s.beginList(qpProvisionActivity)
@@ -389,16 +385,6 @@ func emitVariantTitle(s sink, vt VariantTitle) {
 	s.endNode()
 }
 
-// anyNonEmpty reports whether vals holds at least one non-empty string.
-func anyNonEmpty(vals []string) bool {
-	for _, v := range vals {
-		if v != "" {
-			return true
-		}
-	}
-	return false
-}
-
 // emitLabeled emits the ubiquitous "[a class; rdfs:label label]" node used for
 // subjects, genre forms, summaries, extents, media, carriers, places, agents and
 // sources.
@@ -499,6 +485,58 @@ func emitRelation(s sink, rel Relation) {
 	s.endNode()
 	s.endChild()
 	s.endNode()
+}
+
+// emitSeries emits one 490 as a bf:Relation whose associated resource is a
+// bf:Series, following marc2bibframe2's ConvSpec-Process6-Series. The
+// enumeration ($v) is a literal on the relation rather than on the series,
+// because it says where this work falls in the series, not what the series is --
+// and because a distinct relation subject per 490 is what keeps two series that
+// share a $v from collapsing into one triple.
+func emitSeries(s sink, ser Series, describedStatus map[string]bool) {
+	s.beginNode(qcRelation, iriVal{}, qname{})
+	s.ref(qpRelationship, relationshipIRIVal(seriesRelationship))
+	s.beginChild(qpAssociatedResource)
+	s.beginNode(qcSeries, iriVal{}, qname{})
+	emitSeriesStatus(s, describedStatus, statusTranscribed, "transcribed")
+	if ser.Traced {
+		emitSeriesStatus(s, describedStatus, statusTraced, "traced")
+	}
+	if ser.Title != "" {
+		s.beginChild(qpTitle)
+		emitTitle(s, Title{MainTitle: ser.Title})
+		s.endChild()
+	}
+	if ser.ISSN != "" {
+		s.beginChild(qpIdentifiedBy)
+		emitIdentifier(s, Identifier{Class: "Issn", Value: ser.ISSN})
+		s.endChild()
+	}
+	s.endNode()
+	s.endChild()
+	if ser.Enumeration != "" {
+		s.lit(qpSeriesEnumeration, ser.Enumeration)
+	}
+	s.endNode()
+}
+
+// emitSeriesStatus emits one bf:status of a bf:Series: an mstatus-vocabulary IRI
+// carrying its label. The status nodes are shared -- every 490 on a record is
+// transcribed, and a record with two traced series names mstatus/tr twice -- so
+// each is described on its first mention and referenced by IRI after, exactly as
+// emitAgencyOnce does for a repeated 040 agency. Restating a node adds nothing to
+// an RDF graph but does add duplicate triples.
+func emitSeriesStatus(s sink, described map[string]bool, code, label string) {
+	if described[code] {
+		s.ref(qpStatus, iriVal{statusVocab, code, ""})
+		return
+	}
+	described[code] = true
+	s.beginChild(qpStatus)
+	s.beginNode(qcStatus, iriVal{statusVocab, code, ""}, qname{})
+	s.lit(qpLabel, label)
+	s.endNode()
+	s.endChild()
 }
 
 // emitRDA emits an RDA content/media/carrier node: an IRI-typed node in the given

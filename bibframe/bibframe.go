@@ -70,6 +70,17 @@ const (
 	// relationshipVocab names a work-to-work relationship IRI from a 76x-78x linking
 	// entry (e.g. .../relationship/continues for a 780 preceding entry).
 	relationshipVocab = "http://id.loc.gov/vocabulary/relationship/"
+	// statusVocab names a bf:Status IRI (e.g. .../mstatus/t for a transcribed
+	// series statement, .../mstatus/tr for one that is also traced).
+	statusVocab = "http://id.loc.gov/vocabulary/mstatus/"
+)
+
+// Series status codes (bf:Status), following marc2bibframe2. Every 490 is
+// transcribed; ind1=1 says the series is additionally traced in an 8XX.
+const (
+	seriesRelationship = "series"
+	statusTranscribed  = "t"
+	statusTraced       = "tr"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -87,6 +98,7 @@ type Work struct {
 	Contributions   []Contribution
 	RelatedWorks    []RelatedWork
 	Relations       []Relation // 76x-78x linking entries -> bf:relation
+	Series          []Series   // 490 transcribed series statements -> bf:relation
 	Subjects        []Subject
 	GenreForms      []string
 	Languages       []string // content languages: ISO 639-2 codes from 008/35-37 and 041 $a
@@ -128,29 +140,43 @@ type Relation struct {
 	ISBN         string // linked resource ISBN ($z) -> bf:Isbn; optional (776 print/ebook pairing)
 }
 
+// Series is one transcribed series statement (490), modeled as marc2bibframe2
+// models it: a bf:relation on the Work whose bf:relationship is
+// relationship/series and whose bf:associatedResource is a bf:Series. The volume
+// designation hangs off the relation, not the series resource, because it
+// describes how *this* work sits in the series rather than the series itself.
+//
+// The shape matters beyond fidelity to LC. The predecessor emitted the statement
+// and the enumeration as two flat literal lists on the Instance, paired by
+// position; RDF graphs are sets, so two 490s sharing a $v collapsed into one
+// triple and the pairing was destroyed by any conformant consumer. One relation
+// node per 490 gives each enumeration a distinct subject.
+type Series struct {
+	Title       string // 490 $a -> bf:Series / bf:title / bf:Title / bf:mainTitle
+	Enumeration string // 490 $v -> bf:seriesEnumeration on the bf:Relation; optional
+	ISSN        string // 490 $x -> bf:Series / bf:identifiedBy / bf:Issn; optional
+	Traced      bool   // 490 ind1 = '1': series traced, an mstatus/tr alongside mstatus/t
+}
+
 // Instance is a particular publication of the Work (bf:Instance).
 type Instance struct {
 	Titles                  []Title
 	VariantTitles           []VariantTitle // 246 cover/spine titles
 	ResponsibilityStatement string
 	EditionStatement        string
-	SeriesStatements        []string // 490 $a -> bf:seriesStatement
-	// SeriesEnumerations holds each 490's volume designation (490 $v ->
-	// bf:seriesEnumeration), positionally aligned with SeriesStatements.
-	SeriesEnumerations     []string
-	Provisions             []Provision
-	CopyrightDate          string // 264 _4 $c -> bf:copyrightDate; optional
-	Extent                 []string
-	Dimensions             []string                // 300 $c -> bf:dimensions
-	Duration               []string                // 306 $a playing times -> bf:duration
-	Media                  []RDATerm               // RDA media types (337) -> bf:media
-	Carrier                []RDATerm               // RDA carrier types (338) -> bf:carrier
-	DigitalCharacteristics []DigitalCharacteristic // 347 -> bf:digitalCharacteristic
-	Issuance               string                  // mode of issuance (leader/07) -> bf:issuance IRI; optional
-	Notes                  []Note                  // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
-	Identifiers            []Identifier
-	ElectronicLocator      []ElectronicLocator
-	Admin                  *AdminMetadata
+	Provisions              []Provision
+	CopyrightDate           string // 264 _4 $c -> bf:copyrightDate; optional
+	Extent                  []string
+	Dimensions              []string                // 300 $c -> bf:dimensions
+	Duration                []string                // 306 $a playing times -> bf:duration
+	Media                   []RDATerm               // RDA media types (337) -> bf:media
+	Carrier                 []RDATerm               // RDA carrier types (338) -> bf:carrier
+	DigitalCharacteristics  []DigitalCharacteristic // 347 -> bf:digitalCharacteristic
+	Issuance                string                  // mode of issuance (leader/07) -> bf:issuance IRI; optional
+	Notes                   []Note                  // 5xx notes routed to the Instance (e.g. 500 general, 504 bibliography)
+	Identifiers             []Identifier
+	ElectronicLocator       []ElectronicLocator
+	Admin                   *AdminMetadata
 }
 
 // ElectronicLocator is one 856 access link: the URL plus the display context real
@@ -373,11 +399,15 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 				}
 			}
 		case "490":
-			// The enumeration is recorded only alongside a statement, so the two
-			// slices stay positionally aligned and the reverse crosswalk can pair them.
-			if stmt := seriesStatement(f); stmt != "" {
-				g.Instance.SeriesStatements = append(g.Instance.SeriesStatements, stmt)
-				g.Instance.SeriesEnumerations = append(g.Instance.SeriesEnumerations, trimISBD(f.SubfieldValue('v')))
+			// Each 490 becomes its own bf:relation, so nothing about it is
+			// positional and two series sharing a $v stay distinct.
+			if title := seriesStatement(f); title != "" {
+				g.Work.Series = append(g.Work.Series, Series{
+					Title:       title,
+					Enumeration: trimISBD(f.SubfieldValue('v')),
+					ISSN:        trimISBD(f.SubfieldValue('x')),
+					Traced:      f.Ind1 == '1',
+				})
 			}
 		case "306":
 			for _, d := range f.SubfieldValues('a') {
@@ -1406,12 +1436,11 @@ func noteLabel(f codex.Field) string {
 	return strings.Join(parts, " ")
 }
 
-// seriesStatement renders a 490's series title ($a) as one bf:seriesStatement
-// literal. The volume designation ($v) is a separate bf:seriesEnumeration, as in
-// LoC marc2bibframe2, rather than being packed in after an ISBD " ; " separator:
-// a series title may itself contain " ; ", which a packed statement cannot be
-// split back apart on. A repeated $v keeps the first, which is what pairs one
-// enumeration with one statement.
+// seriesStatement renders a 490's series title ($a) as the bf:mainTitle of its
+// bf:Series. The volume designation ($v) is a separate bf:seriesEnumeration on
+// the relation, as in LoC marc2bibframe2, rather than being packed in after an
+// ISBD " ; " separator: a series title may itself contain " ; ", which a packed
+// statement cannot be split back apart on. A repeated $v keeps the first.
 func seriesStatement(f codex.Field) string {
 	return trimISBD(f.SubfieldValue('a'))
 }

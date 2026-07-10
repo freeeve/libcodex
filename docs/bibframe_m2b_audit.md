@@ -218,8 +218,8 @@ remains a tracked checklist in its task file.
 - RESOLVED [081] -- downstream-driven round-trip batch (filed from libcat's
   fidelity gate): 511/521 -> typed Work notes (`performers`/`audience`), 533/538 ->
   typed Instance notes (`reproduction`/`systemDetails`), with note labels now
-  joining every subfield (a multi-subfield 533 keeps its details); 490 $a ->
-  `bf:seriesStatement` on the Instance (see [102] for $v); 776 `$z` -> a
+  joining every subfield (a multi-subfield 533 keeps its details); 490 -> a
+  `bf:Series` behind a `bf:relation` on the Work (see [110]); 776 `$z` -> a
   `bf:Isbn` on the associated resource (the OverDrive
   print/ebook pairing shape, previously dropped); 306 -> `bf:duration`; 347 $a/$b
   -> `bf:digitalCharacteristic` -> `bflc:FileType`/`bflc:EncodingFormat`. Repeated
@@ -266,16 +266,28 @@ remains a tracked checklist in its task file.
   " ; " and split back on decode, which silently corrupted a series title that
   itself contained " ; " (`"Aims ; and methods"` decoded to $a "Aims" / $v "and
   methods"). A repeated $v keeps the first.
-- DIVERGENCE (low), deliberate [102] -- m2b routes 490 through a grouped series
-  entity (`bf:title`/`bf:Title` per group, with `groupNum` pairing the
-  enumeration); we keep the flat `bf:seriesStatement` literal on the Instance,
-  which is what downstream libcat's editor reads. Because flat sibling literals
-  cannot say which statement an enumeration belongs to, we emit one
-  `bf:seriesEnumeration` per statement in the same order -- including an empty
-  literal for a 490 with no $v -- so position pairs them. Decode pairs by position
-  when the counts match, pairs a lone statement with a lone enumeration (the shape
-  a third-party graph writes), and otherwise drops the enumerations rather than
-  attributing them to the wrong series.
+- RESOLVED [110] -- 490 now follows m2b's ConvSpec-Process6-Series shape: one
+  `bf:relation` -> `bf:Relation` per field on the **Work**, `bf:relationship`
+  relationship/series, `bf:associatedResource` -> `bf:Series` carrying the title
+  ($a -> `bf:title`/`bf:Title`/`bf:mainTitle`), the ISSN ($x -> `bf:identifiedBy`
+  -> `bf:Issn`) and the transcribed status (`mstatus/t`, plus `mstatus/tr` when
+  ind1=1). The enumeration ($v) is a literal on the **relation**, not the series,
+  because it says where this work sits in the series.
+
+  This replaced flat `bf:seriesStatement` / `bf:seriesEnumeration` literals on the
+  Instance, paired by list position with an empty literal padding a 490 that had
+  no $v. Position is not expressible in RDF: an RDF graph is a set, so two 490s
+  sharing a $v (or both lacking one) emitted the identical triple twice, every
+  conformant store read it once, and the pairing was destroyed at the boundary.
+  The field round-tripped through libcodex and was silently lossy through rdflib
+  or Jena -- our own list-backed `rdf.Graph` was the one implementation that could
+  not see the bug. Decode still reads the old flat shape when a Work carries no
+  series relation, so graphs written before v0.25.0 keep working; that path
+  inherits the defect it cannot fix.
+
+  Still not carried from m2b's 490: `$n`/`$p` (`bf:partNumber`/`bf:partName` on
+  the series Title), `$l` (`bf:ClassificationLcc`), `$3` (`bflc:appliesTo`), and
+  the 880 parallel-title grouping.
 - SUPERSET [094] -- 040 $a -> `bf:assigner` and $d -> `bf:descriptionModifier` are
   commented out in current m2b; we emit both, in m2b's own commented-out node shape
   (organizations IRI + `bf:code`). Two deliberate divergences: we emit one

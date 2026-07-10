@@ -61,6 +61,7 @@ var (
 	qcWork                   = qname{nsBF, "Work", "bf:Work", classWork}
 	qcInstance               = qname{nsBF, "Instance", "bf:Instance", classInstance}
 	qcTitle                  = qname{nsBF, "Title", "bf:Title", bfNS + "Title"}
+	qcSeries                 = qname{nsBF, "Series", "bf:Series", classSeries}
 	qcVariantTitle           = qname{nsBF, "VariantTitle", "bf:VariantTitle", classVariantTitle}
 	qcParallelTitle          = qname{nsBF, "ParallelTitle", "bf:ParallelTitle", classParallelTitle}
 	qcPublication            = qname{nsBF, "Publication", "bf:Publication", bfNS + "Publication"}
@@ -96,40 +97,42 @@ var (
 
 // Predicate qnames.
 var (
-	qpLabel                  = qname{nsRDFS, "label", "rdfs:label", pLabel}
-	qpValue                  = qname{nsRDF, "value", "rdf:value", pValue}
-	qpHasInstance            = qname{nsBF, "hasInstance", "bf:hasInstance", pHasInstance}
-	qpInstanceOf             = qname{nsBF, "instanceOf", "bf:instanceOf", pInstanceOf}
-	qpTitle                  = qname{nsBF, "title", "bf:title", pTitle}
-	qpMainTitle              = qname{nsBF, "mainTitle", "bf:mainTitle", pMainTitle}
-	qpSubtitle               = qname{nsBF, "subtitle", "bf:subtitle", pSubtitle}
-	qpPartNumber             = qname{nsBF, "partNumber", "bf:partNumber", pPartNumber}
-	qpPartName               = qname{nsBF, "partName", "bf:partName", pPartName}
-	qpNonSortNum             = qname{nsBFLC, "nonSortNum", "bflc:nonSortNum", pNonSortNum}
-	qpVariantType            = qname{nsBF, "variantType", "bf:variantType", pVariantType}
-	qpContribution           = qname{nsBF, "contribution", "bf:contribution", pContribution}
-	qpRelatedTo              = qname{nsBF, "relatedTo", "bf:relatedTo", pRelatedTo}
-	qpRelation               = qname{nsBF, "relation", "bf:relation", pRelation}
-	qpRelationship           = qname{nsBF, "relationship", "bf:relationship", pRelationship}
-	qpAssociatedResource     = qname{nsBF, "associatedResource", "bf:associatedResource", pAssociatedResource}
-	qpAgent                  = qname{nsBF, "agent", "bf:agent", pAgent}
-	qpRole                   = qname{nsBF, "role", "bf:role", pRole}
-	qpSubject                = qname{nsBF, "subject", "bf:subject", pSubject}
-	qpGenreForm              = qname{nsBF, "genreForm", "bf:genreForm", pGenreForm}
-	qpLanguage               = qname{nsBF, "language", "bf:language", pLanguage}
-	qpCode                   = qname{nsBF, "code", "bf:code", pCode}
-	qpPart                   = qname{nsBF, "part", "bf:part", pPart}
-	qpClassification         = qname{nsBF, "classification", "bf:classification", pClassif}
-	qpClassificationPortion  = qname{nsBF, "classificationPortion", "bf:classificationPortion", pClassPortion}
-	qpItemPortion            = qname{nsBF, "itemPortion", "bf:itemPortion", pItemPortion}
-	qpClassEdition           = qname{nsBF, "edition", "bf:edition", pClassEdition}
-	qpSummary                = qname{nsBF, "summary", "bf:summary", pSummary}
-	qpNote                   = qname{nsBF, "note", "bf:note", pNote}
-	qpNoteType               = qname{nsBF, "noteType", "bf:noteType", pNoteType}
-	qpTableOfContents        = qname{nsBF, "tableOfContents", "bf:tableOfContents", pTableOfContents}
-	qpResponsibilityStmt     = qname{nsBF, "responsibilityStatement", "bf:responsibilityStatement", pRespStmt}
-	qpEditionStatement       = qname{nsBF, "editionStatement", "bf:editionStatement", pEdition}
-	qpSeriesStatement        = qname{nsBF, "seriesStatement", "bf:seriesStatement", pSeriesStatement}
+	qpLabel                 = qname{nsRDFS, "label", "rdfs:label", pLabel}
+	qpValue                 = qname{nsRDF, "value", "rdf:value", pValue}
+	qpHasInstance           = qname{nsBF, "hasInstance", "bf:hasInstance", pHasInstance}
+	qpInstanceOf            = qname{nsBF, "instanceOf", "bf:instanceOf", pInstanceOf}
+	qpTitle                 = qname{nsBF, "title", "bf:title", pTitle}
+	qpMainTitle             = qname{nsBF, "mainTitle", "bf:mainTitle", pMainTitle}
+	qpSubtitle              = qname{nsBF, "subtitle", "bf:subtitle", pSubtitle}
+	qpPartNumber            = qname{nsBF, "partNumber", "bf:partNumber", pPartNumber}
+	qpPartName              = qname{nsBF, "partName", "bf:partName", pPartName}
+	qpNonSortNum            = qname{nsBFLC, "nonSortNum", "bflc:nonSortNum", pNonSortNum}
+	qpVariantType           = qname{nsBF, "variantType", "bf:variantType", pVariantType}
+	qpContribution          = qname{nsBF, "contribution", "bf:contribution", pContribution}
+	qpRelatedTo             = qname{nsBF, "relatedTo", "bf:relatedTo", pRelatedTo}
+	qpRelation              = qname{nsBF, "relation", "bf:relation", pRelation}
+	qpRelationship          = qname{nsBF, "relationship", "bf:relationship", pRelationship}
+	qpAssociatedResource    = qname{nsBF, "associatedResource", "bf:associatedResource", pAssociatedResource}
+	qpAgent                 = qname{nsBF, "agent", "bf:agent", pAgent}
+	qpRole                  = qname{nsBF, "role", "bf:role", pRole}
+	qpSubject               = qname{nsBF, "subject", "bf:subject", pSubject}
+	qpGenreForm             = qname{nsBF, "genreForm", "bf:genreForm", pGenreForm}
+	qpLanguage              = qname{nsBF, "language", "bf:language", pLanguage}
+	qpCode                  = qname{nsBF, "code", "bf:code", pCode}
+	qpPart                  = qname{nsBF, "part", "bf:part", pPart}
+	qpClassification        = qname{nsBF, "classification", "bf:classification", pClassif}
+	qpClassificationPortion = qname{nsBF, "classificationPortion", "bf:classificationPortion", pClassPortion}
+	qpItemPortion           = qname{nsBF, "itemPortion", "bf:itemPortion", pItemPortion}
+	qpClassEdition          = qname{nsBF, "edition", "bf:edition", pClassEdition}
+	qpSummary               = qname{nsBF, "summary", "bf:summary", pSummary}
+	qpNote                  = qname{nsBF, "note", "bf:note", pNote}
+	qpNoteType              = qname{nsBF, "noteType", "bf:noteType", pNoteType}
+	qpTableOfContents       = qname{nsBF, "tableOfContents", "bf:tableOfContents", pTableOfContents}
+	qpResponsibilityStmt    = qname{nsBF, "responsibilityStatement", "bf:responsibilityStatement", pRespStmt}
+	qpEditionStatement      = qname{nsBF, "editionStatement", "bf:editionStatement", pEdition}
+	// bf:seriesStatement is no longer emitted -- 490 is a bf:relation to a
+	// bf:Series (task 110) -- but the predicate is still read, to decode graphs
+	// written before v0.25.0.
 	qpSeriesEnumeration      = qname{nsBF, "seriesEnumeration", "bf:seriesEnumeration", pSeriesEnumeration}
 	qpDuration               = qname{nsBF, "duration", "bf:duration", pDuration}
 	qpDigitalCharacteristic  = qname{nsBF, "digitalCharacteristic", "bf:digitalCharacteristic", pDigitalCharacteristic}

@@ -2,6 +2,7 @@ package bibframe
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/freeeve/libcodex"
@@ -82,15 +83,12 @@ func TestSeriesStatementRoundTrip(t *testing.T) {
 		codex.NewDataField("490", '1', ' ', codex.NewSubfield('a', "Firebrand fiction")),
 	)
 	g := FromRecord(rec)
-	if len(g.Instance.SeriesStatements) != 2 {
-		t.Fatalf("series statements = %+v, want 2", g.Instance.SeriesStatements)
+	want := []Series{
+		{Title: "Sally Lockhart mysteries", Enumeration: "bk. 2"},
+		{Title: "Firebrand fiction", Traced: true}, // ind1=1
 	}
-	// $v is a separate bf:seriesEnumeration, not packed into the statement (task 102).
-	if g.Instance.SeriesStatements[0] != "Sally Lockhart mysteries" {
-		t.Errorf("statement with volume = %q, want the title alone", g.Instance.SeriesStatements[0])
-	}
-	if want := []string{"bk. 2", ""}; !reflect.DeepEqual(g.Instance.SeriesEnumerations, want) {
-		t.Errorf("enumerations = %q, want %q (aligned with the statements)", g.Instance.SeriesEnumerations, want)
+	if !reflect.DeepEqual(g.Work.Series, want) {
+		t.Fatalf("series = %+v, want %+v", g.Work.Series, want)
 	}
 
 	encoded, err := Encode(rec)
@@ -128,11 +126,11 @@ func TestSeriesTitleContainingSeparator(t *testing.T) {
 	rec := recordWith(codex.NewDataField("490", '0', ' ', codex.NewSubfield('a', title)))
 
 	g := FromRecord(rec)
-	if got := g.Instance.SeriesStatements; len(got) != 1 || got[0] != title {
-		t.Fatalf("statement = %q, want [%q]", got, title)
+	if got := g.Work.Series; len(got) != 1 || got[0].Title != title {
+		t.Fatalf("series = %+v, want one titled %q", got, title)
 	}
-	if anyNonEmpty(g.Instance.SeriesEnumerations) {
-		t.Errorf("enumerations = %q, want none (the 490 had no $v)", g.Instance.SeriesEnumerations)
+	if got := g.Work.Series[0].Enumeration; got != "" {
+		t.Errorf("enumeration = %q, want none (the 490 had no $v)", got)
 	}
 
 	encoded, err := Encode(rec)
@@ -155,9 +153,10 @@ func TestSeriesTitleContainingSeparator(t *testing.T) {
 	}
 }
 
-// TestSeriesEnumerationsFor pins the pairing rules for the flat, unordered
-// bf:seriesEnumeration shape: pair by position when the counts line up, pair a
-// lone statement with a lone enumeration, and otherwise drop rather than guess.
+// TestSeriesEnumerationsFor pins the pairing rules of the legacy flat shape,
+// still used to decode graphs written before v0.25.0: pair by position when the
+// counts line up, pair a lone statement with a lone enumeration, and otherwise
+// drop rather than guess.
 func TestSeriesEnumerationsFor(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
@@ -181,25 +180,128 @@ func TestSeriesEnumerationsFor(t *testing.T) {
 	}
 }
 
-// TestSeriesEnumerationPredicate confirms $v lands on the LoC predicate, as a
-// literal on the Instance beside bf:seriesStatement (task 102).
-func TestSeriesEnumerationPredicate(t *testing.T) {
-	rec := recordWith(codex.NewDataField("490", '0', ' ',
-		codex.NewSubfield('a', "Firebrand fiction ;"), codex.NewSubfield('v', "bk. 2")))
+// TestSeriesRelationShape pins the emitted graph against marc2bibframe2's
+// ConvSpec-Process6-Series: a bf:relation on the Work, relationship/series, whose
+// bf:associatedResource is a bf:Series carrying the title, the ISSN and the
+// transcribed/traced statuses -- with the enumeration a literal on the relation
+// itself, not on the Instance (task 110).
+func TestSeriesRelationShape(t *testing.T) {
+	rec := recordWith(codex.NewDataField("490", '1', ' ',
+		codex.NewSubfield('a', "Firebrand fiction ;"),
+		codex.NewSubfield('x', "0075-2118"),
+		codex.NewSubfield('v', "bk. 2")))
 
 	graph, err := rdf.ParseNTriples(mustEncodeNT(t, rec))
 	if err != nil {
 		t.Fatal(err)
 	}
+	works := graph.SubjectsOfType(classWork)
+	if len(works) != 1 {
+		t.Fatalf("want 1 Work, got %d", len(works))
+	}
 	insts := graph.SubjectsOfType(classInstance)
 	if len(insts) != 1 {
 		t.Fatalf("want 1 Instance, got %d", len(insts))
 	}
-	if got, _ := graph.Literal(insts[0], pSeriesEnumeration); got != "bk. 2" {
-		t.Errorf("bf:seriesEnumeration = %q, want %q", got, "bk. 2")
+
+	// Nothing series-shaped may remain on the Instance.
+	if got, ok := graph.Literal(insts[0], pSeriesStatement); ok {
+		t.Errorf("bf:seriesStatement still on the Instance = %q", got)
 	}
-	if got, _ := graph.Literal(insts[0], pSeriesStatement); got != "Firebrand fiction" {
-		t.Errorf("bf:seriesStatement = %q, want the title alone", got)
+	if got, ok := graph.Literal(insts[0], pSeriesEnumeration); ok {
+		t.Errorf("bf:seriesEnumeration still on the Instance = %q", got)
+	}
+
+	var rel rdf.Term
+	for _, r := range graph.Objects(works[0], pRelation) {
+		if o, ok := graph.Object(r, pRelationship); ok && o.Value == relationshipVocab+"series" {
+			rel = r
+		}
+	}
+	if rel == (rdf.Term{}) {
+		t.Fatal("no bf:relation with relationship/series on the Work")
+	}
+	if got, _ := graph.Literal(rel, pSeriesEnumeration); got != "bk. 2" {
+		t.Errorf("bf:seriesEnumeration on the relation = %q, want %q", got, "bk. 2")
+	}
+
+	res, ok := graph.Object(rel, pAssociatedResource)
+	if !ok {
+		t.Fatal("relation has no bf:associatedResource")
+	}
+	if !graph.HasType(res, classSeries) {
+		t.Errorf("associated resource is not a bf:Series")
+	}
+	if got := firstTitle(graph, res).MainTitle; got != "Firebrand fiction" {
+		t.Errorf("series title = %q, want the title alone", got)
+	}
+	if issn, _ := associatedIdentifiers(graph, res); issn != "0075-2118" {
+		t.Errorf("series ISSN = %q, want 0075-2118", issn)
+	}
+	if !seriesTraced(graph, res) {
+		t.Error("ind1=1 must record the traced status")
+	}
+
+	var statuses []string
+	for _, st := range graph.Objects(res, pStatus) {
+		statuses = append(statuses, st.Value)
+	}
+	sort.Strings(statuses)
+	want := []string{statusVocab + "t", statusVocab + "tr"}
+	if !reflect.DeepEqual(statuses, want) {
+		t.Errorf("statuses = %q, want %q (transcribed, and traced from ind1=1)", statuses, want)
+	}
+}
+
+// TestSeriesIdenticalEnumerationDistinctTriples is the whole point of task 110.
+// Under the flat shape two 490s sharing a $v emitted the identical triple twice,
+// and every conformant RDF store read one, so the pairing died at the boundary.
+// One relation node per 490 gives each enumeration its own subject.
+func TestSeriesIdenticalEnumerationDistinctTriples(t *testing.T) {
+	rec := recordWith(
+		codex.NewDataField("490", '0', ' ', codex.NewSubfield('a', "Series One"), codex.NewSubfield('v', "v. 2")),
+		codex.NewDataField("490", '0', ' ', codex.NewSubfield('a', "Series Two"), codex.NewSubfield('v', "v. 2")),
+	)
+	graph, err := rdf.ParseNTriples(mustEncodeNT(t, rec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two enumeration triples, on two distinct relation subjects, so deduplicating
+	// the graph -- as any set-backed store does -- cannot merge them.
+	var subjects []rdf.Term
+	for _, tr := range graph.Triples {
+		if tr.P.Value == pSeriesEnumeration {
+			subjects = append(subjects, tr.S)
+		}
+	}
+	if len(subjects) != 2 || subjects[0] == subjects[1] {
+		t.Fatalf("enumeration subjects = %v, want two distinct", subjects)
+	}
+	if removed := graph.Dedupe(); removed != 0 {
+		t.Errorf("Dedupe removed %d triples; the series shape must emit none twice", removed)
+	}
+}
+
+// TestSeriesLegacyFlatShapeDecodes keeps the deprecation window honest: a graph
+// in the pre-v0.25.0 shape -- flat bf:seriesStatement / bf:seriesEnumeration
+// literals on the Instance -- must still decode to 490s.
+func TestSeriesLegacyFlatShapeDecodes(t *testing.T) {
+	const legacy = `<http://example.org/r#Work> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Work> .
+<http://example.org/r#Work> <http://id.loc.gov/ontologies/bibframe/hasInstance> <http://example.org/r#Instance> .
+<http://example.org/r#Instance> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://id.loc.gov/ontologies/bibframe/Instance> .
+<http://example.org/r#Instance> <http://id.loc.gov/ontologies/bibframe/seriesStatement> "Firebrand fiction" .
+<http://example.org/r#Instance> <http://id.loc.gov/ontologies/bibframe/seriesEnumeration> "bk. 2" .
+`
+	recs, err := Decode([]byte(legacy))
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("Decode: %v (%d records)", err, len(recs))
+	}
+	fields := countFields(recs[0], "490")
+	if len(fields) != 1 {
+		t.Fatalf("490 fields = %+v, want 1 from the legacy flat shape", fields)
+	}
+	if a, v := fields[0].SubfieldValue('a'), fields[0].SubfieldValue('v'); a != "Firebrand fiction" || v != "bk. 2" {
+		t.Errorf("legacy 490 = $a%q $v%q, want $aFirebrand fiction $vbk. 2", a, v)
 	}
 }
 

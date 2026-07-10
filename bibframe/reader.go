@@ -34,6 +34,7 @@ const (
 	pRelationship          = bfNS + "relationship"
 	pAssociatedResource    = bfNS + "associatedResource"
 	classRelation          = bfNS + "Relation"
+	classSeries            = bfNS + "Series"
 	pAgent                 = bfNS + "agent"
 	pRole                  = bfNS + "role"
 	pSubject               = bfNS + "subject"

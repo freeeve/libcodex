@@ -48,7 +48,7 @@ func normalize(g *BIBFRAME) *BIBFRAME {
 	sort.Slice(g.Instance.ElectronicLocator, func(i, j int) bool {
 		return g.Instance.ElectronicLocator[i].URL < g.Instance.ElectronicLocator[j].URL
 	})
-	sort.Strings(g.Instance.SeriesStatements)
+	sort.Slice(g.Work.Series, func(i, j int) bool { return g.Work.Series[i].Title < g.Work.Series[j].Title })
 	sort.Strings(g.Instance.Duration)
 	sort.Slice(g.Instance.DigitalCharacteristics, func(i, j int) bool {
 		a, b := g.Instance.DigitalCharacteristics[i], g.Instance.DigitalCharacteristics[j]

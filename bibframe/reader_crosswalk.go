@@ -59,10 +59,17 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	if ed := literal(g, inst, pEdition); ed != "" {
 		add(codex.NewDataField("250", ' ', ' ', codex.NewSubfield('a', ed)))
 	}
-	stmts := literalsOf(g, inst, pSeriesStatement)
-	enums := seriesEnumerationsFor(stmts, allLiteralsOf(g, inst, pSeriesEnumeration))
-	for i, stmt := range stmts {
-		add(seriesField(stmt, enums[i]))
+	// A Work's bf:relation series nodes are the current shape. Graphs written
+	// before v0.25.0 -- and by producers that copied that shape -- carry flat
+	// bf:seriesStatement literals on the Instance instead; read those only when
+	// the Work has no series relations, so a graph carrying both does not
+	// duplicate its 490s.
+	seriesFs := seriesFields(g, work)
+	if len(seriesFs) == 0 {
+		seriesFs = legacySeriesFields(g, inst)
+	}
+	for _, f := range seriesFs {
+		add(f)
 	}
 	if f := durationField(g, inst); f != nil {
 		add(*f)
@@ -237,6 +244,76 @@ func codedFields(g *rdf.Graph, inst rdf.Term, leaderType byte) []codex.Field {
 				break
 			}
 		}
+	}
+	return fields
+}
+
+// seriesFields reverses a Work's series bf:relation nodes into 490s: the title
+// ($a) and ISSN ($x) come from the bf:associatedResource bf:Series, the volume
+// designation ($v) from the relation's own bf:seriesEnumeration, and ind1 from
+// whether the series carries the traced status. It inverts emitSeries.
+//
+// The 76x-78x decoder walks the same bf:relation list and skips these, because
+// "series" is not one of its linking-entry relationship codes.
+func seriesFields(g *rdf.Graph, work rdf.Term) []codex.Field {
+	var fields []codex.Field
+	for _, rel := range g.Objects(work, pRelation) {
+		if relationshipCode(g, rel) != seriesRelationship {
+			continue
+		}
+		res, ok := g.Object(rel, pAssociatedResource)
+		if !ok {
+			continue
+		}
+		title := firstTitle(g, res).MainTitle
+		if title == "" {
+			continue // a series with no title says nothing; a bare 490 is not a field
+		}
+		subs := []codex.Subfield{codex.NewSubfield('a', title)}
+		if issn, _ := associatedIdentifiers(g, res); issn != "" {
+			subs = append(subs, codex.NewSubfield('x', issn))
+		}
+		if v := literal(g, rel, pSeriesEnumeration); v != "" {
+			subs = append(subs, codex.NewSubfield('v', v))
+		}
+		ind1 := byte('0')
+		if seriesTraced(g, res) {
+			ind1 = '1'
+		}
+		fields = append(fields, codex.NewDataField("490", ind1, ' ', subs...))
+	}
+	return fields
+}
+
+// seriesTraced reports whether a bf:Series carries the traced status, by IRI or
+// by label -- marc2bibframe2 writes both, and a hand-written graph may carry only
+// one.
+func seriesTraced(g *rdf.Graph, res rdf.Term) bool {
+	for _, st := range g.Objects(res, pStatus) {
+		if st.IsIRI() && st.Value == statusVocab+statusTraced {
+			return true
+		}
+		if strings.EqualFold(literal(g, st, pLabel), "traced") {
+			return true
+		}
+	}
+	return false
+}
+
+// legacySeriesFields reads the pre-v0.25.0 shape: flat bf:seriesStatement and
+// bf:seriesEnumeration literals on the Instance, paired by position. It is a
+// compatibility path for graphs libcodex itself wrote before the series relation
+// existed, and it inherits that shape's defect -- two 490s sharing a $v are one
+// triple, so the pairing cannot be recovered. See task 110.
+func legacySeriesFields(g *rdf.Graph, inst rdf.Term) []codex.Field {
+	stmts := literalsOf(g, inst, pSeriesStatement)
+	if len(stmts) == 0 {
+		return nil
+	}
+	enums := seriesEnumerationsFor(stmts, allLiteralsOf(g, inst, pSeriesEnumeration))
+	fields := make([]codex.Field, 0, len(stmts))
+	for i, stmt := range stmts {
+		fields = append(fields, seriesField(stmt, enums[i]))
 	}
 	return fields
 }
