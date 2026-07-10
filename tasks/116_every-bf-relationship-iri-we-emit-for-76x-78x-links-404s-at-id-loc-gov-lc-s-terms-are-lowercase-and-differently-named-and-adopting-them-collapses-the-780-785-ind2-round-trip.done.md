@@ -95,3 +95,54 @@ they ever grow one, would want LC's IRIs.
 Related: 113 (which this blocks), 110 (the 490 series relation, whose IRI is right).
 
 Leaving pending for Eve.
+
+## Outcome
+
+Eve chose option 2 -- LC's IRIs plus a lossless verbatim note. Done in ec266ec,
+shipped in v0.27.0.
+
+### What shipped
+
+`relationCodeFor` now returns marc2bibframe2's own terms, transcribed from
+`ConvSpec-760-788-Links.xsl` and each re-checked against id.loc.gov (200, not the
+404s we were emitting). 773 -> `partof`, 776 -> `otherphysicalformat`, 780/785 by
+ind2 with LC's collapses (780 5/6 -> `absorptionof`, 785 0/8 -> `continuedby`, and
+so on).
+
+Because the collapse is not reversible, `Relation` gained a `MARCKey` field holding
+the source field verbatim, emitted as an internal `bf:Note` (`mnotetype/internal`,
+marcKey label) on each `bf:Relation` -- the identical carrier 040 already uses,
+reusing `parseMARCKey`. Decode prefers the note (`relationFromNote`, exact) and
+falls back to the relationship term plus associated resource
+(`relationFromProperties`, canonical indicator) for a note-absent third-party
+graph, mirroring 040's note/properties split.
+
+### It came out strictly more faithful, not just more correct
+
+The old bijective table round-tripped the indicator but only the four modeled
+subfields (a/t/x/z). The verbatim note carries the whole field, so a `780 ind2=6`
+with a `$g` now returns as `780 ind2=6 $g` where the `$g` was previously dropped.
+The thing that forced option 2 -- LC's lossy vocabulary -- is what made the round
+trip lossless, because the fix could not lean on the term at all.
+
+### Verified
+
+- Every relationship IRI now emitted resolves at id.loc.gov; the ones we replaced
+  all 404. Re-confirmed `absorptionof` = 200 after the change.
+- Two 780s differing only in ind2 (5 vs 6) share `absorptionof` yet decode back
+  distinct -- the exact collapse this task was about, pinned by
+  `TestLinkingEntryLosslessThroughNote`. Mutation-checked both directions:
+  suppressing the note emit fails it, and skipping the note on decode fails it.
+- `TestLinkingEntryRelationshipTerms` pins all 18 (tag, ind2) -> term rows,
+  including both `otherwise` branches and every collapse.
+- Third-party note-absent decode covered by `TestLinkingEntryDecodesThirdPartyGraph`.
+- Loss gate, full suite, staticcheck, and the interop oracle against real rdflib
+  all green.
+
+### What this unblocks
+
+113's remaining-76x half is now purely additive on a correct foundation: extend
+`relationCodeFor` with the other LC terms (765 `translationof`, 767 `translatedas`,
+etc.) and route the tags in `FromRecord`. Decode is already generic -- the note
+carries any 76x tag `isLinkingTag` admits, so that predicate is the one list to
+grow. The 8xx series half still needs the `bf:Hub`-vs-`bf:Series` decision.
