@@ -199,9 +199,16 @@ remains a tracked checklist in its task file.
   `otherPhysicalFormat`. `Work.Relations` and the `linkRelations` table drive both
   directions; the associated Work is a flat blank node (no minted IRI, a deliberate
   divergence -- see the note below), skipped as a standalone record on decode. The
-  remaining tags (760/762/765/767/770/772/774/775/777/786/787, 490/8xx series ->
-  `bf:hasSeries`) stay a tracked checklist in
-  `tasks/073_bibframe_linking_entries.done.md`.
+  remaining tags (760/762/765/767/770/772/774/775/777/786/787, and the 8xx series
+  added entries) stay a tracked checklist in
+  `tasks/073_bibframe_linking_entries.done.md`; 490 is mapped, as its own
+  `bf:relation` -> `bf:Series` (see [110]).
+
+  Because 490 and the linking entries share the Work's one `bf:relation` list, a
+  consumer must discriminate on `bf:relationship` before reading a relation node.
+  Today only 773/776/780/785 emit one besides the series, so a record carrying a
+  490 and a 780 exercises that discrimination; 765 and 830 emit none, and a test
+  built from either cannot tell a working guard from a deleted one.
 - DIVERGENCE (structural) -- m2b mints per-field Work/Instance IRIs
   (`#Work760-1`-style) for each linked resource; this crosswalk keeps the flat model
   and emits the `bf:associatedResource` as a blank labeled `bf:Work`, consistent with

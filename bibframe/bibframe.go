@@ -91,14 +91,18 @@ type BIBFRAME struct {
 
 // Work is the intellectual content (bf:Work) plus a specific content class.
 type Work struct {
-	Class           string // bf class refining bf:Work (e.g. "Text"), or ""
-	Content         string // RDA content-type code (336 $b or leader/06 fallback) -> bf:content IRI; optional
-	Titles          []Title
-	VariantTitles   []VariantTitle // 246 variant/parallel titles (non-cover/spine)
-	Contributions   []Contribution
-	RelatedWorks    []RelatedWork
-	Relations       []Relation // 76x-78x linking entries -> bf:relation
-	Series          []Series   // 490 transcribed series statements -> bf:relation
+	Class         string // bf class refining bf:Work (e.g. "Text"), or ""
+	Content       string // RDA content-type code (336 $b or leader/06 fallback) -> bf:content IRI; optional
+	Titles        []Title
+	VariantTitles []VariantTitle // 246 variant/parallel titles (non-cover/spine)
+	Contributions []Contribution
+	RelatedWorks  []RelatedWork
+	// Relations and Series both serialize into the Work's single bf:relation
+	// list, distinguished only by their bf:relationship IRI. A consumer walking
+	// bf:relation must check the relationship before interpreting a node, or it
+	// will read a preceding-title entry as a series statement.
+	Relations       []Relation // 773/776/780/785 linking entries -> bf:relation
+	Series          []Series   // 490 transcribed series statements -> bf:relation, relationship/series
 	Subjects        []Subject
 	GenreForms      []string
 	Languages       []string // content languages: ISO 639-2 codes from 008/35-37 and 041 $a

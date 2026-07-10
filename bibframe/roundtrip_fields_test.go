@@ -282,6 +282,45 @@ func TestSeriesIdenticalEnumerationDistinctTriples(t *testing.T) {
 	}
 }
 
+// TestSeriesRelationDistinguishedFromLinkingEntry proves the bf:relationship
+// discrimination is exercised by a real MARC record, not only by a hand-written
+// fixture. 490 and the 76x-78x linking entries share the Work's one bf:relation
+// list, so a decoder that ignored bf:relationship would read a preceding-title
+// entry as a series. A 780 emits a relation; 765 and 830 do not, so a test built
+// from either cannot tell a working guard from a deleted one (libcat, task 112).
+func TestSeriesRelationDistinguishedFromLinkingEntry(t *testing.T) {
+	rec := recordWith(
+		codex.NewDataField("490", '0', ' ', codex.NewSubfield('a', "Firebrand fiction"),
+			codex.NewSubfield('v', "bk. 2")),
+		codex.NewDataField("780", '0', '0', codex.NewSubfield('t', "Old Title")),
+	)
+	g := FromRecord(rec)
+	if len(g.Work.Series) != 1 || len(g.Work.Relations) != 1 {
+		t.Fatalf("series=%d relations=%d, want 1 and 1 (a 780 must emit a relation)",
+			len(g.Work.Series), len(g.Work.Relations))
+	}
+
+	encoded, err := Encode(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recs, err := Decode(encoded)
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("Decode: %v (%d records)", err, len(recs))
+	}
+	f490 := countFields(recs[0], "490")
+	f780 := countFields(recs[0], "780")
+	if len(f490) != 1 || len(f780) != 1 {
+		t.Fatalf("490s=%+v 780s=%+v, want exactly one of each", f490, f780)
+	}
+	if got := f490[0].SubfieldValue('a'); got != "Firebrand fiction" {
+		t.Errorf("490 $a = %q; the linking entry must not be read as a series", got)
+	}
+	if got := f780[0].SubfieldValue('t'); got != "Old Title" {
+		t.Errorf("780 $t = %q; the series must not be read as a linking entry", got)
+	}
+}
+
 // TestSeriesLegacyFlatShapeDecodes keeps the deprecation window honest: a graph
 // in the pre-v0.25.0 shape -- flat bf:seriesStatement / bf:seriesEnumeration
 // literals on the Instance -- must still decode to 490s.
