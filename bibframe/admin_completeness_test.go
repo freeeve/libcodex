@@ -266,3 +266,63 @@ func TestChangeDateTyped(t *testing.T) {
 		}
 	}
 }
+
+// TestCatalogingSourceRepeatedAgencyDescribedOnce guards a divergence from every
+// conformant RDF parser. A 040 routinely names one agency in several roles --
+// "$aDLC$cDLC$dDLC" is the commonest 040 in the LC corpus -- and describing that
+// agency's node under each role emits the same triples more than once. An RDF
+// graph is a set, so a conformant parser reads back fewer triples than we wrote,
+// and our own Graph, which is a slice, disagreed with rdflib on the count.
+func TestCatalogingSourceRepeatedAgencyDescribedOnce(t *testing.T) {
+	rec := codex.NewRecord().
+		AddField(codex.NewControlField("001", "12345")).
+		AddField(codex.NewDataField("040", ' ', ' ',
+			codex.NewSubfield('a', "DLC"),
+			codex.NewSubfield('c', "DLC"),
+			codex.NewSubfield('d', "DLC"),
+			codex.NewSubfield('d', "OCLCQ"))).
+		AddField(codex.NewDataField("245", '1', '0', codex.NewSubfield('a', "T")))
+
+	x, err := Encode(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := EncodeJSONLD(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nt := mustEncodeNT(t, rec)
+	for name, parse := range map[string]func() (*rdf.Graph, error){
+		"rdfxml":   func() (*rdf.Graph, error) { return rdf.ParseRDFXML(x) },
+		"jsonld":   func() (*rdf.Graph, error) { return rdf.ParseJSONLD(j) },
+		"ntriples": func() (*rdf.Graph, error) { return rdf.ParseNTriples(nt) },
+	} {
+		g, err := parse()
+		if err != nil {
+			t.Fatalf("%s parse: %v", name, err)
+		}
+		seen := make(map[rdf.Triple]bool, len(g.Triples))
+		for _, tr := range g.Triples {
+			if seen[tr] {
+				t.Errorf("%s: duplicate triple %v %v %v", name, tr.S, tr.P, tr.O)
+			}
+			seen[tr] = true
+		}
+
+		// The repeated agency must still be described once, not dropped: a bare
+		// reference is only sound because the first mention carries bf:code.
+		agent := rdf.NewIRI(orgVocab + "dlc")
+		if got := g.Objects(agent, bfNS+"code"); len(got) != 1 || got[0].Value != "DLC" {
+			t.Errorf("%s: bf:code on the shared agency = %v, want one \"DLC\"", name, got)
+		}
+	}
+
+	// And the whole field still round-trips, so deduping cost no subfield.
+	recs, err := Decode(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := field040(recs[0]), field040(rec); got != want {
+		t.Errorf("040 round-trip = %q, want %q", got, want)
+	}
+}

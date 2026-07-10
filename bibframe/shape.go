@@ -659,7 +659,8 @@ func emitAdmin(s sink, am *AdminMetadata) {
 	if am.ChangeDate != "" {
 		s.litTyped(qpChangeDate, am.ChangeDate, xsdDateTime)
 	}
-	emitAgency(s, qpAssigner, am.OrigAgency)
+	described := map[string]bool{}
+	emitAgencyOnce(s, described, qpAssigner, am.OrigAgency)
 	if am.DescriptionLanguage != "" {
 		s.beginChild(qpDescriptionLanguage)
 		s.beginNode(qcLanguage, langIRIVal(am.DescriptionLanguage), qname{})
@@ -668,7 +669,7 @@ func emitAdmin(s sink, am *AdminMetadata) {
 		s.endChild()
 	}
 	for _, m := range am.Modifiers {
-		emitAgency(s, qpDescriptionModifier, m)
+		emitAgencyOnce(s, described, qpDescriptionModifier, m)
 	}
 	for _, dc := range am.DescriptionConventions {
 		s.beginChild(qpDescriptionConventions)
@@ -688,7 +689,7 @@ func emitAdmin(s sink, am *AdminMetadata) {
 		s.beginChild(qpIdentifiedBy)
 		s.beginNode(qcLocal, iriVal{}, qname{})
 		s.lit(qpValue, am.ControlNumber)
-		emitAssigner(s, am.ControlOrg)
+		emitAgencyOnce(s, described, qpAssigner, am.ControlOrg)
 		s.endNode()
 		s.endChild()
 	}
@@ -708,6 +709,25 @@ func emitAgency(s sink, pred qname, code string) {
 	s.lit(qpCode, code)
 	s.endNode()
 	s.endChild()
+}
+
+// emitAgencyOnce describes an agency the first time its code appears under one
+// bf:AdminMetadata node and references it by IRI on every later mention, marking
+// the codes it has described in described. A 040 routinely names the same agency
+// as the original cataloging agency ($a), a modifier ($d) and the control
+// number's assigner, and an RDF graph is a set: restating a node adds no
+// information, but it does inflate our triple slice past what a conformant
+// parser reads back.
+func emitAgencyOnce(s sink, described map[string]bool, pred qname, code string) {
+	if code == "" {
+		return
+	}
+	if described[code] {
+		s.ref(pred, orgIRIVal(code))
+		return
+	}
+	described[code] = true
+	emitAgency(s, pred, code)
 }
 
 // marcKey040 renders the AdminMetadata's field 040 in LoC's marcKey form --
@@ -737,20 +757,6 @@ func marcKey040(am *AdminMetadata) string {
 		sub('e', dc)
 	}
 	return b.String()
-}
-
-// emitAssigner attaches a bf:assigner agent (the cataloging agency named by 003) to
-// the 001 bf:Local: an organizations-vocabulary IRI when the code is IRI-safe, plus
-// the raw code as bf:code.
-func emitAssigner(s sink, org string) {
-	if org == "" {
-		return
-	}
-	s.beginChild(qpAssigner)
-	s.beginNode(qcAgent, orgIRIVal(org), qname{})
-	s.lit(qpCode, org)
-	s.endNode()
-	s.endChild()
 }
 
 // instanceIRIs maps sanitized instance bases to their node IRIs, for the
