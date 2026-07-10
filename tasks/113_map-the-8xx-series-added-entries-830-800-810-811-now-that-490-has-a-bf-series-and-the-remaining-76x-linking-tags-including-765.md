@@ -60,6 +60,13 @@ real ones collapses the 780/785 ind2 round trip, so it is not a rename.
 Filed as **116**, which blocks this task. Extending the table first would cement
 eleven more IRIs that do not exist. `765` is `translationof`, not `translationOf`.
 
+**Unblocked as of v0.27.0 (116 done).** The relationship vocabulary is now LC's
+correct one, and decode reads the source field from a verbatim marcKey note rather
+than reversing the term. So piece 2 really is additive now: add the other LC terms
+to `relationCodeFor`, route the tags in `FromRecord`, and grow `isLinkingTag`
+(the one decode-side list). Piece 1 (8xx) still needs the `bf:Hub`-vs-`bf:Series`
+decision and is designed against `ConvSpec-Process6-Series.xsl` `mode="work8XX"`.
+
 This is also why piece 1 must be designed against the XSLT rather than extrapolated
 from the 490 half: the one thing 110 got right, it got right by reading the source.
 
