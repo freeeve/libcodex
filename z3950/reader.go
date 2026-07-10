@@ -43,10 +43,14 @@ func (c *Client) NewReader(ctx context.Context, q Query) *Reader {
 // Total reports the number of records the server said the result set holds, or
 // -1 before the first successful fetch, which is when the search runs. Zero is
 // a real answer, meaning the search matched nothing. A Z39.50 searchResponse
-// always carries a result count, so unlike SRU the value is never unknown once
-// a fetch has succeeded. It satisfies [codex.RecordCounter], so a caller
-// holding a [codex.RecordReader] can ask without a type switch over the
-// protocols.
+// always carries a result count, so for this reader -1 never survives a
+// successful fetch.
+//
+// It satisfies [codex.RecordCounter], but do not lean on that guarantee through
+// the interface: a caller holding a [codex.RecordReader] cannot tell this reader
+// from [github.com/freeeve/libcodex/sru.Reader], whose server may omit the count
+// and leave Total at -1 for the life of the stream. Interface callers must
+// handle -1 either way.
 func (rd *Reader) Total() int { return rd.total }
 
 // Read returns the next decodable record, fetching further Present pages as
