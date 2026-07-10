@@ -72,3 +72,41 @@ from the 490 half: the one thing 110 got right, it got right by reading the sour
 
 Related: 073 (the original linking-entries checklist), 110 (the 490 series
 relation), 112 (libcat's report).
+
+## Outcome -- piece 2 shipped (76x linking tags)
+
+Piece 2 landed in commit `f32eef6`. The nine tag-only 76x linking entries now
+crosswalk to their marc2bibframe2 relationship terms:
+
+| tag | term            | tag | term          |
+|-----|-----------------|-----|---------------|
+| 765 | translationof   | 775 | otheredition  |
+| 767 | translatedas    | 777 | issuedwith    |
+| 770 | supplement      | 786 | datasource    |
+| 772 | supplementto    | 787 | relatedwork   |
+| 774 | part            |     |               |
+
+All nine resolve at id.loc.gov (303 redirect, unlike the pre-116 camelCase 404s).
+Implementation was exactly as forecast: extended `relationCodeFor`, routed the
+tags in `FromRecord`, grew `isLinkingTag` and the `linkRelations` fallback table.
+Decode is generic -- the marcKey internal note (from 116) carries the source field
+verbatim, so round trip is exact. Tests: `TestLinkingEntryAdditive76x` (forward +
+round trip per tag), `TestLinkingEntry760NotRelation` (760/762 stay unmapped).
+Full suite, staticcheck and interop oracle green. Additive, non-breaking -- ships
+in v0.28.0.
+
+**760/762 pulled into piece 1.** Originally listed under piece 2, but LC maps them
+to `relationship/series` and `subseries`, which collide with the 490 series
+relation on the exact `bf:relationship` IRI a consumer discriminates on (the whole
+subject of 112). How a 760 associated resource models -- `bf:Series` like 490, or
+the `bf:Hub` LC uses for 8xx -- is the same decision piece 1 defers. So they now
+sit with the 8xx work, not the additive linking pass.
+
+## Remaining -- piece 1 (blocked on a decision only Eve can make)
+
+The 8xx series added entries (800/810/811/830) plus 760/762. Blocked on: model
+the associated resource as **`bf:Hub`** (marc2bibframe2's choice, a new node type
+here) or reuse the existing **`bf:Series`**? And does a traced 490 collapse with
+its 830 into one relation, or stay two? Designed against
+`ConvSpec-Process6-Series.xsl` `mode="work8XX"` (read it, do not extrapolate from
+the 490 half). Left for Eve; not actionable without that decision. Task stays open.
