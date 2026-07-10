@@ -1,14 +1,18 @@
 #!/bin/sh
 # Pre-push hook mirroring the static checks of CI's build job (gofmt, vet,
 # staticcheck at CI's pinned version, then the test suite without -race), so a
-# push that would fail CI is stopped locally instead. It then smoke-fuzzes
-# every Fuzz* target in the packages this push changes — fuzzing lives here
-# rather than in CI so runs accumulate the persistent local corpus
-# (GOCACHE/fuzz) instead of restarting from seeds. Enable once per clone:
+# push that would fail CI is stopped locally instead. The test suite covers CI's
+# interop job too, but only when the third-party parsers it needs are importable,
+# so the hook probes for them and warns when they are missing rather than letting
+# a silent skip read as a pass. It then smoke-fuzzes every Fuzz* target in the
+# packages this push changes — fuzzing lives here rather than in CI so runs
+# accumulate the persistent local corpus (GOCACHE/fuzz) instead of restarting
+# from seeds. Enable once per clone:
 #
 #	git config core.hooksPath .githooks
 #
-# PREPUSH_FUZZTIME overrides the per-target budget (default 10s);
+# INTEROP_PYTHON picks the interpreter for the interop stage (default python3);
+# PREPUSH_FUZZTIME overrides the per-target fuzz budget (default 10s);
 # PREPUSH_SKIP_FUZZ=1 skips the fuzz stage. Bypass everything for an
 # emergency push: git push --no-verify
 set -e
@@ -46,6 +50,25 @@ go vet ./...
 echo "pre-push: staticcheck"
 go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...
 
+# CI's second job reads our generated output back with pymarc, rdflib,
+# bibtexparser and rispy. `go test ./...` below runs that same TestInterop, but
+# it t.Skipf's when it cannot import the parsers, and a skipped test still
+# prints ok -- so the suite reports success having checked nothing. Probe the
+# parsers first with the same interpreter TestInterop will use, and say which of
+# the two happened. A silent skip here once let an interop regression ship in
+# five releases.
+interop_py="${INTEROP_PYTHON:-python3}"
+interop_note=""
+if "$interop_py" testdata/interop.py check >/dev/null 2>&1; then
+	echo "pre-push: interop parsers present ($interop_py); go test will exercise them"
+else
+	interop_note=" (interop SKIPPED)"
+	echo "pre-push: interop will SKIP -- $interop_py cannot import the third-party parsers:" >&2
+	"$interop_py" testdata/interop.py check 2>&1 | sed 's/^/pre-push:   /' >&2 || true
+	echo "pre-push:   CI runs this job regardless. To run it here:" >&2
+	echo "pre-push:   pip install pymarc rdflib bibtexparser rispy  (or set INTEROP_PYTHON)" >&2
+fi
+
 echo "pre-push: go test"
 go test ./...
 
@@ -70,4 +93,4 @@ if [ "$rc" -ne 0 ]; then
 	exit 1
 fi
 
-echo "pre-push: all checks passed"
+echo "pre-push: all checks passed$interop_note"
