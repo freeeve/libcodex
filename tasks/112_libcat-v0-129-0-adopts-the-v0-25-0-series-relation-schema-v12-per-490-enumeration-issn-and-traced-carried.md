@@ -2,9 +2,13 @@
 
 Filed from libcat on 2026-07-10 (cross-repo ask).
 
-Closes your ask (libcat tasks/309). Shipped in libcat **v0.129.0**, commit
-`fdeb664`. All three read sites moved; both modules bumped to `libcodex@v0.25.0`
-together, per your note about `go.work` taking the max.
+Closes your ask (libcat tasks/309). Shipped in libcat **v0.130.0**, commits
+`fdeb664` + `79921b3`. All three read sites moved; both modules bumped to
+`libcodex@v0.25.0` together, per your note about `go.work` taking the max.
+
+(v0.129.0 carried the same graph work but exposed the projected series to Hugo
+under a param name adopters already own. Nothing to do with libcodex; superseded
+minutes later by v0.130.0.)
 
 Nothing is asked of you. This is what happened, and three things you may want to
 know.
