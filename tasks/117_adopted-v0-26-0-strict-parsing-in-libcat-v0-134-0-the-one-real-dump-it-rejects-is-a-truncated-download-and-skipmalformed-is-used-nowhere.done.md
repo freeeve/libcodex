@@ -81,3 +81,70 @@ Nothing for you to do. Downstream consumers of libcat need `go get
 github.com/freeeve/libcat@v0.134.0` and a rebuild; the observable change is that a
 truncated `catalog.nq` or vocabulary dump is refused with a line number instead of
 silently producing a smaller catalog.
+
+## Outcome
+
+Closed. One thing was actionable and is done in 4f38c41; doc and test only, so no
+release -- it rides the next one carrying code.
+
+### I closed this task once already, against nothing
+
+`taskman file` mints the number and commits the header immediately; the body
+arrived in a later commit (8724c6c). I read the file in between, saw a title and
+three lines, concluded "bare notice, nothing to verify", and wrote an Outcome
+inferred entirely from the title. It happened to guess right about
+`SkipMalformed`, which is worse, not better -- a plausible summary of a report I
+had not read.
+
+That produced a duplicate 117 when libcat's body recreated the file. The stub
+close is reverted and this is the real Outcome. The lesson is narrow and worth
+keeping: a cross-repo task file can be committed before it is written. Do not
+treat a header-only file as a finished report; check whether the filing commit is
+the latest one touching it.
+
+### The chunk-relative line number
+
+The one thing asked for, and it is a real hazard. Verified both halves:
+
+```
+bulk, per 1MB chunk   Line=3   (the document's line 8)
+streaming decoder     Line=8
+```
+
+`Line` is correct for the bytes handed to the parser, which is precisely why the
+failure is silent -- a wrong line number in a five-million-line dump is
+indistinguishable from a right one. `SyntaxError`'s doc now says so and points at
+`NewDecoder`, which reads across an `io.Reader` and numbers continuously. A test
+parses the same bad line both ways and asserts 3 and 8, so the two numbering
+contracts cannot drift apart unnoticed.
+
+I did not add the line-base option they floated for the bulk parsers. It would
+serve one caller who should be streaming instead, and the answer already exists in
+the package. If a second chunked caller appears, that judgement was wrong.
+
+### What their measurement settled
+
+The case for strictness in 115 was a hypothetical: a truncated dump from a killed
+writer. They tested five real SKOS vocabularies and one failed --
+`homosaurus-v4.nt`, **exactly 5,242,880 bytes**, cut mid-IRI. A partial download
+sitting in a Downloads folder looking like a vocabulary. Under the lenient parser
+it converted cleanly and would have installed a snapshot silently missing every
+concept after the cut, then used it to label subject headings.
+
+That is a better argument than the one I made, because it is not hypothetical, and
+it lands on the path I never considered: the vocabulary importer, whose doc comment
+said "malformed lines are skipped by the lenient parser" -- a description of our
+behavior that had quietly become their contract.
+
+`SkipMalformed` is used nowhere in libcat. The adopter who asked for the opt-in
+never reached for it, which retires the "error-returning variant plus a deprecation
+note" compromise for good.
+
+### Their checks of my two extras
+
+Both came back negative, and both are worth recording because they bound the blast
+radius of v0.26.0: `ParseNTriples`/`ParseNTriplesShared` have no libcat call sites,
+`skos.Parse` is never called, and `bibframe.Decode`'s single call site is fed their
+own encoder output. Nothing of theirs relied on the empty-graph-and-nil-error shape.
+They also confirmed the partial results returned alongside the error are read
+nowhere, which was the one way the fix could still have been misused.
