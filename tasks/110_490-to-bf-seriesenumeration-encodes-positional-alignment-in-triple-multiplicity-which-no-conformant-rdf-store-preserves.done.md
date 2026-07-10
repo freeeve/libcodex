@@ -118,3 +118,83 @@ flat literals deliberately. It also wants `bf:Series` and `bf:Relation` classes 
 whether to keep reading the old flat shape for a release or two.
 
 Recommendation: do it, in a release that says so. Leaving pending for Eve.
+
+## Outcome
+
+Eve said go ahead, with the deprecation window. Done in fe93acf, shipped in
+v0.25.0.
+
+### One correction to this task file
+
+It says the relation goes on the Instance. It does not. `ConvSpec-Process6-Series.xsl`
+matches 490 in `mode="work"`, and so does its 8XX template -- the `bf:relation`
+hangs off the **Work**. I had written that section from the excerpt I first
+grepped rather than from the template's mode, and only caught it on re-reading
+before writing code. Everything else in the sketch held up.
+
+### What shipped
+
+```
+<#Work> bf:relation _:rel .
+_:rel   rdf:type bf:Relation ;
+        bf:relationship <.../vocabulary/relationship/series> ;
+        bf:associatedResource _:series ;
+        bf:seriesEnumeration "bk. 2" .        # on the relation, not the series
+_:series rdf:type bf:Series ;
+        bf:status <.../mstatus/t> ;           # transcribed, always
+        bf:status <.../mstatus/tr> ;          # traced, when ind1=1
+        bf:title [ rdf:type bf:Title ; bf:mainTitle "Firebrand fiction" ] ;
+        bf:identifiedBy [ rdf:type bf:Issn ; rdf:value "0075-2118" ] .
+```
+
+`Instance.SeriesStatements` and `Instance.SeriesEnumerations` are gone, replaced
+by `Work.Series []Series` (Title, Enumeration, ISSN, Traced). Series relations
+share the Work's existing `bf:relation` list with the 76x-78x linking entries;
+the relationship IRI tells them apart, and the linking-entry decoder already
+skipped anything whose code is not one of its own, so nothing had to change there.
+
+Reading the XSLT rather than trusting this task's own summary also recovered two
+subfields the flat mapping silently dropped: `$x` -> `bf:Issn` on the series, and
+`ind1=1` -> the `mstatus/tr` status. Still not carried: `$n`/`$p`, `$l`
+classification, `$3` `bflc:appliesTo`, and the 880 parallel grouping. Recorded in
+the audit doc.
+
+### The regression the new test caught
+
+`TestSeriesIdenticalEnumerationDistinctTriples` asserts `Dedupe()` removes nothing
+from a two-490 record. It failed on the first run: two `bf:Series` nodes each
+described the shared `mstatus/t` status node, emitting its `rdf:type` and
+`rdfs:label` twice. Identical in kind to the 040 agency bug of 6d11710, found the
+same way, fixed the same way -- describe on first mention, reference by IRI after.
+
+Worth stating plainly, because it is the second time: **any shared IRI node
+reachable from a repeated structure will be described once per occurrence unless
+the emitter is told otherwise.** That is now true of agencies (040) and statuses
+(490). The next one will not announce itself either. A `Dedupe() == 0` assertion
+is the cheap general guard, and it belongs on any new emitter that references a
+vocabulary IRI from a repeatable field.
+
+### Verification
+
+- Both halves mutation-checked. Describing the status per-series fails the dedupe
+  test; moving `bf:seriesEnumeration` from the relation onto the series fails both
+  the shape test and the identical-`$v` round trip -- which is the defect this task
+  was opened about, so the test genuinely pins the fix rather than the shape.
+- The interop suite passes against real rdflib, so the emitted graph parses and
+  counts the same set-for-set.
+- No LC fixture in `bibframe/testdata/loc` carries a 490, so there was nothing to
+  validate the shape against empirically; the XSLT is the only authority here, and
+  that is worth knowing rather than assuming the fixtures cover it.
+
+### The deprecation window
+
+`legacySeriesFields` reads the old flat literals when a Work carries no series
+relation, so a graph libcodex wrote before v0.25.0 still decodes to 490s. It
+inherits the defect -- two 490s sharing a `$v` were already one triple in those
+graphs, and nothing can recover the second.
+
+This also means `rdf.Graph.ObjectsWithRepeats` keeps a caller, contrary to the
+prediction above that losing its last one would be "the tell that this is the
+right shape". The legacy path needs it precisely because it decodes the shape that
+depended on multiplicity. When the window closes, `allLiteralsOf`,
+`seriesEnumerationsFor`, `seriesField` and that call all go together.
