@@ -48,5 +48,20 @@ Two separable pieces, probably two releases:
 
 Piece 2 is nearly mechanical and could be done without a decision. Piece 1 is not.
 
+## Correction: piece 2 is blocked, and was wrong on its face
+
+Written before reading `ConvSpec-760-788-Links.xsl`. Piece 2's premise -- "the
+relationship vocabulary already names them all" -- is false, and so is the codebase
+it would have extended. **Every relationship IRI `linkRelations` emits today 404s at
+id.loc.gov**; LC's terms are lowercase and several are differently named
+(`continues` -> `continuationof`, `formedByUnionOf` -> `mergerof`). Adopting the
+real ones collapses the 780/785 ind2 round trip, so it is not a rename.
+
+Filed as **116**, which blocks this task. Extending the table first would cement
+eleven more IRIs that do not exist. `765` is `translationof`, not `translationOf`.
+
+This is also why piece 1 must be designed against the XSLT rather than extrapolated
+from the 490 half: the one thing 110 got right, it got right by reading the source.
+
 Related: 073 (the original linking-entries checklist), 110 (the 490 series
 relation), 112 (libcat's report).
