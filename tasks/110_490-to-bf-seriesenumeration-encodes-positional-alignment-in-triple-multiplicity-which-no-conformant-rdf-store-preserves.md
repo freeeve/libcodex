@@ -91,13 +91,29 @@ Series' `bf:identifiedBy`, and `ind1` from the presence of `mstatus/tr`.
 `ObjectsWithRepeats` then has no caller in bibframe, which is the tell that this
 is the right shape.
 
+## Known consumers of the flat shape
+
+Confirmed by reading libcat at v0.116.1 (via 111), not assumed. Three read sites,
+all reading the literals straight off the Instance:
+
+- `project/project.go:1097` -- `Objects(inst, bf:seriesStatement)` -> `i.Series`
+- `project/project.go:1106` -- `Objects(inst, bf:seriesEnumeration)`, "first
+  non-empty wins", with a comment naming libcodex v0.21.0's positional padding
+- `ingest/enrich.go:458` -- `Objects(inst, bf:seriesStatement)` -> `WorkSummary.Series`
+
+Two things follow. libcat never adopted the positional pairing -- it takes the
+first non-empty enumeration and discards the rest -- so no consumer today depends
+on the multiplicity this task is about, and nobody is currently getting the right
+answer for a record with two 490s either. And the migration is bounded: three
+loops, one of which already carries a comment saying it is working around this
+mapping.
+
 ## Why this is not mine to just do
 
 It changes the emitted RDF for every record with a 490 -- a visible, breaking
-change to the serialization, not an internal refactor. Anyone consuming
-`bf:seriesStatement` on an Instance (libcat's projector may) would need to move
-to the Relation shape in the same release, and 102 chose the flat literals
-deliberately. It also wants `bf:Series` and `bf:Relation` classes plus the
+change to the serialization, not an internal refactor. The three read sites above
+would need to move to the Relation shape in the same release, and 102 chose the
+flat literals deliberately. It also wants `bf:Series` and `bf:Relation` classes plus the
 `mstatus` and `relationship` vocabularies added to the writer, and a decision on
 whether to keep reading the old flat shape for a release or two.
 
