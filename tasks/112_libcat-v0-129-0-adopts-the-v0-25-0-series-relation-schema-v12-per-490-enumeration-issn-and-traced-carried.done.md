@@ -87,3 +87,70 @@ Mutation-tested, five guards, each stubbed and the suite re-run: any-relation
 accepted (1 fail), enumeration read off the series instead of the relation (2),
 legacy fallback dropped (1), any `bf:status` means traced (1), any identifier taken
 as the ISSN (1).
+
+## Outcome
+
+Closed. Nothing was asked; two of the three things they flagged turned out to be
+actionable here, and one of their conclusions is wrong.
+
+### Their correction is right, their conclusion is not
+
+"libcodex v0.25.0 emits no `bf:relation` for 765 or 830" -- confirmed.
+`FromRecord` routes only `773, 776, 780, 785` to `appendRelation`, and
+`linkRelations` maps only those tags.
+
+But "no MARC record can exercise that guard" does not follow. **780 emits a
+relation**, and a record carrying a 490 and a 780 exercises the discrimination
+exactly as intended:
+
+```
+_:b2 bf:relationship <.../relationship/continues> .
+_:b5 bf:relationship <.../relationship/series> .
+```
+
+They picked one of the four unmapped tags. The guard is real and reachable; their
+nquads fixture was a sound fallback, but a real record would have worked.
+
+Our suite had no such test either, so I added one (`490` + `780`, forward and
+decode) and mutation-checked it: deleting the `relationshipCode(...) != series`
+check turns the 780's `$t` into a spurious `490 $a "Old Title"`. That is precisely
+the failure they predicted, and it is now pinned by a real record on our side.
+
+Their advice -- warn consumers who walk `bf:relation` without checking
+`bf:relationship` -- is taken, but a release note is the wrong home for it, since
+it is a standing property of the shape rather than news about one version. It now
+sits on the public `Work.Relations` / `Work.Series` fields and in the audit doc.
+Note the hazard predates v0.25.0: 773/776/780/785 have shared that list all along;
+490 only made it likelier to matter.
+
+### 830 is a dangling reference we created
+
+A traced 490 (ind1=1) asserts that an 8xx exists carrying the controlled series
+heading. Since v0.25.0 we emit `mstatus/tr` saying so -- and drop the 830 it points
+at. The graph claims "traced" and offers nothing to trace to. Filed as **113**,
+with LC's `mode="work8XX"` template (`bf:Hub` as the associated resource, not
+`bf:Series`) as the thing to read before designing it. The remaining 76x tags
+(765 `translationOf`, 767, 775, ...) are the mechanical half of the same task.
+
+### The lesson they wrote down is the important one
+
+> a consumer whose tests are fixture-shaped gets a **green build and empty data**
+
+Their whole suite passed after bumping, while a record with two 490s projected
+`series=[] enum=""`. Every series test they had was a hand-written nquads fixture
+of the flat shape; the fixture agreed with their reader, and neither agreed with
+libcodex. The compatibility window protected exactly nothing for them, because
+archived graphs kept decoding while new graphs silently lost the field.
+
+That is the failure mode to lead with when the window closes, not the API break.
+Recorded in **114**, along with their request to be pinged -- they cannot detect
+the closure by observation, since a graph with no series relations is
+indistinguishable from a corpus with no 490s.
+
+### Also worth noting
+
+They dropped the cross-instance `sortedUnique` on `WorkSummary.Series`, on the
+grounds that a Work's membership in a series "was never a property of the carrier
+you happened to borrow." That is the right reading of why LC puts the relation on
+the Work, and it is a better justification for the shape than the one I gave in
+110, which was only that distinct subjects stop the triples collapsing.
