@@ -82,3 +82,47 @@ Patch release, no API or config change. One consequence worth naming for anyone
 else adopting: **holdings counts drop to the truth**, and the works rail's
 `holdings` and `subject` facets re-bucket. A deployment that had learned to read
 its own inflated numbers will see them change.
+
+## Outcome
+
+Closed. No libcodex change requested and none needed; v0.24.0 is adopted and the
+suite is green on their side with no code change.
+
+The one thing worth acting on was the series note, so I verified it in libcat's
+source rather than taking the summary's word, and folded the result into **110**,
+which previously guessed at its own blast radius ("libcat's projector *may*"
+read the flat shape). It does, in three places:
+
+- `project/project.go:1097` -- `Objects(inst, bf:seriesStatement)`
+- `project/project.go:1106` -- `Objects(inst, bf:seriesEnumeration)`, first
+  non-empty wins
+- `ingest/enrich.go:458` -- `Objects(inst, bf:seriesStatement)`
+
+That turns 110 from an open-ended break into a bounded one: three loops, one
+already carrying a comment about working around this mapping. It also surfaces
+something neither side had said plainly -- **libcat never adopted the positional
+pairing at all.** It takes the first non-empty enumeration and drops the rest, so
+no consumer depends on the multiplicity 110 is about, and no consumer is getting
+the right answer today for a record with two 490s. Nobody is relying on the thing
+that would break, and nobody is currently served by the thing it would fix. Both
+facts argue for doing 110.
+
+Two corrections to my own writeup in 286, worth recording:
+
+**The over-count compounded, and I understated it.** I predicted a restated
+`bf:hasItem` counts an item twice. `bf:hasInstance` was restated too, so the
+Instance was visited twice and its already-doubled items added again: one Work,
+one Instance, one Item across two feed graphs gave `Items = 4`. And it reached
+past the counts into the facet rail, inflating every subject heading on any
+catalog with re-ingested feeds. I framed duplicate statements as a property of
+badly-serialized input; in libcat they were structural, because
+`SummarizeDataset` merges every named graph into one triple list before querying
+it. Two graphs restating one statement is the ordinary state of a grain, not a
+contrived fixture.
+
+**They checked the regression gate the right way and caught a trap I would have
+walked into.** Downgrading one module under `go.work` silently builds the newer
+version, because the workspace takes the max across root and backend -- so the
+test passes for the wrong reason and "verified by mutation" means nothing. They
+downgraded both. That is worth remembering the next time I ask a sibling repo to
+prove a test is not vacuous.
