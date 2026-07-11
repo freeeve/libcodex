@@ -252,6 +252,20 @@ remains a tracked checklist in its task file.
   derive-don't-fabricate shape as the partial 008 reconstruction. Unmapped
   categories (maps, globes, microforms, ...) remain enumerated in
   `tasks/082_bibframe_006_007_coded_fields.done.md`.
+- RESOLVED [123] -- forward fallback for records that carry format/language only in
+  the 008 (the common Koha OAI-PMH shape, filed from libcat): when 337/338 are
+  absent, `applyFormOfItem` derives an Instance `bf:carrier`/`bf:media` from the 008
+  form-of-item (008/23 for BK/CF/MU/CR/MX, 008/29 for MP/VM), per m2b's
+  ConvSpec-006,008: `o`->online resource `cr`, `q`/`s`->computer carriers,
+  `d`/`f`/`r`->`nc` volume, `a`/`b`/`c`->microform, blank->unmediated media with no
+  carrier; media is `c` (computer) for o/q/s else `n`/`h`. Runs after the 006/007
+  pass and only fills what is absent, so an explicit 33x or a 007 term always wins.
+  Language: 008/35-37 (and 041) codes now normalize through `iso6391to2b` -- a
+  2-letter ISO 639-1 code (`en`) maps to its MARC 639-2/B code (`eng`) rather than
+  being dropped by `isLangCode`. The table is derived from LoC's languageCrosswalk,
+  corrected to the /B code for the ~20 B/T-divergent languages (that file lists /T
+  for xml:lang). fontSize (large print) and tactile (braille) from form-of-item
+  d/f are a tracked follow-up, not yet emitted.
 - RESOLVED [081] -- downstream-driven round-trip batch (filed from libcat's
   fidelity gate): 511/521 -> typed Work notes (`performers`/`audience`), 533/538 ->
   typed Instance notes (`reproduction`/`systemDetails`), with note labels now

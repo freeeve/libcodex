@@ -508,6 +508,7 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 	}
 
 	g.applyCodedFields(coded006, coded007)
+	g.applyFormOfItem(r)
 
 	// Every Work carries an RDA content type: 336 when present, else a fallback
 	// derived from leader/06, so the content signal is never absent (mirroring m2b).
@@ -749,6 +750,56 @@ func (g *BIBFRAME) applyCodedFields(coded006, coded007 []string) {
 		if !haveMedia {
 			g.Instance.Media = append(g.Instance.Media, RDATerm{Code: "c"})
 		}
+	}
+}
+
+// formCarrier008 and formMedia008 map a 008 form-of-item code to the RDA carrier
+// and media terms LoC's ConvSpec-006,008 derives from it (its codeMaps carrier
+// table and instance008books media rule): d/f/r are unmediated volumes, o/q/s are
+// computer carriers (online/other), and a/b/c are microforms. A blank code yields
+// unmediated media with no carrier, matching m2b, which skips the carrier for it.
+var formCarrier008 = map[byte]string{
+	'a': "hd", 'b': "he", 'c': "hg", 'd': "nc", 'f': "nc",
+	'o': "cr", 'q': "cz", 'r': "nc", 's': "cz",
+}
+
+var formMedia008 = map[byte]string{
+	' ': "n", 'd': "n", 'f': "n", 'r': "n",
+	'a': "h", 'b': "h", 'c': "h",
+	'o': "c", 'q': "c", 's': "c",
+}
+
+// formOfItemPos returns the 008 position of the form-of-item byte for a record's
+// material type: maps and visual materials (leader/06 e/f/g/k/o/r) carry it at 29,
+// every other type (books, computer files, music, continuing resources, mixed) at
+// 23. This mirrors m2b's mCarrier008URI, which reads 008/23 for BK/CF/MU/CR/MX and
+// 008/29 for MP/VM.
+func formOfItemPos(recordType byte) int {
+	switch recordType {
+	case 'e', 'f', 'g', 'k', 'o', 'r':
+		return 29
+	default:
+		return 23
+	}
+}
+
+// applyFormOfItem synthesizes an Instance carrier and media from the 008
+// form-of-item when the RDA 337/338 fields are absent -- the common shape of ILS
+// records (Koha OAI harvests) that carry format only in the 008. It runs after the
+// 006/007 pass and adds nothing when a carrier or media is already present, so an
+// explicit 338/337 or a 007-derived term always wins.
+func (g *BIBFRAME) applyFormOfItem(r *codex.Record) {
+	c := r.ControlField("008")
+	pos := formOfItemPos(r.Leader().RecordType())
+	if len(c) <= pos {
+		return
+	}
+	code := c[pos]
+	if carrier, ok := formCarrier008[code]; ok && len(g.Instance.Carrier) == 0 {
+		g.Instance.Carrier = append(g.Instance.Carrier, RDATerm{Code: carrier})
+	}
+	if media, ok := formMedia008[code]; ok && len(g.Instance.Media) == 0 {
+		g.Instance.Media = append(g.Instance.Media, RDATerm{Code: media})
 	}
 }
 
@@ -1189,7 +1240,7 @@ func (g *BIBFRAME) addLanguages(r *codex.Record) {
 	// Languages number a handful at most, so a linear dedup over each accumulator
 	// avoids allocating a set.
 	addTo := func(dst *[]string, code string) {
-		if code = strings.TrimSpace(code); isLangCode(code) && !slices.Contains(*dst, code) {
+		if code = normalizeLang(strings.TrimSpace(code)); code != "" && !slices.Contains(*dst, code) {
 			*dst = append(*dst, code)
 		}
 	}

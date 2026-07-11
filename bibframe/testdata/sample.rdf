@@ -162,6 +162,11 @@
       </bf:Extent>
     </bf:extent>
     <bf:dimensions>22 cm</bf:dimensions>
+    <bf:media>
+      <bf:Media rdf:about="http://id.loc.gov/vocabulary/mediaTypes/n">
+        <rdfs:label>n</rdfs:label>
+      </bf:Media>
+    </bf:media>
     <bf:identifiedBy>
       <bf:Isbn>
         <rdf:value>0786803525</rdf:value>
