@@ -5,9 +5,13 @@ package bibframe
 // vocabulary uses. Some ILS exports (notably Koha records harvested via OAI-PMH)
 // carry a 639-1 code in 008/35-37 or 041 where MARC 21 requires the 639-2 code, so
 // the forward crosswalk would otherwise drop the language. This table normalizes
-// them. Derived from LoC's languageCrosswalk.xml, corrected to the /B code for the
-// ~20 languages whose bibliographic and terminologic codes differ (that file lists
-// the /T code, which it uses for xml:lang generation, not MARC coding).
+// them. Verified against LoC's conf/iso6392-to-1.xml, which is marc2bibframe2's
+// active language map (variables.xsl loads it; the similarly named
+// languageCrosswalk.xml is dead -- its loader is commented out -- and lists the /T
+// code, so it is the wrong source to mine). Every entry's 639-2 code maps back to
+// its 639-1 in that file, and the ~20 languages whose bibliographic and
+// terminologic codes differ use the /B code (sq -> alb, not sqi) so the language
+// IRI resolves at id.loc.gov/vocabulary/languages.
 var iso6391to2b = map[string]string{
 	"aa": "aar", "ab": "abk", "af": "afr", "ak": "aka", "sq": "alb",
 	"am": "amh", "ar": "ara", "an": "arg", "hy": "arm", "as": "asm",
