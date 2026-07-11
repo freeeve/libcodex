@@ -9,8 +9,8 @@
 class Libcodex < Formula
   desc "Inspect and convert MARC / BIBFRAME bibliographic records"
   homepage "https://github.com/freeeve/libcodex"
-  url "https://github.com/freeeve/libcodex/archive/refs/tags/v0.29.0.tar.gz"
-  sha256 "0e80080a08dff2c3d2a794fa8de998f7721a3a3489867d137527888c16cabbe4"
+  url "https://github.com/freeeve/libcodex/archive/refs/tags/v0.30.0.tar.gz"
+  sha256 "eee79178b706546d7997b2c98b001ec486ea4ffdd670a602dda543207acb9ac4"
   license "MIT"
   head "https://github.com/freeeve/libcodex.git", branch: "main"
 
