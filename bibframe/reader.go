@@ -72,6 +72,12 @@ const (
 	pCode                  = bfNS + "code"
 	pPart                  = bfNS + "part"
 
+	// Work identity links -> MARC 758 Resource Identifier. libcat emits owl:sameAs
+	// to an external real-world-object URI (an OpenLibrary work, an LoC hub); LoC's
+	// marc2bibframe2 uses bf:hasEquivalent for the same 758. Both are read on decode.
+	pSameAs        = "http://www.w3.org/2002/07/owl#sameAs"
+	pHasEquivalent = bfNS + "hasEquivalent"
+
 	// Administrative metadata (bf:AdminMetadata) — provenance about the record's
 	// description and the process that generated the RDF.
 	pAdminMetadata          = bfNS + "adminMetadata"

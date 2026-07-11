@@ -48,6 +48,7 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	fields = append(fields, contribs...)
 	fields = append(fields, relatedWorkFields(g, work)...)
 	fields = append(fields, relationFields(g, work)...)
+	fields = append(fields, equivalentFields(g, work)...)
 	fields = append(fields, subjectFields(g, work)...)
 	fields = append(fields, identifierFields(g, inst)...)
 	fields = append(fields, classificationFields(g, work)...)
@@ -180,6 +181,30 @@ func relatedWorkFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 			subs = append(subs, codex.NewSubfield('t', title))
 		}
 		fields = append(fields, codex.NewDataField(contribTag(class, primary), ind1ForClass(class), ' ', subs...))
+	}
+	return fields
+}
+
+// equivalentFields reverses a Work's identity links -- owl:sameAs and
+// bf:hasEquivalent, whose objects are external real-world-object URIs (an
+// OpenLibrary work, an LoC hub) -- into MARC 758 Resource Identifier fields, one
+// per distinct URI, carrying it in $1 with blank indicators. This inverts
+// marc2bibframe2 ConvSpec-758's default branch, which maps a 758 with a $1 URI and
+// no $i/$4 to a bf:Relation typed bf:hasEquivalent; libcat emits owl:sameAs for the
+// same intent, so both predicates are read. Decode-only: libcodex emits no 758 on
+// the forward pass, so there is no marcKey note to reconstruct from, and a literal
+// or blank-node object (never a real-world-object URI) is ignored.
+func equivalentFields(g *rdf.Graph, work rdf.Term) []codex.Field {
+	var fields []codex.Field
+	seen := map[string]bool{}
+	for _, p := range []string{pSameAs, pHasEquivalent} {
+		for _, o := range g.Objects(work, p) {
+			if !o.IsIRI() || o.Value == "" || seen[o.Value] {
+				continue
+			}
+			seen[o.Value] = true
+			fields = append(fields, codex.NewDataField("758", ' ', ' ', codex.NewSubfield('1', o.Value)))
+		}
 	}
 	return fields
 }

@@ -234,6 +234,15 @@ remains a tracked checklist in its task file.
   (`#Work760-1`-style) for each linked resource; this crosswalk keeps the flat model
   and emits the `bf:associatedResource` as a blank labeled `bf:Work`, consistent with
   the name-title `bf:relatedTo` handling from 062.
+- RESOLVED [121] -- decode direction only: a `bf:Work`'s identity links to external
+  real-world-object URIs (an OpenLibrary work, an LoC hub) land as MARC 758 Resource
+  Identifier fields, one per distinct URI in `$1` with blank indicators and no
+  `$i`/`$4`. Both `owl:sameAs` (what libcat emits from its enrichment, tasks/066) and
+  `bf:hasEquivalent` (what m2b's own ConvSpec-758 default branch uses for the same
+  758) are read; the two are deduped by URI. This inverts ConvSpec-758's
+  default-`hasEquivalent` branch. Filed by libcat, whose MARC export previously
+  dropped these links (`bf:identifiedBy` was the only identifier source on decode).
+  The forward 758 -> `bf:relation` is a round-trip follow-up, not yet done.
 - RESOLVED [082] -- 006/007 coded fields fold into the RDA media/carrier model
   through one bidirectional table (`carrier007`): a 007 in the sound, computer or
   video categories contributes its correlated carrier term on read (explicit
