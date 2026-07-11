@@ -57,8 +57,9 @@ func sameTriples(t *testing.T, name string, stream, parse []Triple) {
 }
 
 // FuzzStreamNTriples asserts the streaming N-Triples decoder yields exactly the
-// triples the whole-document parser does (both run parseNTLine), and never panics.
-// The N-Quads path is exercised too.
+// triples the whole-document parser does (both read terms through readNTTerm, one
+// via parseNQuadLine and one via parseNTLineInto), and never panics. The N-Quads
+// path is exercised too.
 func FuzzStreamNTriples(f *testing.F) {
 	seedStream(f)
 	f.Fuzz(func(t *testing.T, data []byte) {

@@ -68,28 +68,49 @@ func ParseNTriplesShared(data []byte) (*Graph, error) {
 }
 
 func parseNTriples(data string) (*Graph, error) {
-	// Zero-copy substrings of data back every term; preallocate the triple
-	// slice from the line count so it never grows.
-	g := &Graph{Triples: make([]Triple, 0, strings.Count(data, "\n")+1)}
+	// Zero-copy substrings of data back every term. Preallocate the triple slice
+	// at full length from the line count and fill each statement in place through
+	// a write index, so the 168-byte Triple is assembled directly in the slice
+	// rather than returned and appended by value -- that struct copy (runtime.
+	// duffcopy) otherwise dominates parse CPU. Ignorable/malformed lines leave the
+	// index where it is; the tail of untouched slots is truncated at the end.
+	g := &Graph{Triples: make([]Triple, strings.Count(data, "\n")+1)}
 	var a arena
-	n := 0
+	n, w := 0, 0
 	for line := range strings.SplitSeq(data, "\n") {
 		n++
-		switch tr, kind := parseNTLine(line, &a); kind {
+		switch parseNTLineInto(line, &a, &g.Triples[w]) {
 		case lineStatement:
-			g.Triples = append(g.Triples, tr)
+			w++
 		case lineMalformed:
+			g.Triples = g.Triples[:w]
 			return g, &SyntaxError{Line: n, Text: strings.TrimSpace(line)}
 		}
 	}
+	g.Triples = g.Triples[:w]
 	return g, nil
 }
 
-// parseNTLine parses one N-Triples/N-Quads line into a triple, dropping any
-// fourth (graph) term.
-func parseNTLine(line string, a *arena) (Triple, lineKind) {
-	q, kind := parseNQuadLine(line, a)
-	return q.Triple(), kind
+// parseNTLineInto parses one N-Triples/N-Quads line, writing subject, predicate
+// and object directly into t (dropping any fourth, graph, term) so the Triple is
+// never copied by value. It mirrors parseNQuadLine's leniency: a trailing graph
+// term or terminator is not required, and content past the object is ignored.
+func parseNTLineInto(line string, a *arena, t *Triple) lineKind {
+	s := strings.TrimSpace(line)
+	if s == "" || s[0] == '#' {
+		return lineIgnorable
+	}
+	var ok bool
+	if t.S, s, ok = readNTTerm(s, a); !ok || t.S.IsLiteral() { // a literal subject is not valid RDF
+		return lineMalformed
+	}
+	if t.P, s, ok = readNTTerm(strings.TrimLeft(s, " \t"), a); !ok || !t.P.IsIRI() {
+		return lineMalformed
+	}
+	if t.O, _, ok = readNTTerm(strings.TrimLeft(s, " \t"), a); !ok {
+		return lineMalformed
+	}
+	return lineStatement
 }
 
 // parseNQuadLine parses one N-Triples/N-Quads line into a quad, keeping the
