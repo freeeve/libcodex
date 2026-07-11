@@ -18,3 +18,7 @@ go.work.sum
 
 # Performance benchmark module (third-party deps; not part of the library)
 /bench/
+
+# Task ledger -- migrated to the central taskman store (~/.taskman/libcodex); the
+# repo-local tasks/ dir is legacy and must not re-track (task 125).
+/tasks/
