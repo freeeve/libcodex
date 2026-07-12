@@ -147,6 +147,9 @@ func contributions(g *rdf.Graph, work rdf.Term) ([]codex.Field, bool) {
 		class := agentClass(g, agent)
 		tag := contribTag(class, isPrimary)
 		subs := append([]codex.Subfield{codex.NewSubfield('a', label)}, roleSubfields(g, c, class)...)
+		if agent.IsIRI() && agent.Value != "" {
+			subs = append(subs, codex.NewSubfield(authoritySubcode(agent.Value), agent.Value))
+		}
 		fields = append(fields, codex.NewDataField(tag, ind1ForClass(class), ' ', subs...))
 		primary = primary || isPrimary
 	}
@@ -275,6 +278,17 @@ func relationFromProperties(g *rdf.Graph, rel rdf.Term) (codex.Field, bool) {
 		return codex.Field{}, false
 	}
 	return codex.NewDataField(tag, ' ', ind2, subs...), true
+}
+
+// authoritySubcode picks the MARC subfield for an agent's identity IRI: $0 for an
+// authority-record URI (id.loc.gov/authorities, the LCNAF shape), $1 for anything
+// else, which is a real-world-object URI (VIAF/Wikidata/ISNI). This reverses
+// agentAuthority's $1-then-$0 precedence for the URIs it actually emits.
+func authoritySubcode(iri string) byte {
+	if strings.Contains(iri, "id.loc.gov/authorities") {
+		return '0'
+	}
+	return '1'
 }
 
 // isLinkingTag reports whether tag is one of the 76x-78x linking entries this

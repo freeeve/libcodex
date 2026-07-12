@@ -41,7 +41,9 @@ func roleIRIVal(iri string) iriVal {
 
 // subjectIRIVal wraps a subject's authority IRI ($0); the empty IRI yields the
 // zero iriVal, i.e. a blank subject node.
-func subjectIRIVal(iri string) iriVal {
+// authorityIRIVal makes an access-point node (subject or agent) carry its authority
+// IRI ($0/$1) as its own IRI, or a blank node when there is none.
+func authorityIRIVal(iri string) iriVal {
 	if iri == "" {
 		return iriVal{}
 	}
@@ -398,7 +400,7 @@ func emitLabeled(s sink, class qname, label string) {
 // and, when known, the controlling thesaurus as bf:source (mirroring the
 // classification source node).
 func emitSubject(s sink, sub Subject) {
-	s.beginNode(bfName(sub.Class), subjectIRIVal(sub.Authority), qname{})
+	s.beginNode(bfName(sub.Class), authorityIRIVal(sub.Authority), qname{})
 	s.lit(qpLabel, sub.Label)
 	if sub.Source != "" {
 		s.beginChild(qpSource)
@@ -417,7 +419,9 @@ func emitContribution(s sink, c Contribution) {
 	}
 	s.beginNode(class, iriVal{}, qname{})
 	s.beginChild(qpAgent)
-	emitLabeled(s, bfName(c.Class), c.Label)
+	s.beginNode(bfName(c.Class), authorityIRIVal(c.Authority), qname{})
+	s.lit(qpLabel, c.Label)
+	s.endNode()
 	s.endChild()
 	for _, r := range c.Roles {
 		emitRole(s, r)

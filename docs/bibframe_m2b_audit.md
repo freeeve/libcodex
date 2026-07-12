@@ -65,7 +65,17 @@ roles are always literals -- controlled-vocabulary content is lost.
   `bf:Jurisdiction` downgraded to Person/Organization. **[061]**
 - GAP (med) -- agent label from $a only; m2b concatenates the tag-appropriate set
   ($a$b$c$d$q... ) so dates/fuller-form/subordinate units are dropped. **[061]**
-- GAP (med) -- $0/$1 authority URIs dropped (no agent IRI / authority link). **[061]**
+- RESOLVED [127] (filed from libcat/queerbooks) -- a 1xx/7xx agent's authority IRI
+  now reaches the graph: `Contribution.Authority` takes `$1` (RWO URI --
+  VIAF/Wikidata/ISNI/ORCID) preferred, else an IRI-shaped `$0` (LCNAF), and the
+  `bf:agent` node is emitted as that IRI instead of a blank node -- symmetric with
+  `Subject.Authority` and matching m2b's `generateUriFrom1`/`generateUriFrom0`
+  precedence. Decode reverses it: an IRI agent node returns to `$0` (id.loc.gov/
+  authorities) or `$1` (any other RWO URI). A non-URI `$0` record control number
+  ("(DLC)n...") is left out, so the node stays blank. This unlocks identity-by-
+  identifier hops (VIAF->P214, LCNAF->P244) for downstream enrichers. When both `$0`
+  and `$1` are present the RWO `$1` wins (as m2b does); preserving the second
+  identifier too (e.g. via `owl:sameAs`) is a possible follow-up, not needed today.
 - GAP (med/high) -- 7xx carrying $t (name-title) built as a spurious Contribution;
   m2b routes it to a related work (`bf:relation`/Hub). **[062]**
 - DIVERGENCE (defensible) -- m2b always attaches a default role (aut/ctb); we emit

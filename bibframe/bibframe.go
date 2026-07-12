@@ -232,10 +232,11 @@ type VariantTitle struct {
 
 // Contribution links an Agent to the Work with zero or more roles.
 type Contribution struct {
-	Primary bool   // a bflc:PrimaryContribution (1xx) vs a plain bf:Contribution (7xx)
-	Class   string // agent class: "Person", "Family", "Organization", "Jurisdiction" or "Meeting"
-	Label   string // agent name
-	Roles   []Role // controlled and/or literal roles, in field order
+	Primary   bool   // a bflc:PrimaryContribution (1xx) vs a plain bf:Contribution (7xx)
+	Class     string // agent class: "Person", "Family", "Organization", "Jurisdiction" or "Meeting"
+	Label     string // agent name
+	Roles     []Role // controlled and/or literal roles, in field order
+	Authority string // agent authority IRI: $1 RWO URI (VIAF/Wikidata) preferred, else IRI-shaped $0 (LCNAF); when set the bf:agent node is this IRI, not a blank node; optional
 }
 
 // Role is a single contributor role: a relator IRI (from a $4 relator code or
@@ -613,10 +614,11 @@ func (g *BIBFRAME) appendContribution(f codex.Field, class string, primary bool)
 		return
 	}
 	g.Work.Contributions = append(g.Work.Contributions, Contribution{
-		Primary: primary,
-		Class:   agentSubclass(class, f.Ind1),
-		Label:   label,
-		Roles:   contribRoles(f, roleSub),
+		Primary:   primary,
+		Class:     agentSubclass(class, f.Ind1),
+		Label:     label,
+		Roles:     contribRoles(f, roleSub),
+		Authority: agentAuthority(f),
 	})
 }
 
@@ -1036,18 +1038,36 @@ func (g *BIBFRAME) appendSubject(label, class, source, authority string) {
 	}
 }
 
-// subjectAuthority returns the authority IRI a 6xx carries in $0, or "" when
-// absent or not IRI-shaped. A $0 that is a record control number (e.g.
-// "(DLC)sh85..." rather than a URI) is left out, since bf:subject mints an IRI
-// object only from an actual authority link.
-func subjectAuthority(f codex.Field) string {
-	for _, v := range f.SubfieldValues('0') {
+// firstIRISubfield returns the first IRI-shaped value of the named subfield, or ""
+// when none is. A record control number (e.g. "(DLC)sh85..." or "(DE-588)...")
+// rather than a URI is left out, since an access-point node takes an IRI only from
+// an actual authority link.
+func firstIRISubfield(f codex.Field, code byte) string {
+	for _, v := range f.SubfieldValues(code) {
 		v = strings.TrimRight(v, " ")
 		if strings.HasPrefix(v, "http://") || strings.HasPrefix(v, "https://") {
 			return v
 		}
 	}
 	return ""
+}
+
+// subjectAuthority returns the authority IRI a 6xx carries in $0, or "" when absent
+// or not IRI-shaped.
+func subjectAuthority(f codex.Field) string {
+	return firstIRISubfield(f, '0')
+}
+
+// agentAuthority returns the identity IRI for a 1xx/7xx agent: the $1 real-world-
+// object URI (VIAF/Wikidata/ISNI/ORCID) when present, else an IRI-shaped $0
+// authority-record URI (LCNAF). This mirrors marc2bibframe2's
+// generateUriFrom1/generateUriFrom0 precedence, which makes the bf:Agent node that
+// URI so a downstream identity resolver can hop by identifier rather than name.
+func agentAuthority(f codex.Field) string {
+	if iri := firstIRISubfield(f, '1'); iri != "" {
+		return iri
+	}
+	return firstIRISubfield(f, '0')
 }
 
 // subjectThesaurusByInd2 maps a 6xx second indicator to the conventional $2
