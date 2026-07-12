@@ -72,6 +72,9 @@ func recordFromWorkInstance(g *rdf.Graph, work, inst rdf.Term, hasInst bool) *co
 	for _, f := range seriesFs {
 		add(f)
 	}
+	for _, f := range seriesEntryFields(g, work) {
+		add(f)
+	}
 	if f := durationField(g, inst); f != nil {
 		add(*f)
 	}
@@ -345,6 +348,9 @@ func seriesFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		if !ok {
 			continue
 		}
+		if g.HasType(res, classHub) {
+			continue // a bf:Hub is an 8xx/760 series added entry, decoded by seriesEntryFields
+		}
 		title := firstTitle(g, res).MainTitle
 		if title == "" {
 			continue // a series with no title says nothing; a bare 490 is not a field
@@ -363,6 +369,93 @@ func seriesFields(g *rdf.Graph, work rdf.Term) []codex.Field {
 		fields = append(fields, codex.NewDataField("490", ind1, ' ', subs...))
 	}
 	return fields
+}
+
+// isSeriesEntryTag reports whether tag is a controlled series added entry this
+// crosswalk carries as a bf:Hub/bf:Series relation.
+func isSeriesEntryTag(tag string) bool {
+	switch tag {
+	case "760", "762", "800", "810", "811", "830":
+		return true
+	}
+	return false
+}
+
+// seriesEntryFields reverses a Work's 8xx series added-entry relations
+// (800/810/811/830) and 760/762 series linking entries into their source fields.
+// These are the bf:relation nodes whose associated resource is a bf:Hub (a plain
+// bf:Series is a 490, left to seriesFields). A relation libcodex wrote carries the
+// source field verbatim in an internal marcKey note, so it reconstructs exactly;
+// a third-party Hub node without the note yields an approximate 830 (or 762) from
+// the heading's title, name, ISSN and enumeration.
+func seriesEntryFields(g *rdf.Graph, work rdf.Term) []codex.Field {
+	var fields []codex.Field
+	for _, rel := range g.Objects(work, pRelation) {
+		code := relationshipCode(g, rel)
+		if code != seriesRelationship && code != subseriesRelationship {
+			continue
+		}
+		res, ok := g.Object(rel, pAssociatedResource)
+		if !ok || !g.HasType(res, classHub) {
+			continue
+		}
+		if f, ok := seriesEntryFromNote(g, rel); ok {
+			fields = append(fields, f)
+			continue
+		}
+		if f, ok := seriesEntryFromProperties(g, rel, res, code); ok {
+			fields = append(fields, f)
+		}
+	}
+	return fields
+}
+
+// seriesEntryFromNote reconstructs the exact series added entry from a relation's
+// internal marcKey note, when it carries one for an 8xx/760/762 tag.
+func seriesEntryFromNote(g *rdf.Graph, rel rdf.Term) (codex.Field, bool) {
+	for _, note := range g.Objects(rel, pNote) {
+		if !g.HasType(note, internalNoteType) {
+			continue
+		}
+		if f, ok := parseMARCKey(literal(g, note, pLabel)); ok && isSeriesEntryTag(f.Tag) {
+			return f, true
+		}
+	}
+	return codex.Field{}, false
+}
+
+// seriesEntryFromProperties approximates a series added entry from a Hub node
+// without a marcKey note: a subseries becomes a 762, a named heading an 800, and a
+// bare title an 830. The volume designation is the relation's bf:seriesEnumeration.
+func seriesEntryFromProperties(g *rdf.Graph, rel, res rdf.Term, code string) (codex.Field, bool) {
+	title := firstTitle(g, res).MainTitle
+	name := associatedName(g, res)
+	if title == "" && name == "" {
+		return codex.Field{}, false
+	}
+	var subs []codex.Subfield
+	tag := "830"
+	switch {
+	case code == subseriesRelationship:
+		tag = "762"
+	case name != "":
+		tag = "800"
+	}
+	if name != "" {
+		subs = append(subs, codex.NewSubfield('a', name))
+		if title != "" {
+			subs = append(subs, codex.NewSubfield('t', title))
+		}
+	} else {
+		subs = append(subs, codex.NewSubfield('a', title))
+	}
+	if issn, _ := associatedIdentifiers(g, res); issn != "" {
+		subs = append(subs, codex.NewSubfield('x', issn))
+	}
+	if v := literal(g, rel, pSeriesEnumeration); v != "" {
+		subs = append(subs, codex.NewSubfield('v', v))
+	}
+	return codex.NewDataField(tag, ' ', ' ', subs...), true
 }
 
 // seriesTraced reports whether a bf:Series carries the traced status, by IRI or

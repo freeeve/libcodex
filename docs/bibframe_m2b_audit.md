@@ -220,13 +220,12 @@ remains a tracked checklist in its task file.
   The associated Work is a flat blank node (no minted IRI, a deliberate divergence
   -- see the note below), skipped as a standalone record on decode.
 
-  760/762 (main series / subseries entry) are deliberately NOT mapped here: LC maps
-  them to `relationship/series` and `subseries`, which would collide with the 490
-  series relation on the very `bf:relationship` IRI a consumer discriminates on. How
-  a 760 associated resource models (`bf:Series` vs the `bf:Hub` LC uses for 8xx) is
-  bound up with the series decision [113] defers, so they stay a tracked checklist in
-  `tasks/073_bibframe_linking_entries.done.md` and [113] alongside the 8xx series
-  added entries. 490 is mapped, as its own `bf:relation` -> `bf:Series` (see [110]).
+  760/762 (main series / subseries entry) are NOT mapped here: LC maps them to
+  `relationship/series` and `subseries`, which would collide with the 490 series
+  relation on the very `bf:relationship` IRI a consumer discriminates on. They land
+  instead with the 8xx series added entries as `SeriesEntry` nodes (see [113] below),
+  so a series relation is one uniform shape. 490 is mapped, as its own
+  `bf:relation` -> `bf:Series` (see [110]).
 
   Until v0.27.0 these IRIs were invented camelCase (`continues`,
   `otherPhysicalFormat`) that 404 at id.loc.gov; the bijective table that produced
@@ -237,9 +236,25 @@ remains a tracked checklist in its task file.
   consumer must discriminate on `bf:relationship` before reading a relation node.
   The 76x-78x tags (773/774/775/776/777/765/767/770/772/780/785/786/787) each emit a
   non-series term, so a record carrying a 490 and any of them exercises that
-  discrimination. 830 still emits none (the 8xx series added entries are deferred),
-  so a guard test built from an 830 alone cannot tell a working guard from a deleted
-  one -- use a 765 or 780.
+  discrimination.
+- RESOLVED [113] -- the 8xx series added entries (800 personal, 810 corporate, 811
+  meeting, 830 uniform title) and the 760/762 series linking entries land as
+  `SeriesEntry` -> a `bf:relation` whose relationship is `relationship/series`
+  (762 -> `subseries`) and whose `bf:associatedResource` is one node typed BOTH
+  `bf:Hub` and `bf:Series`, following ConvSpec-Process6-Series.xsl `mode="work8XX"`.
+  The dual type is the model chosen for this crosswalk: the `bf:Hub` type marks the
+  controlled heading a 490 transcription is not, while the shared `bf:Series` type
+  keeps every series relation discriminable by the one IRI a consumer checks. The
+  heading name (800/810/811/760/762) becomes a flat `bf:contribution`; the title is
+  $a for 830 and $t for a name-title heading; $v -> `bf:seriesEnumeration` on the
+  relation; $x -> `bf:Issn`. As with the 76x linking entries, the whole source field
+  rides along in an internal marcKey `bf:Note`, so decode reconstructs its exact
+  subfields and indicators; `seriesEntryFromProperties` approximates a note-absent
+  third-party Hub node as an 830 (or 762). A traced 490 (ind1=1) asserts an 8XX
+  exists; emitting the 830 is what closes the otherwise dangling `mstatus/tr`
+  reference, and the 490 and its 830 stay two relations, not one collapsed node.
+  The `bf:Hub` type is what decode uses to tell a `SeriesEntry` from a 490's plain
+  `bf:Series`.
 - DIVERGENCE (structural) -- m2b mints per-field Work/Instance IRIs
   (`#Work760-1`-style) for each linked resource; this crosswalk keeps the flat model
   and emits the `bf:associatedResource` as a blank labeled `bf:Work`, consistent with

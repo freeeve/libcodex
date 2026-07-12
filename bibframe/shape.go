@@ -178,7 +178,7 @@ func emitWorkBody(s sink, w *Work) {
 	}
 	// Series statements and linking entries are both bf:relation on the Work, so
 	// they share one list; the bf:relationship IRI tells them apart.
-	if len(w.Relations) > 0 || len(w.Series) > 0 {
+	if len(w.Relations) > 0 || len(w.Series) > 0 || len(w.SeriesEntries) > 0 {
 		s.beginList(qpRelation)
 		for _, rel := range w.Relations {
 			emitRelation(s, rel)
@@ -186,6 +186,9 @@ func emitWorkBody(s sink, w *Work) {
 		describedStatus := map[string]bool{}
 		for _, ser := range w.Series {
 			emitSeries(s, ser, describedStatus)
+		}
+		for _, e := range w.SeriesEntries {
+			emitSeriesEntry(s, e)
 		}
 		s.endList()
 	}
@@ -530,6 +533,52 @@ func emitSeries(s sink, ser Series, describedStatus map[string]bool) {
 	s.endChild()
 	if ser.Enumeration != "" {
 		s.lit(qpSeriesEnumeration, ser.Enumeration)
+	}
+	s.endNode()
+}
+
+// emitSeriesEntry emits one 8xx series added entry (or 760/762) as a bf:Relation
+// whose associated resource is a single node typed both bf:Hub and bf:Series,
+// following marc2bibframe2's work8XX template. The dual type keeps the node
+// discriminable as a series by the same bf:relationship IRI a consumer checks,
+// while the Hub type marks it as the controlled heading a 490 transcription is not.
+// The heading name (800/810/811/760/762) becomes a flat contribution; the source
+// field rides along in an internal marcKey note for exact reconstruction.
+func emitSeriesEntry(s sink, e SeriesEntry) {
+	s.beginNode(qcRelation, iriVal{}, qname{})
+	rel := seriesRelationship
+	if e.Subseries {
+		rel = subseriesRelationship
+	}
+	s.ref(qpRelationship, relationshipIRIVal(rel))
+	s.beginChild(qpAssociatedResource)
+	s.beginNode(qcHub, iriVal{}, qcSeries)
+	if e.Name != "" {
+		s.beginChild(qpContribution)
+		emitContribution(s, Contribution{Class: e.NameClass, Label: e.Name})
+		s.endChild()
+	}
+	if e.Title != "" {
+		s.beginChild(qpTitle)
+		emitTitle(s, Title{MainTitle: e.Title})
+		s.endChild()
+	}
+	if e.ISSN != "" {
+		s.beginChild(qpIdentifiedBy)
+		emitIdentifier(s, Identifier{Class: "Issn", Value: e.ISSN})
+		s.endChild()
+	}
+	s.endNode()
+	s.endChild()
+	if e.Enumeration != "" {
+		s.lit(qpSeriesEnumeration, e.Enumeration)
+	}
+	if e.MARCKey != "" {
+		s.beginChild(qpNote)
+		s.beginNode(qcNote, iriVal{}, qcInternalNote)
+		s.lit(qpLabel, e.MARCKey)
+		s.endNode()
+		s.endChild()
 	}
 	s.endNode()
 }

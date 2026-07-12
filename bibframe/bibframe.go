@@ -78,9 +78,10 @@ const (
 // Series status codes (bf:Status), following marc2bibframe2. Every 490 is
 // transcribed; ind1=1 says the series is additionally traced in an 8XX.
 const (
-	seriesRelationship = "series"
-	statusTranscribed  = "t"
-	statusTraced       = "tr"
+	seriesRelationship    = "series"
+	subseriesRelationship = "subseries"
+	statusTranscribed     = "t"
+	statusTraced          = "tr"
 )
 
 // BIBFRAME is the Work/Instance pair derived from one MARC record.
@@ -101,8 +102,9 @@ type Work struct {
 	// list, distinguished only by their bf:relationship IRI. A consumer walking
 	// bf:relation must check the relationship before interpreting a node, or it
 	// will read a preceding-title entry as a series statement.
-	Relations       []Relation // 773/776/780/785 linking entries -> bf:relation
-	Series          []Series   // 490 transcribed series statements -> bf:relation, relationship/series
+	Relations       []Relation    // 773/776/780/785 linking entries -> bf:relation
+	Series          []Series      // 490 transcribed series statements -> bf:relation, relationship/series
+	SeriesEntries   []SeriesEntry // 8xx series added entries (800/810/811/830) and 760/762 -> bf:relation, relationship/series
 	Subjects        []Subject
 	GenreForms      []string
 	Languages       []string // content languages: ISO 639-2 codes from 008/35-37 and 041 $a
@@ -168,6 +170,35 @@ type Series struct {
 	Enumeration string // 490 $v -> bf:seriesEnumeration on the bf:Relation; optional
 	ISSN        string // 490 $x -> bf:Series / bf:identifiedBy / bf:Issn; optional
 	Traced      bool   // 490 ind1 = '1': series traced, an mstatus/tr alongside mstatus/t
+}
+
+// SeriesEntry is a controlled series added entry -- an 8xx (800 personal, 810
+// corporate, 811 meeting, 830 uniform title) or a 760/762 series linking entry.
+// marc2bibframe2 (ConvSpec-Process6-Series.xsl, mode="work8XX") models it as a
+// bf:relation whose bf:relationship is relationship/series (762 subseries) and
+// whose bf:associatedResource is one node typed both bf:Hub and bf:Series -- the
+// Hub carries the controlled heading, the Series type keeps every series relation
+// discriminable by the one IRI a consumer checks. That dual type is the shape
+// chosen for this crosswalk; 760/762, which LC otherwise models as plain linking
+// Works, are pulled into this series shape so a consumer never sees two node types
+// for a series relation.
+//
+// A traced 490 (ind1=1) asserts an 8XX exists; emitting the 8XX is what closes the
+// otherwise dangling mstatus/tr reference. The 490 and its 830 stay two relations,
+// not one collapsed node.
+//
+// The heading's exact subfields and indicators cannot be recovered from the flat
+// view, so the source field rides along verbatim in an internal marcKey note --
+// the same lossless carrier 040 and the 76x linking entries use -- and decode
+// reconstructs the field from it exactly.
+type SeriesEntry struct {
+	Subseries   bool   // 762 -> relationship/subseries; else relationship/series
+	Name        string // 800/810/811/760/762 heading name ($a); "" for 830 (title series)
+	NameClass   string // agent class for Name (Person/Organization/Meeting); "" when no name
+	Title       string // series title: 830 $a uniform title, else $t; the access point
+	Enumeration string // $v -> bf:seriesEnumeration on the relation; optional
+	ISSN        string // $x -> bf:Issn; optional
+	MARCKey     string // verbatim source field, the exact round-trip carrier
 }
 
 // Instance is a particular publication of the Work (bf:Instance).
@@ -398,6 +429,8 @@ func FromRecord(r *codex.Record) *BIBFRAME {
 			g.Instance.Carrier = append(g.Instance.Carrier, rdaTerm(f))
 		case "765", "767", "770", "772", "773", "774", "775", "776", "777", "780", "785", "786", "787":
 			g.appendRelation(f)
+		case "760", "762", "800", "810", "811", "830":
+			g.appendSeriesEntry(f)
 		case "500", "504", "511", "521", "533", "538", "546":
 			// Notes about the content (546 language, 511 performers, 521
 			// audience) describe the Work; the rest (500 general, 504
@@ -664,6 +697,51 @@ func (g *BIBFRAME) appendRelation(f codex.Field) {
 		ISSN:         issn,
 		ISBN:         isbn,
 		MARCKey:      marcKeyOf(f),
+	})
+}
+
+// seriesEntryClass gives the agent class of a series added entry's heading:
+// personal for 800, corporate for 810 and the 760/762 main-series entries, meeting
+// for 811. 830 is a uniform title with no agent.
+func seriesEntryClass(tag string) string {
+	switch tag {
+	case "800":
+		return "Person"
+	case "811":
+		return "Meeting"
+	case "810", "760", "762":
+		return "Organization"
+	default: // 830
+		return ""
+	}
+}
+
+// appendSeriesEntry records an 8xx series added entry (800/810/811/830) or a
+// 760/762 series linking entry as a SeriesEntry. The title is $a for a 830 uniform
+// title and $t for a name-title heading; the heading name ($a) rides along for the
+// name-title tags. The whole field is carried verbatim in MARCKey so decode
+// reconstructs its exact subfields and indicators. A field with no title and no
+// name is skipped.
+func (g *BIBFRAME) appendSeriesEntry(f codex.Field) {
+	class := seriesEntryClass(f.Tag)
+	var name, title string
+	if class == "" { // 830 uniform title
+		title = trimISBD(f.SubfieldValue('a'))
+	} else {
+		name = trimISBD(f.SubfieldValue('a'))
+		title = trimISBD(f.SubfieldValue('t'))
+	}
+	if title == "" && name == "" {
+		return
+	}
+	g.Work.SeriesEntries = append(g.Work.SeriesEntries, SeriesEntry{
+		Subseries:   f.Tag == "762",
+		Name:        name,
+		NameClass:   class,
+		Title:       title,
+		Enumeration: trimISBD(f.SubfieldValue('v')),
+		ISSN:        trimISBD(f.SubfieldValue('x')),
+		MARCKey:     marcKeyOf(f),
 	})
 }
 

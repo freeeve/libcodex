@@ -62,6 +62,7 @@ var (
 	qcInstance               = qname{nsBF, "Instance", "bf:Instance", classInstance}
 	qcTitle                  = qname{nsBF, "Title", "bf:Title", bfNS + "Title"}
 	qcSeries                 = qname{nsBF, "Series", "bf:Series", classSeries}
+	qcHub                    = qname{nsBF, "Hub", "bf:Hub", classHub}
 	qcVariantTitle           = qname{nsBF, "VariantTitle", "bf:VariantTitle", classVariantTitle}
 	qcParallelTitle          = qname{nsBF, "ParallelTitle", "bf:ParallelTitle", classParallelTitle}
 	qcPublication            = qname{nsBF, "Publication", "bf:Publication", bfNS + "Publication"}

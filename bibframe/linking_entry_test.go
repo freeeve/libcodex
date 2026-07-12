@@ -179,18 +179,22 @@ func TestLinkingEntryAdditive76x(t *testing.T) {
 	}
 }
 
-// TestLinkingEntry760NotRelation pins that 760/762 do NOT become bf:relations: their
-// series/subseries terms are reserved for the series modeling task 113 defers, so
-// routing them here would collide with the 490 series discrimination.
+// TestLinkingEntry760NotRelation pins that 760/762 are NOT 76x-78x linking
+// relations: their series/subseries terms belong to the series modeling, so they
+// route to SeriesEntries (task 113 piece 1), never to Work.Relations, where they
+// would collide with the 490 series discrimination.
 func TestLinkingEntry760NotRelation(t *testing.T) {
 	for _, tag := range []string{"760", "762"} {
 		if _, ok := relationCodeFor(tag, ' '); ok {
-			t.Errorf("relationCodeFor(%s) is supported; 760/762 must stay with series modeling", tag)
+			t.Errorf("relationCodeFor(%s) is supported; 760/762 belong to series modeling", tag)
 		}
 		g := FromRecord(recordWith(codex.NewDataField(tag, '0', ' ',
 			codex.NewSubfield('t', "Series title"))))
 		if len(g.Work.Relations) != 0 {
-			t.Errorf("%s produced relations %+v; want none", tag, g.Work.Relations)
+			t.Errorf("%s produced relations %+v; want none (they are SeriesEntries)", tag, g.Work.Relations)
+		}
+		if len(g.Work.SeriesEntries) != 1 {
+			t.Errorf("%s series entries = %+v, want one", tag, g.Work.SeriesEntries)
 		}
 	}
 }
