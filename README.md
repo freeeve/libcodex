@@ -304,6 +304,31 @@ Guarded targets authenticate via `Client.User`/`Password`/`Group` (idPass) or
 `Client.AuthOpen`. Interop is tested against YAZ's `yaz-ztest` (skipped when YAZ
 is not installed) and, opt-in via `Z3950_LIVE_TARGET`, any live target.
 
+## Real-time availability over SIP2 (`sip2`)
+
+Where SRU and Z39.50 answer "what does this library hold", [SIP2](https://en.wikipedia.org/wiki/Standard_Interchange_Protocol)
+(3M Standard Interchange Protocol v2) answers "is this copy on the shelf right
+now". The `sip2` client implements the discovery slice -- optional Login (93/94)
+and Item Information (17/18) over a TCP session -- for a real-time availability
+bridge; it does not cover checkout, holds, fees or patron messages.
+
+```go
+c := &sip2.Client{Address: "acs.example.org:6001", User: "term", Password: "pw"}
+conn, _ := c.Connect(ctx) // dials and (since User is set) logs in
+defer conn.Close()
+info, _ := conn.ItemInformation(ctx, "30000123456789") // barcode
+avail := sip2.CirculationStatusLabel(info.CirculationStatus) == "available"
+```
+
+`ItemInfo` surfaces the fixed status header (circulation status, security marker,
+fee type, transaction date) and the variable fields a discovery caller reads --
+item id (AB), title (AJ), due date (AH), current/permanent location (AP/AQ), the 3M
+call-number extension (CS) and hold-queue length (CF) -- with every field also in
+`ItemInfo.Fields`. `CirculationStatusLabel` exposes the 01-13 status table so a
+caller folds it into its own availability rollup. Error detection (the AY/AZ
+checksum) is opt-in via `Client.ErrorDetection` and always tolerated inbound, and
+`Client.Dial` is a seam for tests.
+
 ## Reading UNIMARC
 
 [UNIMARC](https://www.ifla.org/g/unimarc-rg/) (IFLA, used widely in Europe) shares
